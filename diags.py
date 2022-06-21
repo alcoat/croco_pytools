@@ -352,8 +352,8 @@ def get_p(model, rho, z_w, z_r, ds=None, g=None, rho0=None, xgrid=None):
     OneTwelfth = 1.0/12.0
 
     # dz and drho on w levels
-    dR = xgrid.diff(rho,'z', boundary='extrapolate').rename('dR')
-    dZ = xgrid.diff(z_r,'z', boundary='extrapolate').rename('dZ')
+    dR = xgrid.diff(rho,'z', boundary='extend').rename('dR')
+    dZ = xgrid.diff(z_r,'z', boundary='extend').rename('dZ')
 
     # modified dz and dr on w levels
     dZi = 2. * ( dZ * dZ.shift(s_w=1,fill_value=0) 

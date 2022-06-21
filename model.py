@@ -67,10 +67,16 @@ class Model:
                 # time
                 "time_counter" : "t",                 # time
                 # dimensions
+                "xi_rho"       : "x",                 # x dimension at mass points
+                "eta_rho"      : "y",                 # y dimension at mass points
                 "x_rho"        : "x",                 # x dimension at mass points
                 "y_rho"        : "y",                 # x dimension at mass points
+                "xi_u"         : "x_u",               # x dimension at u points
+                "eta_u"        : "y",                 # y dimension at u points
                 "x_u"          : "x_u",               # x dimension at u points
                 "y_u"          : "y",                 # y dimension at u points
+                "xi_v"         : "x",                 # x dimension at v points
+                "eta_v"        : "y_v",               # y dimension at v points
                 "x_v"          : "x",                 # x dimension at v points
                 "y_v"          : "y_v",               # y dimension at v points
                 "s_rho"        : "s",                 # sigma dimension at rho level
@@ -80,3 +86,8 @@ class Model:
         else:
             print('Model name not defined. See module model.py')
             
+
+        self.dims_var = {
+            'sc_r' : ['s'],
+            'sc_w' : ['s_w'],
+        }

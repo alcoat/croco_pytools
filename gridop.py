@@ -56,16 +56,32 @@ def del_name_suffix(ds,suffix):
             ds = ds.rename({old: new})
     return ds
 
-def find_var(var,ds,gd):
+def find_var(model,varname,ds,gd):
     
-    if var in gd:
-        return gd[var]
-    elif var in gd.attrs:
-        return gd.attrs[var]
-    elif var in ds:
-        return ds[var]
-    elif var in ds.attrs:
-        return ds.attrs[var]
+    def good_type(var):
+        if isinstance(var,xr.DataArray) or isinstance(var,np.ndarray) or \
+        isinstance(var,np.float32) or isinstance(var,np.float64) or \
+        isinstance(var,np.int32) or isinstance(var,np.float64):
+            return True
+        else:
+            return False
+        
+    def to_dataarray(model,varname, var):
+        if  isinstance(var,np.ndarray):
+            var = xr.DataArray(data=var,
+                            dims=model.dims_var[varname]
+            )
+                         
+        return var
+        
+    if varname in gd and good_type(gd[varname]):
+        return to_dataarray(model,varname,gd[varname])
+    elif varname in ds and good_type(ds[varname]):
+        return to_dataarray(model,varname,ds[vvarnamear])
+    elif varname in gd.attrs and good_type(gd.attrs[varname]):
+        return to_dataarray(model,varname,gd.attrs[varname])
+    elif varname in ds.attrs and good_type(ds.attrs[varname]):
+        return to_dataarray(model,varname,ds.attrs[varname])
     else:
         return None
 
@@ -83,30 +99,29 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     # Rename variable according model
     if suffix != '' : gd = del_name_suffix(gd,suffix)
     gd = adjust_grid(model, gd)
-    
     ds = model.ds
 
-    if find_var('hc',ds,gd) is not None: ds['hc'] = find_var('hc',ds,gd)
-    if find_var('h',ds,gd) is not None: ds['h'] = find_var('h',ds,gd)
-    if find_var('pm',ds,gd) is not None: ds['pm']   = find_var('pm',ds,gd)
-    if find_var('pn',ds,gd) is not None: ds['pn']   = find_var('pn',ds,gd)
-    if find_var('sc_r',ds,gd) is not None: ds['sc_r'] = find_var('sc_r',ds,gd)
-    if find_var('sc_w',ds,gd) is not None: ds['sc_w'] = find_var('sc_w',ds,gd)
-    if find_var('Cs_r',ds,gd) is not None: ds['Cs_r'] = find_var('Cs_r',ds,gd)
-    if find_var('Cs_w',ds,gd) is not None: ds['Cs_w'] = find_var('Cs_w',ds,gd)
+    if find_var(model,'hc',ds,gd) is not None: ds['hc'] = find_var(model,'hc',ds,gd)
+    if find_var(model,'h',ds,gd) is not None: ds['h'] = find_var(model,'h',ds,gd)
+    if find_var(model,'pm',ds,gd) is not None: ds['pm']   = find_var(model,'pm',ds,gd)
+    if find_var(model,'pn',ds,gd) is not None: ds['pn']   = find_var(model,'pn',ds,gd)
+    if find_var(model,'sc_r',ds,gd) is not None: ds['sc_r'] = find_var(model,'sc_r',ds,gd)
+    if find_var(model,'sc_w',ds,gd) is not None: ds['sc_w'] = find_var(model,'sc_w',ds,gd)
+    if find_var(model,'Cs_r',ds,gd) is not None: ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
+    if find_var(model,'Cs_w',ds,gd) is not None: ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
 #     model.ds['Vtransform'] = find_var('Vtransform',ds,gd)
-    if find_var('angle',ds,gd) is not None: ds['angle'] = find_var('angle',ds,gd)
-    if find_var('mask',ds,gd) is not None: ds['mask'] = find_var('mask',ds,gd)
-    if find_var('lon',ds,gd) is not None: ds['lon'] = find_var('lon',ds,gd)
-    if find_var('lat',ds,gd) is not None: ds['lat'] = find_var('lat',ds,gd)
-    if find_var('f',ds,gd) is not None: ds['f'] = find_var('f',ds,gd)
-    if find_var('rho0',ds,gd) is not None: ds['rho0'] = find_var('rho0',ds,gd)
-    if find_var('g',ds,gd) is not None: ds['g'] = find_var('g',ds,gd)
+    if find_var(model,'angle',ds,gd) is not None: ds['angle'] = find_var(model,'angle',ds,gd)
+    if find_var(model,'mask',ds,gd) is not None: ds['mask'] = find_var(model,'mask',ds,gd)
+    if find_var(model,'lon',ds,gd) is not None: ds['lon'] = find_var(model,'lon',ds,gd)
+    if find_var(model,'lat',ds,gd) is not None: ds['lat'] = find_var(model,'lat',ds,gd)
+    if find_var(model,'f',ds,gd) is not None: ds['f'] = find_var(model,'f',ds,gd)
+    if find_var(model,'rho0',ds,gd) is not None: ds['rho0'] = find_var(model,'rho0',ds,gd)
+    if find_var(model,'g',ds,gd) is not None: ds['g'] = find_var(model,'g',ds,gd)
     coords = [c for c in ds.coords if c not in ['t','s','s_w']]
     ds = ds.reset_coords()
     ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
     model.ds = ds
-    
+        
     # On crée la grille xgcm
     ds, grid = xgcm_grid(model, grid_metrics=grid_metrics)
     

@@ -56,7 +56,7 @@ def array2cmap(X):
 
 
 
-def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, save=False, 
+def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False, 
                 cmap=None, figsize=(10,8), dpi=150, **kwargs):
 
     if fig_dir is None:
@@ -71,8 +71,8 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, save=False,
     fig = plt.figure(figsize=figsize)
     ax = fig.subplots(1, 1)
 
-    h = np.datetime_as_string(da.t, unit='m')
-    title = fig_suffix+', date = %s'%(h)
+    if 't' in da.coords: date = np.datetime_as_string(da.t, unit='m')
+    title = fig_suffix+', date = %s'%(date)
 
     coords = gop.get_spatial_coords(da)
     da.plot(x=coords['lon'], y=coords['lat'], ax=ax, cmap=cmap, **kwargs)    
