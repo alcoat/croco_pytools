@@ -25,7 +25,8 @@ conda create -n xcroco -c conda-forge -y python=3.10
 conda activate xcroco
 conda install -y -c conda-forge dask dask-jobqueue \
             xarray zarr netcdf4 jupyterlab ipywidgets cartopy \
-            geopandas nodejs intake-xarray xgcm numba
+            geopandas nodejs intake-xarray xgcm numba jupyterhub \
+            memory_profiler
 cd croco-tools/xcroco; pip install -e .
 
 jupyter labextension install @jupyter-widgets/jupyterlab-manager \
