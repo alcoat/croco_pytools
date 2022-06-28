@@ -9,6 +9,8 @@ import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
 import scipy.io
+from collections import OrderedDict
+
 
 import gridop as gop
 from tools import dask_compute_batch
@@ -58,7 +60,9 @@ def array2cmap(X):
 
 def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False, 
                 cmap=None, figsize=(10,8), dpi=150, **kwargs):
-
+    '''
+    Plot an 2d xarray DataArray
+    '''
     if fig_dir is None:
         fig_dir = os.environ['SCRATCH']+'/figs/'
 
@@ -75,7 +79,10 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
     title = fig_suffix+', date = %s'%(date)
 
     coords = gop.get_spatial_coords(da)
-    da.plot(x=coords['lon'], y=coords['lat'], ax=ax, cmap=cmap, **kwargs)    
+    # remove None values of coords
+    coords = OrderedDict([(k,v) for k,v in coords.items() if v is not None])
+    
+    da.plot(x=coords[next(reversed(coords))], y=coords[next(iter(coords))], ax=ax, cmap=cmap, **kwargs)    
     ax.set_title(title)
     if save: 
         fig.savefig(figname, dpi=dpi)

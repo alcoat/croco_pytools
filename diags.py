@@ -36,7 +36,7 @@ def relative_vorticity(model, ds=None, xgrid=None, u=None, v=None, f=None):
     xi = ((-xgrid.derivative(u, 'y') 
            + xgrid.derivative(v, 'x')
           )/f).rename('vorticity')
-    return xi
+    return xi.rename('relvort')
 
 
 def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ijk'):
@@ -155,7 +155,7 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
     z_w = xgrid.interp(z, 'z') #.fillna(0.)
     pv = pv.assign_coords(coords={"z_w":z_w})
 
-    return pv.squeeze()
+    return pv.squeeze().rename('pv')
 
 def dtempdz(model, ds=None, xgrid=None, temp=None, z=None):
     """
@@ -182,10 +182,10 @@ def dtempdz(model, ds=None, xgrid=None, temp=None, z=None):
     z_w = xgrid.interp(z,'z').squeeze()
 
     dtempdz = (xgrid.diff(temp,'z') / xgrid.diff(z,'z')).squeeze()
-    if 'lon' in temp: dtempdz = dtempdz.assign_coords(coords={"lon":temp.lon})
-    if 'lat' in temp: dtempdz = dtempdz.assign_coords(coords={"lat":temp.lat})
+    if 'lon' in temp.coords: dtempdz = dtempdz.assign_coords(coords={"lon":temp.lon})
+    if 'lat' in temp.coords: dtempdz = dtempdz.assign_coords(coords={"lat":temp.lat})
     dtempdz = dtempdz.assign_coords(coords={"z_w":z_w})
-    return dtempdz
+    return dtempdz.rename('dtdz')
 
 def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     """
@@ -237,8 +237,10 @@ def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     dvdz = xgrid.diff(v,'z') / xgrid.diff(gop.x2v(ds,z,xgrid),'z')
 
     Ri = xr.ufuncs.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
+    if 'lon' in rho.coords: Ri = Ri.assign_coords(coords={"lon":rho.lon})
+    if 'lat' in rho.coords: Ri = Ri.assign_coords(coords={"lat":rho.lat})
     Ri = Ri.assign_coords(coords={"z":z_w})
-    return(Ri)
+    return Ri.rename('Ri')
 
 def get_N2(model, ds=None, rho=None, z=None, rho0=None, g=None, xgrid=None):
     """ Compute square buoyancy frequency N2 
@@ -266,7 +268,7 @@ def get_N2(model, ds=None, rho=None, z=None, rho0=None, g=None, xgrid=None):
     # cannot find a solution with xgcm, weird
     N2 = N2.fillna(N2.shift(s_w=-1))
     N2 = N2.fillna(N2.shift(s_w=1))
-    return N2
+    return N2.rename('N2')
 
 def get_streamfunction(model,pm,pn,pv,verbo=False):
     """
@@ -311,7 +313,7 @@ def get_streamfunction(model,pm,pn,pv,verbo=False):
         dims=["y_rho", "x_rho"],
         coords={'nav_lon_rho':pv.nav_lon_rho, 'nav_lat_rho':pv.nav_lat_rho}
         )
-    return chi
+    return chi.rename('streamfct')
 
 
 def get_p(model, rho, z_w, z_r, ds=None, g=None, rho0=None, xgrid=None):
