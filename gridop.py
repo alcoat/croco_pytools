@@ -85,6 +85,55 @@ def find_var(model,varname,ds,gd):
     else:
         return None
 
+def get_cs(model, ds, gd, vgrid):
+    """ get croco vertical grid  stretching 
+    https://www.myroms.org/wiki/Vertical_S-coordinate
+    """
+    # search vtransform 
+    if 'vtransform' in gd:
+        vtransform = gd.vtransform.values
+    elif 'vtransform' in ds:
+        vtransform = ds.vtransform.values
+    elif 'vtransform' in gd.attrs:
+        vtransform = gd.attrs['vtransform']
+    elif 'vtransform' in ds.attrs:
+        vtransform = ds.attrs['vtransform']
+    else:
+        print("Can't find vtransform neither in filename nor in gridname  ")
+        return None
+    
+    # search theta_s 
+    if find_var(model,'theta_s',ds,gd) is not None: 
+        theta_s = find_var(model,'theta_s',ds,gd).values
+    else:
+        print("Can't find theta_s neither in filename nor in gridname  ")
+        return None
+    # search theta_b 
+    if find_var(model,'theta_b',ds,gd) is not None: 
+        theta_b = find_var(model,'theta_b',ds,gd).values
+    else:
+        print("Can't find theta_b neither in filename nor in gridname  ")
+        return None
+    
+    sc = ds.sc_r.values if vgrid=='r' else ds.sc_w.values
+    
+    # New coordinates
+    if vtransform == 2 or vtransform.lower()=='new':
+        if theta_s>0:
+            csf = (1-np.cosh(theta_s*sc)) / (np.cosh(theta_s)-1.)
+        else:
+            csf = sc**2
+        if theta_b>0:
+            cs = (np.exp(theta_s*csf)-1.) / (1-np.exp(-theta_b))
+        else:
+            cs = csf
+    # Old coordinates
+    else:
+        cs = (1-theta_b)*np.sinh(theta_s*sc)/np.sinh(theta_s) \
+             + theta_b*0.5 \
+               *(np.tanh((sc+0.5)*theta_s)/np.tanh(0.5*theta_s)-1.)
+    return cs
+
 def add_grid(model, gridname, grid_metrics=1, suffix=''):
         
     # open grid file
@@ -105,11 +154,28 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     if find_var(model,'h',ds,gd) is not None: ds['h'] = find_var(model,'h',ds,gd)
     if find_var(model,'pm',ds,gd) is not None: ds['pm']   = find_var(model,'pm',ds,gd)
     if find_var(model,'pn',ds,gd) is not None: ds['pn']   = find_var(model,'pn',ds,gd)
-    if find_var(model,'sc_r',ds,gd) is not None: ds['sc_r'] = find_var(model,'sc_r',ds,gd)
-    if find_var(model,'sc_w',ds,gd) is not None: ds['sc_w'] = find_var(model,'sc_w',ds,gd)
-    if find_var(model,'Cs_r',ds,gd) is not None: ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
-    if find_var(model,'Cs_w',ds,gd) is not None: ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
-#     model.ds['Vtransform'] = find_var('Vtransform',ds,gd)
+    N = ds.dims['s']
+    if 'sc_r' not in ds:
+        if find_var(model,'sc_r',ds,gd) is not None: 
+            ds['sc_r'] = find_var(model,'sc_r',ds,gd)
+        else:
+            ds['sc_r'] = xr.DataArray(np.arange(-1.+1./(N+1),0., 1/(N+1)), dims='s')  
+    if 'sc_w' not in ds:      
+        if find_var(model,'sc_w',ds,gd) is not None: 
+            ds['sc_w'] = find_var(model,'sc_w',ds,gd)
+        else:
+            ds['sc_w'] = xr.DataArray(np.arange(-1.,0., 1/(N+1)), dims='s_w')
+    if 'Cs_r' not in ds:
+        if  find_var(model,'Cs_r',ds,gd) is not None: 
+            ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
+        else:
+            ds['Cs_r'] = get_cs(model,ds, gd, 'r')
+    if 'Cs_w' not in ds:
+        if  find_var(model,'Cs_w',ds,gd) is not None: 
+            ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
+        else:
+            ds['Cs_w'] = get_cs(model,ds, gd, 'w')        
+        
     if find_var(model,'angle',ds,gd) is not None: ds['angle'] = find_var(model,'angle',ds,gd)
     if find_var(model,'mask',ds,gd) is not None: ds['mask'] = find_var(model,'mask',ds,gd)
     if find_var(model,'lon',ds,gd) is not None: ds['lon'] = find_var(model,'lon',ds,gd)
@@ -117,6 +183,8 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     if find_var(model,'f',ds,gd) is not None: ds['f'] = find_var(model,'f',ds,gd)
     if find_var(model,'rho0',ds,gd) is not None: ds['rho0'] = find_var(model,'rho0',ds,gd)
     if find_var(model,'g',ds,gd) is not None: ds['g'] = find_var(model,'g',ds,gd)
+    
+    
     coords = [c for c in ds.coords if c not in ['t','s','s_w']]
     ds = ds.reset_coords()
     ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
@@ -265,11 +333,21 @@ def dll_dist(dlon, dlat, lon, lat):
 
 
 def adjust_grid(model, ds):
-    
+    ''' 
+    Change the names in the dataset according to the model
+    Input : model: Instance of the model class
+            ds : dataset to change
+    Output : changed dataset
+    '''
+    # change names in dims, coordinates and variables
     for k,v in model.rename_vars.items():
         if (k in ds and v not in ds) or \
             k in ds.dims.keys():
             ds = ds.rename({k: v})
+    # change names in attributes
+    for k,v in model.rename_vars.items():
+        if (k in ds.attrs and v not in ds.attrs):
+            ds.attrs[v] = ds.attrs.pop(k)
     return ds
     
 

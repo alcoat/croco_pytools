@@ -64,6 +64,7 @@ class Model:
                 "nav_lat"      : "lat",               # latitude at mass points
                 "mask_rho"     : "mask",              # land mask
                 "f"            : "f",                 # Coriolis parameter (1/seconds) at RHO-points
+                "VertCoordType": "vtransform" ,       # new vertical S-coordinates
                 # time
                 "time_counter" : "t",                 # time
                 # dimensions
