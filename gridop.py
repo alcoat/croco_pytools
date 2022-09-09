@@ -33,6 +33,7 @@ def open_files(model, gridname, filenames,
             ds = xr.open_mfdataset(filenames, drop_variables=drop_variables, **open_kwargs)  
         except :
             print('open_files: unknown format: only Netcdf or Zarr')
+            print('or filenames do not exist')
             return
         
     if suffix != '' : ds = del_name_suffix(ds,suffix)
