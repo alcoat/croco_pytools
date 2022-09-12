@@ -7,6 +7,9 @@ from dask import delayed
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
+# 2 lines below to uncomment for use in batch mode
+#import matplotlib
+#matplotlib.use('AGG')
 
 import scipy.io
 from collections import OrderedDict
@@ -64,8 +67,13 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
     Plot an 2d xarray DataArray
     '''
     if fig_dir is None:
-        fig_dir = os.environ['SCRATCH']+'/figs/'
-
+        try:
+            fig_dir = os.environ['SCRATCH']+'/figs/'
+        except:
+            fig_dir = os.environ['PWD']+'/figs/'
+    if not os.path.isdir(fig_dir):
+        os.mkdir(fig_dir)
+    
     if fig_suffix is None:
         if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
     figname = fig_dir+fig_suffix+'_t%05d' %(numimage)+'.png'
@@ -94,13 +102,6 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
 
 def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),  
                       fps=5, **kwargs):
-
-    if fig_dir is None:
-        fig_dir = os.environ['SCRATCH']+'/figs/'
-
-    if fig_suffix is None:
-        if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
-
 
     # plotfig_delayed = delayed(plotfig)
     tasks = [
