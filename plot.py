@@ -7,9 +7,16 @@ from dask import delayed
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
-# 2 lines below to uncomment for use in batch mode
-#import matplotlib
-#matplotlib.use('AGG')
+
+# check if python run in batch mode or from jupyter (for plot in batch mode)
+import psutil
+def running_in_jupyter():
+    """Return True if any of our parent processes is jupyter"""
+    parent_names = [parent.name() for parent in psutil.Process().parents()]
+    return any('jupyter' in string for string in parent_names)
+if not running_in_jupyter():
+    import matplotlib
+    matplotlib.use('AGG')
 
 import scipy.io
 from collections import OrderedDict
