@@ -361,9 +361,11 @@ def get_p(model, rho, z_w, z_r, ds=None, g=None, rho0=None, xgrid=None):
     dZi = 2. * ( dZ * dZ.shift(s_w=1,fill_value=0) 
             / (dZ + dZ.shift(s_w=1,fill_value=0)) )
     dZi = xr.concat([dZ.isel(s_w=0), dZi.isel(s_w=slice(1,None))], dim='s_w')
+    dZi = dZi.chunk(chunks={'s_w':-1})
     dRi = 2. * ( dR * dR.shift(s_w=1,fill_value=0) 
             / (dR + dR.shift(s_w=1,fill_value=0)) )
     dRi = xr.concat([dR.isel(s_w=0), dRi.isel(s_w=slice(1,None))], dim='s_w')
+    dRi = dRi.chunk(chunks={'s_w':-1})
 
     # Pressure at the surface on rho level
     Pn = (g*z_w.isel(s_w=-1) + GRho*( rho.isel(s=-1) 
