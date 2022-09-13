@@ -1,0 +1,81 @@
+NOTES: Obtaining datasets:
+====== ========= =========
+
+A) GSHHS shoreline data is available from
+
+       http://www.soest.hawaii.edu/pwessel/gshhg/index.html
+
+then scroll down and look for link
+
+  GSHHG coastlines, rivers, and borders in native binary format (zip archive)
+
+which can be either FDP or HTTP.  Alternatively one can get it from
+
+       http://www.ngdc.noaa.gov/mgg/shorelines/data/gshhs/latest/
+
+however "latest" may not necessarily be the latest -- the primary sourse is
+Paul Wessel web suite http://www.soest.hawaii.edu/pwessel/ in any case.
+
+Either way, one should look for a file named as  gshhg-bin-A.B.C.zip where
+A.B.C is version number (e.g., A.B.C=2.3.6 for 19 August 2016 version).
+Unpacking it results in a set of binary files "gshhs_X.b" where X={c,l,i,h,f}
+which stands for "coarse", "low", "intermediate", "high", and "full"
+resolution versions.  The amount of data stored in each file is proportional
+to its size and increases by approximately a factor of 5 per step,
+
+               0.2 --> 1.2 --> 5.5 --> 22.5 --> 96 MBytes
+
+for "c" to "f" respectively.  In practice, only full-resolution, gshhs_f.b,
+is what one is needed -- computational performance of the tools included in
+this package is sufficient to handle it in reasonable time, thought "high"
+may be occasionally useful for debugging.
+IMPORTANT: File "gshhs_f.b" (an/or/as well as others) must be placed somewhere
+on the local computer, after which C-program "read_gshhs.c" (comes with this
+package) must be edited to make sure that its line
+
+                 char fname []="/path/to/dir/gshhs_f.b";
+
+points to the correct location.
+
+Note that the "native binary format" is the most efficient way to store
+such data in terms of file size, speed of reading and speed of processing:
+in fact, (lon,lat)-coordinates expressed in degrees are multiplied by 10^6
+(one million) and then truncated and stored as integer*4 numbers.  Because
+-180 < lon < +360 and -90 < lat < 90 after such rescaling just fit into the
+range of integer*4 numbers  2^31 - 1.= 2,147,483,647 (in fact, multiplying
+them by 4x10^6 would be even better), this introduces discretization error
+of of 10^-6 degree, which in the worst case corresponds to 110 meters on
+the Earth surface. This is good enough for most if not virtually all ocean
+modeling applications.  Storing such numbers as floating-point real*4 is
+too crude because of loosing 1 byte of accuracy (256 times larger error),
+while storing them as real*8 doubles the storage size without significant
+benefit.  Correspondingly, program "gshhs_to_roms_mask" is specifically
+designed to use integer*4 numbers all-around instead of floating point.
+Because virtually all what is does is logical operations (comparing
+numbers) this result in significantly better performance in comparison
+with floating-points.
+
+
+B) ETOPO data is available at
+
+     http://www.ngdc.noaa.gov/mgg/fliers/01mgg04.html
+
+The current version is ETOPO2v2 dated June 2006.
+
+
+C) "srtopo" is designed to work with SRTM30 data directly without any
+    intermediate steps (e.g., there no need to create a single netCDF file
+    out of the tiles).  To obtain latest SRTM30 dataset create a directory,
+    go there, and download it say
+
+      mkdir srtm30_plus
+      cd srtm30_plus
+      wget -N -r --level=inf --no-host-directories --cut-dirs=4 ftp://topex.ucsd.edu/pub/srtm30_plus/srtm30/grd
+
+D) GEBCO dataset is available at
+
+     https://www.bodc.ac.uk/data/online_delivery/gebco/
+
+which is a gateway for further access to get the actual data.  You have to
+register and follow the links.
+
