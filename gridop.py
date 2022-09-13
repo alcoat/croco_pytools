@@ -155,27 +155,30 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     if find_var(model,'h',ds,gd) is not None: ds['h'] = find_var(model,'h',ds,gd)
     if find_var(model,'pm',ds,gd) is not None: ds['pm']   = find_var(model,'pm',ds,gd)
     if find_var(model,'pn',ds,gd) is not None: ds['pn']   = find_var(model,'pn',ds,gd)
-    N = ds.dims['s']
-    if 'sc_r' not in ds:
-        if find_var(model,'sc_r',ds,gd) is not None: 
-            ds['sc_r'] = find_var(model,'sc_r',ds,gd)
-        else:
-            ds['sc_r'] = xr.DataArray(np.arange(-1.+1./(N+1),0., 1/(N+1)), dims='s')  
-    if 'sc_w' not in ds:      
-        if find_var(model,'sc_w',ds,gd) is not None: 
-            ds['sc_w'] = find_var(model,'sc_w',ds,gd)
-        else:
-            ds['sc_w'] = xr.DataArray(np.arange(-1.,0., 1/(N+1)), dims='s_w')
-    if 'Cs_r' not in ds:
-        if  find_var(model,'Cs_r',ds,gd) is not None: 
-            ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
-        else:
-            ds['Cs_r'] = get_cs(model,ds, gd, 'r')
-    if 'Cs_w' not in ds:
-        if  find_var(model,'Cs_w',ds,gd) is not None: 
-            ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
-        else:
-            ds['Cs_w'] = get_cs(model,ds, gd, 'w')        
+    try:
+        N = ds.dims['s']
+        if 'sc_r' not in ds:
+            if find_var(model,'sc_r',ds,gd) is not None: 
+                ds['sc_r'] = find_var(model,'sc_r',ds,gd)
+            else:
+                ds['sc_r'] = xr.DataArray(np.arange(-1.+1./(N+1),0., 1/(N+1)), dims='s')  
+        if 'sc_w' not in ds:      
+            if find_var(model,'sc_w',ds,gd) is not None: 
+                ds['sc_w'] = find_var(model,'sc_w',ds,gd)
+            else:
+                ds['sc_w'] = xr.DataArray(np.arange(-1.,0., 1/(N+1)), dims='s_w')
+        if 'Cs_r' not in ds:
+            if  find_var(model,'Cs_r',ds,gd) is not None: 
+                ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
+            else:
+                ds['Cs_r'] = get_cs(model,ds, gd, 'r')
+        if 'Cs_w' not in ds:
+            if  find_var(model,'Cs_w',ds,gd) is not None: 
+                ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
+            else:
+                ds['Cs_w'] = get_cs(model,ds, gd, 'w')
+    except:
+        pass        
         
     if find_var(model,'angle',ds,gd) is not None: ds['angle'] = find_var(model,'angle',ds,gd)
     if find_var(model,'mask',ds,gd) is not None: ds['mask'] = find_var(model,'mask',ds,gd)
@@ -188,7 +191,10 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     
     coords = [c for c in ds.coords if c not in ['t','s','s_w']]
     ds = ds.reset_coords()
-    ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
+    if 's' in ds.dims:
+        ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
+    else:
+        ds = ds.set_coords(['t', 'lat', 'lon'])
     model.ds = ds
         
     # On crée la grille xgcm
@@ -200,8 +206,9 @@ def xgcm_grid(model,grid_metrics=1):
         
         # Create xgcm grid without metrics
         coords={'x': {'center':'x', 'inner':'x_u'}, 
-                'y': {'center':'y', 'inner':'y_v'}, 
-                'z': {'center':'s', 'outer':'s_w'}}
+                'y': {'center':'y', 'inner':'y_v'}} 
+        if 's' in model.ds.dims:
+            coords.update({'z': {'center':'s', 'outer':'s_w'}})
         grid = Grid(model.ds, 
                   coords=coords,
                   periodic=False,

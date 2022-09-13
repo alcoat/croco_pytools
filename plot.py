@@ -108,22 +108,33 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
 # -------------------------------- movies --------------------------------------
 
 def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),  
-                      fps=5, **kwargs):
+                      dpi=150, fps=5, **kwargs):
 
+    if fig_dir is None:
+        try:
+            fig_dir = os.environ['SCRATCH']+'/figs/'
+        except:
+            fig_dir = os.environ['PWD']+'/figs/'
+    if not os.path.isdir(fig_dir):
+        os.mkdir(fig_dir)
+    
+    if fig_suffix is None:
+        if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
+        
     # plotfig_delayed = delayed(plotfig)
     tasks = [
         delayed(plotfig)(da.isel(t=i), i, fig_dir=fig_dir, 
                          fig_suffix=fig_suffix, 
-                         save=True, figsize=figsize, **kwargs,
+                         save=True, dpi=dpi, figsize=figsize, **kwargs,
                          ) for i in range(da.t.size)
     ]
 
     dask_compute_batch(tasks, client)
-
+    
     fig_name = fig_dir+fig_suffix+'_t%05d.png'
     movie_name = fig_dir+fig_suffix+'.mp4'
     commande = "ffmpeg -framerate "+str(fps)+"  -i "+fig_name+" -vcodec mpeg4 -y "+movie_name
-    print(commande)
+    # print(commande)
     os.system(commande)
 
     figure_name = fig_dir+fig_suffix+'_*.png'
