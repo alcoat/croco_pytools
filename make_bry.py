@@ -249,7 +249,7 @@ if __name__ == '__main__':
 
         del next_month_str,next_month_end,ind_next,tmp_str_date,tmp_end_date
          
-        if np.std(np.gradient(time[dtmin:dtmax+1])) >=5: # Abnormal distribution of days
+        if prev ^ nxt and np.std(np.gradient(time[dtmin:dtmax+1])) >=5: # Abnormal distribution of days
             Question = input( "Abnormal distribution of days (standart deviation > 5 days) \
                     \nThis can be due to the use of different time resolution dataset.\
                     \n Do you want to proceed?: y,n ")
