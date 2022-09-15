@@ -7,6 +7,7 @@ from dask import delayed
 from matplotlib import pyplot as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
+import cartopy.crs as ccrs
 
 # check if python run in batch mode or from jupyter (for plot in batch mode)
 import psutil
@@ -73,6 +74,7 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
     '''
     Plot an 2d xarray DataArray
     '''
+    # Init, create the directory where to generate the figure
     if fig_dir is None:
         try:
             fig_dir = os.environ['SCRATCH']+'/figs/'
@@ -81,24 +83,52 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
     if not os.path.isdir(fig_dir):
         os.mkdir(fig_dir)
     
+    # Init the figure name
     if fig_suffix is None:
         if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
     figname = fig_dir+fig_suffix+'_t%05d' %(numimage)+'.png'
 
+    # Define the colormap
     if cmap is None: cmap = DefCmap()
-    
-    fig = plt.figure(figsize=figsize)
-    ax = fig.subplots(1, 1)
 
+    # retrieve dimensions and coordinates of the variable
+    dims = gop.get_spatial_dims(da.squeeze())
+    # delete None dimension
+    dims = OrderedDict([(k,v) for k,v in dims.items() if v is not None])
+    coords = gop.get_spatial_coords(da.squeeze())
+    
+    if 'x' in dims.keys() and 'y' in dims.keys():
+        # horizontal section
+        coordx = coords['lon']
+        coordy = coords['lat']
+        # prepare the plot
+        # First the Map Projection
+        projection = ccrs.Mercator()
+        # Specify the CRS (coordinate reference system)
+        crs = ccrs.PlateCarree()
+        fig = plt.figure(figsize=figsize)
+        ax = plt.axes(projection = projection)
+        gl = ax.gridlines(crs=crs, draw_labels=True, linewidth=.6,
+                          color='gray', alpha=0.5, linestyle='dashed')
+        gl.top_labels = False
+        gl.right_labels = False 
+        ax.coastlines() 
+        da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, transform=crs, **kwargs) 
+    else:
+        # vertical section
+        if 'x' in dims.keys(): coordx = coords['lon']
+        if 'y' in dims.keys(): coordx = coords['lat']
+        coordy = coords['z']
+        fig, ax = plt.subplots(figsize=figsize)
+        da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, **kwargs) 
+        ax.grid(color='gray', alpha=0.5, linestyle='dashed')
+    
+    # put the title
     if 't' in da.coords: date = np.datetime_as_string(da.t, unit='m')
     title = fig_suffix+', date = %s'%(date)
-
-    coords = gop.get_spatial_coords(da)
-    # remove None values of coords
-    coords = OrderedDict([(k,v) for k,v in coords.items() if v is not None])
-    
-    da.plot(x=coords[next(reversed(coords))], y=coords[next(iter(coords))], ax=ax, cmap=cmap, **kwargs)    
     ax.set_title(title)
+    
+    # save in a file
     if save: 
         fig.savefig(figname, dpi=dpi)
         plt.close()
