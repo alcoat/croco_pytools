@@ -25,6 +25,7 @@ from traitsui.basic_editor_factory import BasicEditorFactory
 
 import matplotlib.pyplot as plt
 import tools
+import topo_reader
 import tools_topo
 import toolsf
 import netCDF4 as netcdf
