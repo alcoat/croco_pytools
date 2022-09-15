@@ -710,7 +710,6 @@ class Save2Netcdf(HasTraits):
                 if not lev.isnumeric():
                     grid_name='croco_grd.nc.1'
                 else:
-                    print(prt_grd[1][0:-1],lev)
                     grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
 
             else :  # We create offline zoom

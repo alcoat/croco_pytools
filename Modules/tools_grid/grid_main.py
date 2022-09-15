@@ -135,7 +135,7 @@ class MainWindow(HasTraits):
     sglc_j = CInt(25,label='j0')
 
     merge= CInt(5, label='Merging area (nb points)')
-    checklist = List(editor=CheckListEditor(values=['West', 'East', 'South', 'North'], cols=4 ))
+    checklist = List(editor=CheckListEditor(values=['South','West', 'East', 'North'], cols=4 ))
 
     ##########################
     def _figure_default(self):
@@ -181,20 +181,23 @@ class MainWindow(HasTraits):
                     Group(
                           Item(name='croco_file',editor=FileEditor(filter=['*.nc']),
                                style='simple', show_label=True, springy=True),
-                          '_',
+#                          '_',
                           Item(name='inputs_zm', style='custom', show_label=False, springy=True),
-                          '_',
+#                          '_',
                           Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
                           Item(name='bmapoptions', style='custom',show_label=False,springy=True),
-                          '_',
+#                          '_',
+                          Item(name='checklist',label='Open boundaries', style='custom'),
+                          Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
+#                          '_',
                           HGroup('single_connect','sglc_i', 'sglc_j'),
-                          '_',
+#                          '_',
                           Item(name='topo_file',editor=FileEditor(filter=['*.nc']),
                                style='simple', show_label=True, springy=True),
                           Item('inputs_smth',style='custom', show_label=False, springy=True),
-                          '_',
+#                          '_',
                           Item(name='compute_zm', show_label=False),
-                          '_',
+#                          '_',
                           Item(name='opt_dir',show_label=True),
                           Item(name='save_grid_zm', show_label=False ),
                           label="Create offline zoom",dock='tab'),
@@ -278,6 +281,8 @@ class MainWindow(HasTraits):
         self.compute_zm_thread.mask = self.get_mask.mask
         self.compute_zm_thread.topo_file = self.topo_file
         self.compute_zm_thread.topo = self.get_topo.topo
+        self.compute_zm_thread.match_topo = self.get_topo.match_topo
+        self.compute_zm_thread.openb  = [self.checklist,self.merge]
         self.compute_zm_thread.gshhs_file = self.gshhs_file
         self.compute_zm_thread.bmapoptions = self.bmapoptions
         self.compute_zm_thread.easy = self.easy.easygrid
@@ -285,6 +290,7 @@ class MainWindow(HasTraits):
         self.compute_zm_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_zm_thread.grid_show_zm = self.grid_show_zm
         self.compute_zm_thread.display = self.add_line
+        self.compute_zm_thread.topo_prt =tools_topo.topo_prt(self.croco_file)
         prt_grd=tools_topo.topo_prt(self.croco_file)
         self.compute_zm_thread.start()
         self.compute_zm_thread.join()

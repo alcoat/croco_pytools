@@ -98,6 +98,7 @@ class ComputeZmThread(Thread):
         self.easy(self.inputs, self.outputs)
         self.mask(self.outputs,self.bmapoptions,self.gshhs_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
+        self.match_topo(self.topo_prt,self.outputs,self.openb)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
