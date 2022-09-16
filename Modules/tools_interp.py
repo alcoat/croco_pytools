@@ -77,20 +77,21 @@ def get_tri_coef(X, Y, newX, newY, verbose=0):
 #######################################
 
 def get_delaunay_bry(lon_bry,lat_bry,inputfile,bdy):
-#   This function computes the delaunay matrices for the interpolations 
-#   at the boundaies
-#
-#   Input:
-#     lon_bry      Longitudes of the boundary (vector).
-#     lat_bry      Latitudes of the boundary (vector).
-#     inputfile    netcdf structure poiting to the input file
-#     bdy          which boundary is done
-#
-#   Output:
-#     LonT_bry,LatT_bry,iminT_bry,imaxT_bry,jminT_bry,jmaxT_bry,elemT_bry,coefT_bry,
-#     LonU_bry,LatU_bry,iminU_bry,imaxU_bry,jminU_bry,jmaxU_bry,elemU_bry,coefU_bry,
-#     LonV_bry,LatV_bry,iminV_bry,imaxV_bry,jminV_bry,jmaxV_bry,elemV_bry,coefV_bry
-#
+    '''
+    This function computes the delaunay matrices for the interpolations 
+    at the boundaies
+
+    Input:
+      lon_bry      Longitudes of the boundary (vector).
+      lat_bry      Latitudes of the boundary (vector).
+      inputfile    netcdf structure poiting to the input file
+      bdy          which boundary is done
+
+    Output:
+      LonT_bry,LatT_bry,iminT_bry,imaxT_bry,jminT_bry,jmaxT_bry,elemT_bry,coefT_bry,
+      LonU_bry,LatU_bry,iminU_bry,imaxU_bry,jminU_bry,jmaxU_bry,elemU_bry,coefU_bry,
+      LonV_bry,LatV_bry,iminV_bry,imaxV_bry,jminV_bry,jmaxV_bry,elemV_bry,coefV_bry
+    ''' 
     comp_delaunay=1
 
 #
@@ -156,6 +157,18 @@ def get_delaunay_bry(lon_bry,lat_bry,inputfile,bdy):
 ##################################################################
 
 def ztosigma(vin,Z,zcroco):
+    '''
+    This fonction perform the z to sigma transformation for
+    3D (Z,Y,X) or 4D (T,Z,Y,X) variables
+    
+    Input:
+      Vin       Input variables to put on sigma grid (3 or 4D)
+      Z         Input depth values (1D)
+      zcroco    CROCO vertical level (3D)
+
+    output:
+       vout     Vin projection on zcroco
+    '''
 # Do a vertical interpolation from z levels to sigma CROCO levels
     if len(zcroco.shape)>3:
         [T,N,M,L]=np.shape(zcroco)
@@ -209,8 +222,17 @@ def ztosigma(vin,Z,zcroco):
 ####################################################################
 
 def add2layers(vin):
-# Add a layer below the bottom and above the surface to avoid
-# vertical extrapolations when doing a vertical interpolation
+    '''
+    Add a layer below the bottom and above the surface to avoid
+    vertical extrapolations when doing a vertical interpolation
+
+    Input:
+      Vin    3 or 4D Variable 
+
+    Output:
+      vout   Vin with 2 new layers above and below
+    '''
+
     if len(np.shape(vin))==3:
         [Nz,M,L]=np.shape(vin)
         vout=np.zeros((Nz+2,M,L))
@@ -231,8 +253,22 @@ def add2layers(vin):
 ######################################################################
 # Contrary to what the name says, this function interpolates the 2-d fields (not tracers temp,salt,...)
 def interp_tracers(inputfile,vname,l,k,coef,elem):
-#  Remove the missing values from a gridded 2D field
-#  and do an horizontal interpolation using Delaunay matrices (coef and elem)
+    '''
+    Remove the missing values from a gridded 2D field
+    and do an horizontal interpolation using Delaunay matrices (coef and elem)
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      vname         Variable name to interpolate
+      l             Time index to take
+      k             Depth index ( -1 when no depth component)
+      coef          Coef from Delaunay triangulation
+      elem          Elem from Delaunay triangulation
+
+    Output:
+      vout          Interpolation of the choosen field on 2D CROCO grid
+      Nzgood        Number of good points on the input level k        
+    '''
 
 # 0: Read input data informations
     nc        = inputfile.ncglo
@@ -280,9 +316,26 @@ def interp_tracers(inputfile,vname,l,k,coef,elem):
     return Vout,NzGood
 
 #################
-def interp_tracers3D(inputfile,vname,k,coef,elem,bdy,dtmin,dtmax,prev,nxt): # interp tracers 3D for bdy
-#  Remove the missing values from a gridded 2D field
-#  and do an horizontal interpolation using Delaunay matrices (coef and elem)
+def interp_tracers3D(inputfile,vname,k,coef,elem,dtmin,dtmax,prev,nxt,bdy=""): # interp tracers 3D for bdy
+    '''
+    Do the same thing than interp_tracers but for 3D variables (T,Y,X)
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      vname         Variable's name to interpolate
+      k             Depth index ( -1 when no depth component)
+      coef          Coef from Delaunay triangulation
+      elem          Elem from Delaunay triangulation
+      dtmin         Starting index of the time series
+      dtmax         Ending index of the time series
+      prev          If 1 duplicates the first index of the time series
+      nxt           If 1 duplicates the last index of the time series
+      bdy           Specify which boundary you are on. Leave empty if not
+
+    Output:
+      vout          Interpolation of the field time series on 2D CROCO grid
+      Nzgood        Number of good points on the input level k        
+    '''
 
 # 0: Read input data informations
     nc        = inputfile.ncglo
@@ -364,10 +417,24 @@ def interp_tracers3D(inputfile,vname,k,coef,elem,bdy,dtmin,dtmax,prev,nxt): # in
 
 
 def interp3d(inputfile,vname,tndx_glo,Nzgoodmin,z_rho,coef,elem):
-#  Do a full interpolation of a 4d variable from GLORYS to a CROCO sigma grid
-#  1 - Horizontal interpolation on each GLORYS levels
-#  2 - Vertical Interpolation from z to CROCO sigma levels
-    
+    '''
+    Do a full interpolation of a 3d variable from z-grid data to a CROCO sigma grid
+    1 - Horizontal interpolation on each z-levels
+    2 - Vertical Interpolation from z to CROCO sigma levels
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      vname         Variable's name to interpolate
+      tndx_glo      Time index in the netcdf
+      Nzgoodmin     Number of value to consider a z-level fine to be used
+      z_rho         CROCO vertical levels
+      coef          Coef from Delaunay triangulation
+      elem          Elem from Delaunay triangulation
+
+    Output:
+      vout          Variable interpolated on CROCO 3D grid
+    '''
+   
     [N,M,L]=np.shape(z_rho)
     depth= inputfile.depth
     [Nz]=np.shape(depth)
@@ -415,8 +482,27 @@ def interp3d(inputfile,vname,tndx_glo,Nzgoodmin,z_rho,coef,elem):
 
 def interp3d_uv(inputfile,tndx_glo,Nzgoodmin,z_rho,cosa,sina,\
         coefU,elemU,coefV,elemV):
-#  1 - Horizontal interpolation on each GLORYS levels
-#  2 - Vertical Interpolation from z to CROCO sigma levels
+    '''
+    Same as interp3d but for horizontal velocities u,v
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      tndx_glo      Time index in the netcdf
+      Nzgoodmin     Number of value to consider a z-level fine to be used
+      z_rho         CROCO vertical levels
+      cosa          Cosine value of grid angle
+      sina          Sinus value of grid angle
+      coefU         Coef from Delaunay triangulation on U-grid
+      elemU         Elem from Delaunay triangulation on U-grid
+      coefV         Coef from Delaunay triangulation on V-grid
+      elemV         Elem from Delaunay triangulation on V-grid
+
+    Outputs:
+       uout         U velocity on 3D CROCO-Ugrid
+       vout         V velocity on 3D CROCO-Vgrid
+       ubar         Integrated U velocity on CROCO-Ugrid
+       vbar         Integrated V velocity on CROCO-Vgrid
+    '''
 
     [N,M,L]=np.shape(z_rho)
     depth=inputfile.depth
@@ -495,10 +581,29 @@ def interp3d_uv(inputfile,tndx_glo,Nzgoodmin,z_rho,cosa,sina,\
 ###################Interp 4D ###############################
 ############################################################
 
-def interp4d(inputfile,vname,Nzgoodmin,z_rho,coef,elem,bdy,dtmin,dtmax,prev,nxt):
-#  Do a full interpolation of a 3d variable from GLORYS to a CROCO sigma grid
-#  1 - Horizontal interpolation on each GLORYS levels
-#  2 - Vertical Interpolation from z to CROCO sigma levels
+def interp4d(inputfile,vname,Nzgoodmin,z_rho,coef,elem,dtmin,dtmax,prev,nxt,bdy=""):
+    '''
+    Do a full interpolation of a 4d variable from z-grid data to a CROCO sigma grid
+    1 - Horizontal interpolation on each z-levels
+    2 - Vertical Interpolation from z to CROCO sigma levels
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      vname         Variable's name to interpolate
+      Nzgoodmin     Number of value to consider a z-level fine to be used
+      z_rho         CROCO vertical levels
+      coef          Coef from Delaunay triangulation
+      elem          Elem from Delaunay triangulation
+      dtmin         Starting index of the time series
+      dtmax         Ending index of the time series
+      prev          If 1 duplicates the first index of the time series
+      nxt           If 1 duplicates the last index of the time series
+      bdy           Specify which boundary you are on. Leave empty if not
+
+    Output:
+      vout          4D interpolation of vname variable (Time+ CROCO-grid)
+    '''
+
     if np.ndim(z_rho)==3:
         z_rho=z_rho[np.newaxis,:]
     [T,N,M,L]=np.shape(z_rho)
@@ -511,7 +616,7 @@ def interp4d(inputfile,vname,Nzgoodmin,z_rho,coef,elem,bdy,dtmin,dtmax,prev,nxt)
         t4d=np.zeros((T,Nz,M,L))
         kgood=-1
         for k in progressbar(range(Nz),vname+': ', 40):#range(Nz)
-            (t3d,Nzgood) = interp_tracers3D(inputfile,vname,k,coef,elem,bdy,dtmin,dtmax,prev,nxt)
+            (t3d,Nzgood) = interp_tracers3D(inputfile,vname,k,coef,elem,dtmin,dtmax,prev,nxt,bdy=bdy)
             if Nzgood>Nzgoodmin:
                 kgood=kgood+1
                 t4d[:,kgood,:,:]=t3d
@@ -547,9 +652,33 @@ def interp4d(inputfile,vname,Nzgoodmin,z_rho,coef,elem,bdy,dtmin,dtmax,prev,nxt)
 
 
 def interp4d_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
-        coefU,elemU,coefV,elemV,bdy,dtmin,dtmax,prev,nxt):
-#  1 - Horizontal interpolation on each GLORYS levels
-#  2 - Vertical Interpolation from z to CROCO sigma levels
+        coefU,elemU,coefV,elemV,dtmin,dtmax,prev,nxt,bdy=""):
+    '''
+    Same as interp4d but for horizontal velocities u,v
+
+    Inputs:
+      inputfile     Input class containing useful tools (see input_class.py)
+      Nzgoodmin     Number of value to consider a z-level fine to be used
+      z_rho         CROCO vertical levels
+      cosa          Cosine value of grid angle
+      sina          Sinus value of grid angle
+      coefU         Coef from Delaunay triangulation on U-grid
+      elemU         Elem from Delaunay triangulation on U-grid
+      coefV         Coef from Delaunay triangulation on V-grid
+      elemV         Elem from Delaunay triangulation on V-grid
+      dtmin         Starting index of the time series
+      dtmax         Ending index of the time series
+      prev          If 1 duplicates the first index of the time series
+      nxt           If 1 duplicates the last index of the time series
+      bdy           Specify which boundary you are on. Leave empty if not
+
+    Outputs:
+       uout         U velocity on 4D (Time,CROCO-Ugrid)
+       vout         V velocity on 4D (Time,CROCO-Vgrid)
+       ubar         Integrated U velocity on (Time,CROCO-Ugrid)
+       vbar         Integrated V velocity on (Time,CROCO-Vgrid)
+    '''
+
     if np.ndim(z_rho)==3:
         z_rho=z_rho[np.newaxis,:]
     [T,N,M,L]=np.shape(z_rho)
@@ -571,8 +700,8 @@ def interp4d_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
         zv  =vbar
         kgood=-1
         for k in progressbar(range(Nz),' uv : ', 40):
-            (u3d,Nzgood_u) = interp_tracers3D(inputfile,'u',k,coefU,elemU,bdy,dtmin,dtmax,prev,nxt)
-            (v3d,Nzgood_v) = interp_tracers3D(inputfile,'v',k,coefV,elemV,bdy,dtmin,dtmax,prev,nxt)
+            (u3d,Nzgood_u) = interp_tracers3D(inputfile,'u',k,coefU,elemU,dtmin,dtmax,prev,nxt,bdy=bdy)
+            (v3d,Nzgood_v) = interp_tracers3D(inputfile,'v',k,coefV,elemV,dtmin,dtmax,prev,nxt,bdy=bdy)
             Nzgood=np.min((Nzgood_u,Nzgood_v))
             if Nzgood>Nzgoodmin:
                 kgood=kgood+1

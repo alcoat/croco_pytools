@@ -5,21 +5,14 @@ Create a CROCO initial file
 
 ===========================================================================
 '''
-
+#######################
 import netCDF4 as netcdf
 import pylab as plt
 import numpy as np
-import scipy.interpolate as si
 import glob as glob
-import time
-import scipy.interpolate.interpnd as interpnd
 import collections
-#from mpl_toolkits.basemap import Basemap
 from datetime import datetime
-import calendar
 from time import strptime
-
-
 import sys
 sys.path.append("./Modules/")
 #import toolsf  # can also use fortran tools to compute zlevs 
@@ -27,20 +20,22 @@ import tools
 import tools_interp 
 import croco_class as Croco
 import input_class as Inp
+######################
 
 if __name__ == '__main__':
     
     # input informations
     inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
     input_dir = './'
-    input_prefix=''#'soda3.4.2_mn_ocean_reg_2016.nc'#'raw_motu_mercator_'#'glorys'
+    input_prefix='raw_motu_mercator_'
+    multi_files=False # If variables are in different netcdf
 
     # input files
     Yini,Mini,Dini  = '2005','01','01' # Month and days need to be 2-digits format
     date_str = (Yini, Mini)
     input_file  = input_dir + input_prefix + 'Y%sM%s.nc' % date_str
 
-    if inputdata == 'eccov4': # Mutiple files for eccov4
+    if multi_files: # Mutiple files
         input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.%s.nc' % date_str, \
                        'temp' : input_dir + input_prefix + 'THETA.%s.nc' % date_str, \
                        'salt' : input_dir + input_prefix + 'SALT.%s.nc' % date_str, \
@@ -53,6 +48,7 @@ if __name__ == '__main__':
     croco_dir = './'
     croco_grd = 'croco_grd.nc'
     sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+
     Yzer,Mzer,Dzer = Yini, Mini, Dini # reference time (default = ini time).Month and days need to be 2-digits format
 
     # inifile informations
@@ -61,7 +57,7 @@ if __name__ == '__main__':
     # create delaunay weight
     comp_delaunay=1
 
-    Nzgoodmin = 4      # number minimum of good data points to use for the interpolation
+    Nzgoodmin = 4  # default value to consider a z-level fine to be used
 #_END USER DEFINED VARIABLES_______________________________________
 
 

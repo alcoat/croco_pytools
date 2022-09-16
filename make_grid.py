@@ -1,42 +1,13 @@
-# -*- coding: utf-8 -*-
-# %run easygrid_python.py
-ETS_TOOLKIT="wx"
+###################
 import numpy as np
 import matplotlib
-# We want matplotlib to use a wxPython backend
-matplotlib.use('WXAgg')
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx
-#from mpl_toolkits.basemap    import Basemap, maskoceans
-
-from threading import Thread
-from time import sleep
-import wx
-#from scipy import *
-
-import scipy.interpolate as si
-
-from traits.api import *
-from traitsui.api import View, Item, Group, HSplit, Handler, EnumEditor, FileEditor,DirectoryEditor
-from traitsui.menu import NoButtons
-from traitsui.wx.editor import Editor
-#from traitsui.wx.basic_editor_factory import BasicEditorFactory
-from traitsui.basic_editor_factory import BasicEditorFactory
-
 import matplotlib.pyplot as plt
 import sys
 sys.path.append("./Modules/")
 import tools
 import tools_topo
-#import toolsf
-
 sys.path.append("./Modules/tools_grid/")
-
 from grid_main import *
-
-import netCDF4 as netcdf
-from datetime import datetime
 #####################
 
 tra_lon =  15
@@ -74,6 +45,10 @@ res="Crude" # 'Crude', 'Low', 'Intermediate', 'High', 'Full'
 # Single Connect [Mask water not connected to the main domain]
 #
 sgl_connect=[True,20,50] # Precise True or false and a point index inside the main domain
+#
+# Output dir
+#
+output_dir="./"
 
 ###############################################
 ####### END USER CHANGES ######################
@@ -116,7 +91,7 @@ if __name__ == "__main__":
         ##############################
         
         print('Writing Topography')
-        Save2Netcdf.save2netcdf(None,inputs,outputs)
+        Save2Netcdf.save2netcdf(None,output_dir,inputs,outputs)
 
 
 

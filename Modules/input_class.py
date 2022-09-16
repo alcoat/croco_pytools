@@ -9,11 +9,11 @@ This class need to:
 '''
 
 class getdata():   
-    def __init__(self,inputdata,inputfile,crocogrd,bdy=None): # bdy=[obs,tstart,tend,cycle]
+    def __init__(self,inputdata,inputfile,crocogrd,multi_files,bdy=None): # bdy=[obs,tstart,tend,cycle]
         
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if bdy is None: # Ini case
-            if inputdata != 'eccov4':
+            if  multi_files == False:
                 self.depth=tools.read_nc(inputfile,self.var['depth'])
   
                 self.ncglo   = { 'ssh'  : netcdf.Dataset(inputfile,'r').variables,\
@@ -39,7 +39,7 @@ class getdata():
         elif bdy is not None and bdy[-1]==0: # bdy case
             self.depth=tools.read_nc(inputfile[0],self.var['depth'])
             
-            if inputdata != 'eccov4':
+            if multi_files == False:
                 self.ncglo   = { 'ssh'  : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
                                  'temp' : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
                                  'salt' : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\

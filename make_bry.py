@@ -5,21 +5,13 @@ Create a CROCO bounday files
 
 ===========================================================================
 '''
-
+##################
 import netCDF4 as netcdf
 import pylab as plt
 import numpy as np
-import scipy.interpolate as si
 import glob as glob
-import time
-import scipy.interpolate.interpnd as interpnd
-import collections
-from datetime import datetime
 from dateutil.relativedelta import relativedelta
-import calendar
 from time import strptime
-
-
 import sys
 sys.path.append("./Modules/")
 #import toolsf  # can also use fortran tools to compute zlevs 
@@ -27,7 +19,7 @@ import tools
 import tools_interp
 import croco_class as Croco
 import input_class as Inp
-
+#####################
 
 
 if __name__ == '__main__':
@@ -36,9 +28,9 @@ if __name__ == '__main__':
     inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
     input_dir = '/local/tmp/3/'
     input_prefix='raw_motu_mercator_*'# Please use * to include all files
-    Nzgoodmin=4 # default value to consider a z-level fine to be user    
 
-    if inputdata == 'eccov4': # Mutiple files for eccov4. Time is read in ssh file
+    multi_files=False
+    if multi_files: # Multiple data files. Time is read in ssh file
         input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.%s.nc' % date_str, \
                        'temp' : input_dir + input_prefix + 'THETA.%s.nc' % date_str, \
                        'salt' : input_dir + input_prefix + 'SALT.%s.nc' % date_str, \
@@ -47,15 +39,13 @@ if __name__ == '__main__':
                     }
 
     # CROCO path and filename informations
-    croco_dir = './' #CROCO_FILES/'
+    croco_dir = './' 
     croco_grd = 'croco_grd.nc'
     sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
-    comp_delaunay=1
+
     # bryfile informations
     bry_filename    = 'croco_bry.nc'
-
-    obc_dict = dict(south=1, east=1, north=1, west=1) # open boundaries (1=open , [S E N W])
-
+    obc_dict = dict(south=1, west=1, east=1, north=1) # open boundaries (1=open , [S W E N])
     output_file_format="MONTHLY" # How outputs are spit (MONTHLY,YEARLY,FULL)
     cycle_bry=0.
 
@@ -63,7 +53,10 @@ if __name__ == '__main__':
     Ystart,Mstart = '2005', '01'   # Starting month
     Yend,Mend  = '2005','02'       # Ending month 
 
+    #  create delaunay weight 
+    comp_delaunay=1
 
+    Nzgoodmin=4 # default value to consider a z-level fine to be used
 #_END USER DEFINED VARIABLES_______________________________________
     # glob all files
     input_file  = sorted(glob.glob(input_dir + input_prefix))
@@ -301,11 +294,11 @@ if __name__ == '__main__':
                     elif vars == 'tracers':
                         print('\nIn tracers processing Temp')
                         temp= tools_interp.interp4d(inpdat,'temp',Nzgoodmin,z_rho,\
-                                                   eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),boundary[0].upper(),dtmin,dtmax,prev,nxt)
+                                                   eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
             
                         print('\nIn tracers processing Salt')
                         salt= tools_interp.interp4d(inpdat,'salt',Nzgoodmin,z_rho,\
-                                                eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),boundary[0].upper(),dtmin,dtmax,prev,nxt)
+                                                eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),,dtmin,dtmax,prev,nxt,boundary[0].upper())
         
                     elif vars == 'velocity':
 
@@ -315,7 +308,7 @@ if __name__ == '__main__':
                         [u,v,ubar,vbar]=tools_interp.interp4d_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,\
                                            eval(''.join(("coefU_"+boundary))),eval(''.join(("elemU_"+boundary))),\
                                            eval(''.join(("coefV_"+boundary))),eval(''.join(("elemV_"+boundary))),\
-                                           boundary[0].upper(),dtmin,dtmax,prev,nxt)
+                                           dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
 
                         conserv=0  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
                         if conserv == 1:
