@@ -7,6 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 
 import scipy.interpolate as itp
+from scipy.interpolate import griddata
 
 from cartopy import crs as ccrs, feature as cfeature
 import cartopy.io as cio
@@ -613,40 +614,90 @@ class EasyGrid(HasTraits):
         igrdr=np.arange(0,Lp);jgrdr=np.arange(0,Mp)
         igrdu=np.arange(0,Lp-1);jgrdu=np.arange(0,Mp)
         igrdv=np.arange(0,Lp);jgrdv=np.arange(0,Mp-1)
+       
+        [iprtgrd_p,jprtgrd_p]=np.meshgrid(igrdp,jgrdp)
+        [iprtgrd_r,jprtgrd_r]=np.meshgrid(igrdr,jgrdr)
+        [iprtgrd_u,jprtgrd_u]=np.meshgrid(igrdp,jgrdr)
+        [iprtgrd_v,jprtgrd_v]=np.meshgrid(igrdr,jgrdp)
 
+        bbound_east=1
+        bbound_west=1
+        bbound_south=1
+        bbound_north=1
 
-        ipch=np.arange(inputs.imin,inputs.imax+0.5/inputs.coef,1/inputs.coef)
-        jpch=np.arange(inputs.jmin,inputs.jmax+0.5/inputs.coef,1/inputs.coef)
-        ################
-        irch=np.arange(inputs.imin+0.5-0.5/inputs.coef,inputs.imax+0.5+0.75/inputs.coef,1/inputs.coef)
-        jrch=np.arange(inputs.jmin+0.5-0.5/inputs.coef,inputs.jmax+0.5+0.75/inputs.coef,1/inputs.coef)
+        while (bbound_east | bbound_west | bbound_south | bbound_north):
+            
+            ipch=np.arange(inputs.imin,inputs.imax+0.5/inputs.coef,1/inputs.coef)
+            jpch=np.arange(inputs.jmin,inputs.jmax+0.5/inputs.coef,1/inputs.coef)
+            ################
+            irch=np.arange(inputs.imin+0.5-0.5/inputs.coef,inputs.imax+0.5+0.75/inputs.coef,1/inputs.coef)
+            jrch=np.arange(inputs.jmin+0.5-0.5/inputs.coef,inputs.jmax+0.5+0.75/inputs.coef,1/inputs.coef)
 
-        [ichildgrd_p,jchildgrd_p]=np.meshgrid(ipch,jpch)
-        [ichildgrd_r,jchildgrd_r]=np.meshgrid(irch,jrch)
-        [ichildgrd_u,jchildgrd_u]=np.meshgrid(ipch,jrch)
-        [ichildgrd_v,jchildgrd_v]=np.meshgrid(irch,jpch)
+            [ichildgrd_p,jchildgrd_p]=np.meshgrid(ipch,jpch)
+            [ichildgrd_r,jchildgrd_r]=np.meshgrid(irch,jrch)
+            [ichildgrd_u,jchildgrd_u]=np.meshgrid(ipch,jrch)
+            [ichildgrd_v,jchildgrd_v]=np.meshgrid(irch,jpch)
          
-        spline_lonp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lon_psi)
-        spline_latp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lat_psi)
-        outputs.lon_psi = spline_lonp(jchildgrd_p,ichildgrd_p,grid=False)
-        outputs.lat_psi = spline_latp(jchildgrd_p,ichildgrd_p,grid=False)
-        ###############
-        spline_lonr    = itp.RectBivariateSpline(jgrdr,igrdr,prt_grd.lon_rho)
-        spline_latr    = itp.RectBivariateSpline(jgrdr,igrdr,prt_grd.lat_rho)
-        outputs.lon_rho = spline_lonr(jchildgrd_r,ichildgrd_r,grid=False)
-        outputs.lat_rho = spline_latr(jchildgrd_r,ichildgrd_r,grid=False)
-        ###############
-        spline_lonu    = itp.RectBivariateSpline(jgrdu,igrdu,prt_grd.lon_u)
-        spline_latu    = itp.RectBivariateSpline(jgrdu,igrdu,prt_grd.lat_u)
-        outputs.lon_u = spline_lonr(jchildgrd_u,ichildgrd_u,grid=False)
-        outputs.lat_u = spline_latr(jchildgrd_u,ichildgrd_u,grid=False)
-        ###############
-        spline_lonv    = itp.RectBivariateSpline(jgrdv,igrdv,prt_grd.lon_v)
-        spline_latv    = itp.RectBivariateSpline(jgrdv,igrdv,prt_grd.lat_v)
-        outputs.lon_v = spline_lonr(jchildgrd_v,ichildgrd_v,grid=False)
-        outputs.lat_v = spline_latr(jchildgrd_v,ichildgrd_v,grid=False)
+            spline_lonp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lon_psi)
+            spline_latp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lat_psi)
+            outputs.lon_psi = spline_lonp(jchildgrd_p,ichildgrd_p,grid=False)
+            outputs.lat_psi = spline_latp(jchildgrd_p,ichildgrd_p,grid=False)
+            ###############
+            spline_lonr    = itp.RectBivariateSpline(jgrdr,igrdr,prt_grd.lon_rho)
+            spline_latr    = itp.RectBivariateSpline(jgrdr,igrdr,prt_grd.lat_rho)
+            outputs.lon_rho = spline_lonr(jchildgrd_r,ichildgrd_r,grid=False)
+            outputs.lat_rho = spline_latr(jchildgrd_r,ichildgrd_r,grid=False)
+            ###############
+            spline_lonu    = itp.RectBivariateSpline(jgrdu,igrdu,prt_grd.lon_u)
+            spline_latu    = itp.RectBivariateSpline(jgrdu,igrdu,prt_grd.lat_u)
+            outputs.lon_u = spline_lonr(jchildgrd_u,ichildgrd_u,grid=False)
+            outputs.lat_u = spline_latr(jchildgrd_u,ichildgrd_u,grid=False)
+            ###############
+            spline_lonv    = itp.RectBivariateSpline(jgrdv,igrdv,prt_grd.lon_v)
+            spline_latv    = itp.RectBivariateSpline(jgrdv,igrdv,prt_grd.lat_v)
+            outputs.lon_v = spline_lonr(jchildgrd_v,ichildgrd_v,grid=False)
+            outputs.lat_v = spline_latr(jchildgrd_v,ichildgrd_v,grid=False)
+            #################
 
-        #################
+            maskr_coarse = griddata((jprtgrd_r.ravel(),iprtgrd_r.ravel()),prt_grd.mask_rho.ravel(),\
+                                    (jchildgrd_r.ravel(),ichildgrd_r.ravel()),method='nearest')
+
+            maskr_coarse = np.reshape(maskr_coarse,[jchildgrd_r.shape[0],jchildgrd_r.shape[1]])
+         
+            eastchk = abs(maskr_coarse[:,-2]-maskr_coarse[:,-1]);
+            westchk = abs(maskr_coarse[:,0]-maskr_coarse[:,1]);
+            southchk = abs(maskr_coarse[0,:]-maskr_coarse[1,:]);
+            northchk = abs(maskr_coarse[-2,:]-maskr_coarse[-1,:]);
+
+            if sum(eastchk)!=0:
+                inputs.imax=inputs.imax+1
+                bbound_east=1
+                print('==> East limits displacement +1')
+            else:
+                bbound_east=0
+     
+            if sum(westchk)!=0:
+                inputs.imin=inputs.imin-1
+                bbound_west=1
+                print('==> West limits displacement -1')
+            else:
+                bbound_west=0
+
+            if sum(southchk)!=0:
+                inputs.jmin=inputs.jmin-1
+                bbound_south=1
+                print('==> South limits displacement -1')
+            else:
+                bbound_south=0
+
+            if sum(northchk)!=0:
+                inputs.jmax=inputs.jmax+1
+                bbound_north=1
+                print('==> North limits displacement +1')
+            else:
+                bbound_north=0
+
+
 
         # Compute pm and pn
         pmu = gc_dist(np.deg2rad(outputs.lon_u[:, :-1]), np.deg2rad(outputs.lat_u[:, :-1]),
