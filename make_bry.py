@@ -97,7 +97,7 @@ if __name__ == '__main__':
     crocogrd.NORTH_grid()
     
     # Initialize input data class (imin,jmin,imax,jmax,...)
-    inpdat = Inp.getdata(inputdata,input_file,crocogrd,bdy=[obc_dict,cycle_bry])
+    inpdat = Inp.getdata(inputdata,input_file,crocogrd,multi_filesbdy=[obc_dict,cycle_bry])
 
     # Get the 2D interpolation coefficients
     if comp_delaunay==1:
@@ -286,7 +286,7 @@ if __name__ == '__main__':
                     print('\n     Processing *%s* for %sern boundary' %(vars, boundary))
                     print('     ------------------------------------------')
                     if vars == 'ssh': 
-                        (zeta,NzGood) = tools_interp.interp_tracers3D(inpdat,vars,-1,eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),boundary[0].upper(),dtmin,dtmax,prev,nxt) 
+                        (zeta,NzGood) = tools_interp.interp_tracers3D(inpdat,vars,-1,eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper()) 
                         z_rho = crocogrd.scoord2z_r(zeta=zeta,bdy="_"+boundary)
                         z_w   = crocogrd.scoord2z_w(zeta=zeta,bdy="_"+boundary)
     
@@ -297,7 +297,7 @@ if __name__ == '__main__':
             
                         print('\nIn tracers processing Salt')
                         salt= tools_interp.interp4d(inpdat,'salt',Nzgoodmin,z_rho,\
-                                                eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),,dtmin,dtmax,prev,nxt,boundary[0].upper())
+                                                eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper())
         
                     elif vars == 'velocity':
 

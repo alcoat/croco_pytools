@@ -68,7 +68,7 @@ if __name__ == '__main__':
     crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)), sigma_params)
 
     # Load input (restricted to croco_grd)
-    inpdat=Inp.getdata(inputdata,input_file,crocogrd)
+    inpdat=Inp.getdata(inputdata,input_file,crocogrd,muli_files)
 
     print(' ')
     print(' Making initial file: '+ini_filename)
