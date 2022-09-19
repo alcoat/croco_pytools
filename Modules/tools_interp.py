@@ -1,12 +1,13 @@
 import numpy as np
-from netCDF4 import Dataset  as netcdf
 from scipy.interpolate import griddata
+import scipy.interpolate as itp
 import os
 import sys
 import time
 from scipy.spatial import Delaunay
 import tools
 from tools import progressbar
+import xarray as xr
 
 ###############
 # Get interpolation weight
@@ -192,6 +193,7 @@ def ztosigma(vin,Z,zcroco):
         [imat,jmat]=np.meshgrid(i1,j1)
         VAR=np.reshape(vin,Nz*M*L)
         vout=np.zeros((N,M,L))
+
     for ks in progressbar(range(N),' Sigma layer : ', 40):
         if four_dim:
             sigmalev=zcroco[:,ks,:,:]
@@ -282,22 +284,14 @@ def interp_tracers(inputfile,vname,l,k,coef,elem):
    
 # 1: Read data
     Vin = inputfile.var_periodicity(vname,l,k) #np.array(nc[varinp[vname]][l,jmin:jmax,imin:imax]) 
-    try:
-        fvalue=nc[vname][varinp[vname]]._FillValue
-    except:
-        try:
-            fvalue=nc[vname][varinp[vname]].missing_value
-        except:
-            fvalue=None
-            pass
 
 # 2: Remove bad values (using nearest values)
-    if fvalue == None:
-        igood = np.where(np.isnan(Vin)==False)
-        ibad  = np.where(np.isnan(Vin))
-    else:
-        igood = np.where(Vin!=fvalue)
-        ibad  = np.where(Vin==fvalue)
+    # If no FillValue in netcdf, assume 0 as value for the mask
+    if "_FillValue" not in inputfile.ncglo[vname].encoding: 
+        Vin[Vin==0]=np.nan
+
+    igood = np.where(np.isnan(Vin)==False)
+    ibad  = np.where(np.isnan(Vin))
 
     NzGood=np.size(igood) 
     Nbad=np.size(ibad)
@@ -341,11 +335,11 @@ def interp_tracers3D(inputfile,vname,k,coef,elem,dtmin,dtmax,prev,nxt,bdy=""): #
     nc        = inputfile.ncglo
     varinp    = inputfile.var
     if vname in [ 'u','ubar' ]:
-        Lon,Lat   = eval(''.join(("inputfile.lonU"+bdy))),eval(''.join(("inputfile.latU"+bdy)))
+        Lon,Lat,grdid   = eval(''.join(("inputfile.lonU"+bdy))),eval(''.join(("inputfile.latU"+bdy))),"u"
     elif  vname in [ 'v','vbar' ]:
-        Lon,Lat   = eval(''.join(("inputfile.lonV"+bdy))),eval(''.join(("inputfile.latV"+bdy)))
+        Lon,Lat,grdid   = eval(''.join(("inputfile.lonV"+bdy))),eval(''.join(("inputfile.latV"+bdy))),"v"
     else:
-        Lon,Lat   = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy)))
+        Lon,Lat,grdid   = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy))),"r"
 
 # 1: Read data
     if dtmin != dtmax:
@@ -371,27 +365,23 @@ def interp_tracers3D(inputfile,vname,k,coef,elem,dtmin,dtmax,prev,nxt,bdy=""): #
         Vin=Vtmp
         del Vtmp
 
-#                if nxt == 1:
-
-    try:
-        fvalue=nc[vname][varinp[vname]]._FillValue
-    except:
-        try:
-            fvalue=nc[vname][varinp[vname]].missing_value
-        except:
-            fvalue=None
-            pass
-
 # 2: Remove bad values (using nearest values)
-    if fvalue == None:
-        igood = np.where(np.isnan(Vin)==False)
-        ibad  = np.where(np.isnan(Vin))
-    else:
-        igood = np.where(Vin!=fvalue)
-        ibad  = np.where(Vin==fvalue)
+    if "_FillValue" not in inputfile.ncglo[vname].encoding:# If no FillValue in netcdf, assume 0 as value for the mask  
+        print('here')
+        Vin[Vin==0]=np.nan
 
+    igood = np.where(np.isnan(Vin)==False)
+    ibad  = np.where(np.isnan(Vin))
+    
     NzGood=np.size(igood) 
     Nbad=np.size(ibad)  
+
+    # If enough points compute neareast interpolation on masked values.
+    # To avoid recomputing spline at each time step we take Vin mean value over time
+    # This method is a lot faster than scipy.interpolate.griddata (~6sec by time step )
+    if NzGood>=10: # If enough points compute spline interp
+        spline = itp.NearestNDInterpolator((Lon[igood[1:]],Lat[igood[1:]]),np.nanmean(Vin[:,igood[1],igood[2]],axis=0))
+
     for tt in range(Vin.shape[0]):
         if NzGood==0:
 #            print('\nWarning: no good data')
@@ -400,9 +390,7 @@ def interp_tracers3D(inputfile,vname,k,coef,elem,dtmin,dtmax,prev,nxt,bdy=""): #
 #            print('\nWarning: less than 10 good values')
             Vin[igood]=np.mean(Vin[igood])
         else:
-            Vin[tt,ibad[1],ibad[2]] = griddata((Lon[igood[1:]],Lat[igood[1:]])\
-                                               ,Vin[tt,igood[1],igood[2]],\
-                                               (Lon[ibad[1:]],Lat[ibad[1:]]),method='nearest')
+            Vin[tt,ibad[1],ibad[2]] = spline(Lon[ibad[1:]],Lat[ibad[1:]])
 
 # 3: 2D interpolation
     Vout=np.zeros([Vin.shape[0],coef.shape[0],coef.shape[1]]) 
@@ -461,7 +449,10 @@ def interp3d(inputfile,vname,tndx_glo,Nzgoodmin,z_rho,coef,elem):
         depth = data['depth']
 
     [Nz]=np.shape(depth)
-    Z=-depth
+    if depth[0]<0:
+        Z=depth
+    else:
+        Z=-depth
 
 #  Vertical interpolation
     print('Vertical interpolation')
@@ -553,7 +544,11 @@ def interp3d_uv(inputfile,tndx_glo,Nzgoodmin,z_rho,cosa,sina,\
         vbar = data['vbar']
 
     [Nz]=np.shape(depth)
-    Z=-depth
+    if depth[0]<0:
+        Z=depth
+    else:
+        Z=-depth
+
 #--------------------------------------------------
 #  Vertical interpolation
 #----------------------------------------------------
@@ -632,8 +627,11 @@ def interp4d(inputfile,vname,Nzgoodmin,z_rho,coef,elem,dtmin,dtmax,prev,nxt,bdy=
         depth = data['depth']
 
     [Nz]=np.shape(depth)
-    Z=-depth
-
+    if depth[0]<0:
+        Z=depth
+    else:
+        Z=-depth
+    
 #  Vertical interpolation
     print('Vertical interpolation')
 
@@ -734,7 +732,11 @@ def interp4d_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
         vbar = data['vbar']
 
     [Nz]=np.shape(depth)
-    Z=-depth
+    if depth[0]<0:
+        Z=depth
+    else:
+        Z=-depth
+
 #--------------------------------------------------
 #  Vertical interpolation
 #----------------------------------------------------

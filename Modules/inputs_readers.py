@@ -17,16 +17,16 @@ def lookvar(input):
              }
 
     elif input == 'eccov4':
-        dico={ 'depth':'dep',\
-               'lonr':'lon','lonu':'lon','lonv':'lon',\
-               'latr':'lat','latu':'lat','latv':'lat',\
+        dico={ 'depth':'Z',\
+               'lonr':'longitude','lonu':'longitude','lonv':'longitude',\
+               'latr':'latitude','latu':'latitude','latv':'latitude',\
                'ssh':'ETAN',\
                'temp': 'THETA',\
                'salt': 'SALT',\
                'u': 'EVEL',\
                'v': 'NVEL',\
-               'time':'tim',\
-               'time_dim':'i1'\
+               'time':'time',\
+               'time_dim':'time'\
              }
 
     elif input == 'soda':

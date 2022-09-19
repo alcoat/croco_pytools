@@ -7,6 +7,7 @@ Create a CROCO bounday files
 '''
 ##################
 import netCDF4 as netcdf
+import xarray as xr
 import pylab as plt
 import numpy as np
 import glob as glob
@@ -168,9 +169,7 @@ if __name__ == '__main__':
     while plt.date2num(endloc) <= dtend:
 
         # Load full time dataset
-        timesfull=inpdat.ncglo['time'][inpdat.var['time']]
-        times = netcdf.num2date(timesfull[:],units=timesfull.units,calendar=timesfull.calendar)
-        time = plt.date2num(times)
+        time = plt.date2num(inpdat.ncglo['time'].values)
         # find index for the time range 
         ind= np.where((time>plt.date2num(startloc)) & (time<=plt.date2num(endloc)))
  

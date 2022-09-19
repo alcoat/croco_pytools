@@ -1,6 +1,7 @@
 import numpy as np
 import tools
 import netCDF4 as netcdf
+import xarray as xr
 import inputs_readers as dico
 '''
 This class need to:
@@ -14,48 +15,54 @@ class getdata():
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if bdy is None: # Ini case
             if  multi_files == False:
-                self.depth=tools.read_nc(inputfile,self.var['depth'])
+                dataxr=xr.open_dataset(inputfile)
+                self.depth=eval(''.join(("dataxr."+self.var['depth'])))
   
-                self.ncglo   = { 'ssh'  : netcdf.Dataset(inputfile,'r').variables,\
-                                 'temp' : netcdf.Dataset(inputfile,'r').variables,\
-                                 'salt' : netcdf.Dataset(inputfile,'r').variables,\
-                                 'u'    : netcdf.Dataset(inputfile,'r').variables,\
-                                 'v'    : netcdf.Dataset(inputfile,'r').variables\
+                self.ncglo   = { 'ssh'  : eval(''.join(("dataxr."+self.var['ssh']))),\
+                                 'temp' : eval(''.join(("dataxr."+self.var['temp']))),\
+                                 'salt' : eval(''.join(("dataxr."+self.var['salt']))),\
+                                 'u'    : eval(''.join(("dataxr."+self.var['u']))),\
+                                 'v'    : eval(''.join(("dataxr."+self.var['v'])))\
                                }
         
             else:
-                self.depth=tools.read_nc(inputfile['temp'],self.var['depth']) # read depth in temp file (they are the same in all files)
+                dataxr=xr.open_dataset(inputfile)
+                self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
             
-                self.ncglo   = { 'ssh'  : netcdf.Dataset(inputfile['ssh'],'r').variables,\
-                                 'temp' : netcdf.Dataset(inputfile['temp'],'r').variables,\
-                                 'salt' : netcdf.Dataset(inputfile['salt'],'r').variables,\
-                                 'u'    : netcdf.Dataset(inputfile['u'],'r').variables,\
-                                 'v'    : netcdf.Dataset(inputfile['v'],'r').variables\
+                self.ncglo   = { 'ssh'  : eval(''.join(("xr.open_dataset(inputfile['ssh'])."+self.var['ssh'])) ),\
+                                 'temp' : eval(''.join(("xr.open_dataset(inputfile['temp'])."+self.var['temp'])) ),\
+                                 'salt' : eval(''.join(("xr.open_dataset(inputfile['salt'])."+self.var['salt'])) ),\
+                                 'u'    : eval(''.join(("xr.open_dataset(inputfile['u'])."+self.var['u'])) ),\
+                                 'v'    : eval(''.join(("xr.open_dataset(inputfile['v'])."+self.var['v'])) )\
                                }
 
             [self.lonT ,self.latT ,self.idmin  ,self.idmax  ,self.jdmin  ,self.jdmax  ,self.period  ]  = self.handle_periodicity(crocogrd,'r')
             [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,'u')
             [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,'v')        
         elif bdy is not None and bdy[-1]==0: # bdy case
-            self.depth=tools.read_nc(inputfile[0],self.var['depth'])
-            
-            if multi_files == False:
-                self.ncglo   = { 'ssh'  : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
-                                 'temp' : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
-                                 'salt' : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
-                                 'u'    : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
-                                 'v'    : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables,\
-                                 'time' : netcdf.MFDataset(inputfile,'r',aggdim=self.var['time_dim']).variables\
+            if multi_files == True:
+                dataxr=xr.open_mfdataset(inputfile)
+                self.depth=eval(''.join(("dataxr."+self.var['depth'])))
+                dataxr=xr.open_mfdataset(inputfile,chunks={self.var['depth']:len(self.depth)})
+                self.ncglo   = { 'ssh'  : eval(''.join(("dataxr."+self.var['ssh']))),\
+                                 'temp' : eval(''.join(("dataxr."+self.var['temp']))),\
+                                 'salt' : eval(''.join(("dataxr."+self.var['salt']))),\
+                                 'u'    : eval(''.join(("dataxr."+self.var['u']))),\
+                                 'v'    : eval(''.join(("dataxr."+self.var['v']))),\
+                                 'time' : eval(''.join(("dataxr."+self.var['time'])))
                                }
-            else:
-                self.depth=netcdf.MFDataset(inputfile['temp'],'r',aggdim=self.var['time_dim']).variables[self.var['depth']][:] # read depth in temp file (they are the same in all files)
 
-                self.ncglo   = { 'ssh'  : netcdf.MFDataset(inputfile['ssh'],'r',aggdim=self.var['time_dim']).variables,\
-                                 'temp' : netcdf.MFDataset(inputfile['temp'],'r',aggdim=self.var['time_dim']).variables,\
-                                 'salt' : netcdf.MFDataset(inputfile['salt'],'r',aggdim=self.var['time_dim']).variables,\
-                                 'u'    : netcdf.MFDataset(inputfile['u'],'r',aggdim=self.var['time_dim']).variables,\
-                                 'v'    : netcdf.MFDataset(inputfile['v'],'r',aggdim=self.var['time_dim']).variables,\
-                                 'time' : netcdf.MFDataset(inputfile['ssh'],'r',aggdim=self.var['time_dim']).variables\
+
+            else:
+                dataxr=xr.open_mfdataset(inputfile['temp'])
+                self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
+                
+                self.ncglo   = { 'ssh'  : eval(''.join(("xr.open_mfdataset(inputfile['ssh'])."+self.var['ssh'])) ),\
+                                 'temp' : eval(''.join(("xr.open_mfdataset(inputfile['temp'])."+self.var['temp'])) ),\
+                                 'salt' : eval(''.join(("xr.open_mfdataset(inputfile['salt'])."+self.var['salt'])) ),\
+                                 'u'    : eval(''.join(("xr.open_mfdataset(inputfile['u'])."+self.var['u'])) ),\
+                                 'v'    : eval(''.join(("xr.open_mfdataset(inputfile['v'])."+self.var['v'])) ),\
+                                 'time' : eval(''.join(("xr.open_mfdataset(inputfile['ssh'])."+self.var['time'])))
                                }
    
 
@@ -85,8 +92,7 @@ class getdata():
                     [self.lonTN ,self.latTN ,self.idminN ,self.idmaxN ,self.jdminN ,self.jdmaxN ,self.periodN  ]  = self.handle_periodicity(crocogrd,'r',bdy='north')
                     [self.lonUN ,self.latUN ,self.idminUN ,self.idmaxUN ,self.jdminUN ,self.jdmaxUN ,self.periodUN ]  = self.handle_periodicity(crocogrd,'u',bdy='north')
                     [self.lonVN ,self.latVN ,self.idminVN ,self.idmaxVN ,self.jdminVN ,self.jdmaxVN ,self.periodVN ]  = self.handle_periodicity(crocogrd,'v',bdy='north')
-
-              
+ 
     #####################################
     def handle_periodicity(self,crocogrd,grid,bdy=None):
         '''
@@ -111,12 +117,12 @@ class getdata():
             inpgrd = 'ssh'
         else:
             inpgrd = grid
-        lon=self.ncglo[inpgrd][self.var['lon'+grid]]
-        lat=self.ncglo[inpgrd][self.var['lat'+grid]]
+        lon=eval(''.join(("self.ncglo[inpgrd]."+self.var['lon'+grid])))
+        lat=eval(''.join(("self.ncglo[inpgrd]."+self.var['lat'+grid])))
 
-        if len(lon.shape)==2: # Some datasets are a bit different
-            lon = self.ncglo[inpgrd][self.var['lon'+grid]][0,:]
-            lat = self.ncglo[inpgrd][self.var['lat'+grid]][:,0]
+#        if len(lon.shape)==2: # Some datasets are a bit different
+#            lon = self.ncglo[inpgrd][self.var['lon'+grid]][0,:]
+#            lat = self.ncglo[inpgrd][self.var['lat'+grid]][:,0]
 
         for i in range(1,lon.shape[0]): # Fix discontinuity
             if lon[i]<lon[i-1]:        # between 180/-180 in the
@@ -265,15 +271,15 @@ class getdata():
         if vname == 'u':
             imin=eval(''.join(("self.idminU"+bdy))) ; imax=eval(''.join(("self.idmaxU"+bdy)))
             jmin=eval(''.join(("self.jdminU"+bdy))) ; jmax=eval(''.join(("self.jdmaxU"+bdy)))
-            period=eval(''.join(("self.periodU"+bdy)))
+            period=eval(''.join(("self.periodU"+bdy))); grdid='u'
         elif vname == 'v':
             imin=eval(''.join(("self.idminV"+bdy))) ; imax=eval(''.join(("self.idmaxV"+bdy)))
             jmin=eval(''.join(("self.jdminV"+bdy))) ; jmax=eval(''.join(("self.jdmaxV"+bdy)))
-            period=eval(''.join(("self.periodV"+bdy)))
+            period=eval(''.join(("self.periodV"+bdy)));grdid='v'
         else:
             imin=eval(''.join(("self.idmin"+bdy))) ; imax=eval(''.join(("self.idmax"+bdy)))
             jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
-            period=eval(''.join(("self.period"+bdy)))
+            period=eval(''.join(("self.period"+bdy)));grdid='r'
 
         ny_lat=jmax-jmin+1
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
@@ -283,9 +289,9 @@ class getdata():
             start1=imin ; end1=start1+nx_lon ; count1=nx_lon
 
             if k==-1:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
             else:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,k,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
 
         elif imin>imax:    
             nx_lon=imax+period-imin+1
@@ -298,9 +304,9 @@ class getdata():
             start1=0 ; end1=start1+nx_lon; count1=imax
         
             if k==-1:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
             else:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,k,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
@@ -316,9 +322,9 @@ class getdata():
             # Second
             start1=imin ; count1=period-imin; end1=start1+count1
             if k==-1:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
             else:
-                field=np.array(self.ncglo[vname][self.var[vname]][l,k,start2:end2,start1:end1])
+                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
