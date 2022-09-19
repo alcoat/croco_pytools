@@ -31,12 +31,15 @@ if __name__ == '__main__':
 
     multi_files=False
     if multi_files: # Multiple data files. Time is read in ssh file
-        input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.%s.nc' % date_str, \
-                       'temp' : input_dir + input_prefix + 'THETA.%s.nc' % date_str, \
-                       'salt' : input_dir + input_prefix + 'SALT.%s.nc' % date_str, \
-                       'u'    : input_dir + input_prefix + 'EVEL.%s.nc' % date_str, \
-                       'v'    : input_dir + input_prefix + 'NVEL.%s.nc' % date_str\
+        input_file = { 'ssh'  : sorted(glob.glob(input_dir + input_prefix + 'ETAN.%s.nc' % date_str), \
+                       'temp' : sorted(glob.glob(input_dir + input_prefix + 'THETA.%s.nc' % date_str), \
+                       'salt' : sorted(glob.glob(input_dir + input_prefix + 'SALT.%s.nc' % date_str), \
+                       'u'    : sorted(glob.glob(input_dir + input_prefix + 'EVEL.%s.nc' % date_str), \
+                       'v'    : sorted(glob.glob(input_dir + input_prefix + 'NVEL.%s.nc' % date_str)\
                     }
+    else:  # glob all files
+        input_file  = sorted(glob.glob(input_dir + input_prefix))
+
 
     # CROCO path and filename informations
     croco_dir = './' 
@@ -57,10 +60,7 @@ if __name__ == '__main__':
     comp_delaunay=1
 
     Nzgoodmin=4 # default value to consider a z-level fine to be used
-#_END USER DEFINED VARIABLES_______________________________________
-    # glob all files
-    input_file  = sorted(glob.glob(input_dir + input_prefix))
-    
+#_END USER DEFINED VARIABLES_______________________________________  
     # Put origin date to the right format
     day_zero   = str(Yorig)+'0101'    
     day_zero_num = plt.datetime.datetime(int(day_zero[:4]),
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         times = netcdf.num2date(timesfull[:],units=timesfull.units,calendar=timesfull.calendar)
         time = plt.date2num(times)
         # find index for the time range 
-        ind= np.where((time>plt.date2num(startloc)) & (time<plt.date2num(endloc)))
+        ind= np.where((time>plt.date2num(startloc)) & (time<=plt.date2num(endloc)))
  
         if len(ind[0])==0 :
             print('\nData is missing for range %s to %s' % (startloc ,endloc))
@@ -206,7 +206,7 @@ if __name__ == '__main__':
             tmp_str_date=startloc
             tmp_end_date=tmp_str_date+relativedelta(months=1,days=-1,hours=12)
             while(plt.date2num(tmp_end_date) <= plt.date2num(endloc)):
-                ind_tmp= np.where((time>plt.date2num(tmp_str_date)) & (time<plt.date2num(tmp_end_date)))
+                ind_tmp= np.where((time>plt.date2num(tmp_str_date)) & (time<=plt.date2num(tmp_end_date)))
                 tmp_date=plt.datetime.datetime.strptime(str(tmp_str_date), "%Y-%m-%d %H:%M:%S")
                 if len(ind_tmp[0])==0:
                     print('\nLacking %s data for  Y%s - M%02i' %(inputdata,tmp_date.year,tmp_date.month))
