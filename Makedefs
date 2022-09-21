@@ -9,4 +9,4 @@
     NETCDFLIB = $(shell nf-config --flibs) 
 
 # Example
-# NETCDFLIB= -L/usr/lib -lnetcdff -lnetcdf -lhdf5_fortran -lhdf5
+# NETCDFLIB= -L/usr/lib -lnetcdff -lnetcdf
