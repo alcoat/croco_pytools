@@ -1,5 +1,4 @@
 import numpy as np
-import tools
 import netCDF4 as netcdf
 import xarray as xr
 import inputs_readers as dico
@@ -94,6 +93,36 @@ class getdata():
                     [self.lonVN ,self.latVN ,self.idminVN ,self.idmaxVN ,self.jdminVN ,self.jdmaxVN ,self.periodVN ]  = self.handle_periodicity(crocogrd,'v',bdy='north')
  
     #####################################
+    def indx_bound(x, x0):
+        """
+        Conversion of fortran tools indx_bound
+        """
+        n=x.shape[0]
+        if x0 < x[0] :
+            i=0                      # if x0 is outside the full range
+        elif x0 > x[-1] :            # of x(1) ... x(n), then return
+            i=n                      # i=0 or i=n.
+        else:
+            i=int( ( x[-1]-x0 +n*(x0-x[0]) )/(x[-1]-x[0]) )
+            if x[i+1]<x0 :
+                while x[i+1] <x0 :  # This algorithm computes "i" as
+                    i=i+1           # linear interpolation between x(1)
+                                    # and x(n) which should yield the
+            elif x[i] > x0 :        # correct value for "i" right a way
+                while x[i] > x0 :   # because array elements x(i) are
+                    i=i-1           # equidistantly spaced.  The while
+                                    # loops are here merely to address
+                                    # possible roundoff errors.
+
+            if x[i+1]-x0 < 0 or x0-x[i] < 0 :
+                print('### ERROR: indx_bound :: ',x[i], x0, x[i+1], x0-x[i], x[i+1]-x0)
+                exit()
+        indx_bound=i
+        return indx_bound
+
+
+
+
     def handle_periodicity(self,crocogrd,grid,bdy=None):
         '''
         handle_periodicity checks whether domain is inside the croco file.
@@ -134,8 +163,8 @@ class getdata():
         else:
             geolim=[crocogrd.lonmin()-1,crocogrd.lonmax()+1,crocogrd.latmin()-1,crocogrd.latmax()+1]
 
-        jmin=tools.indx_bound(lat, geolim[2])
-        jmax=tools.indx_bound(lat, geolim[-1])
+        jmin=indx_bound(lat, geolim[2])
+        jmax=indx_bound(lat, geolim[-1])
 
         if 0 < jmin and jmin < lat.shape[0] and 0 < jmax and jmax < lat.shape[0] :
             if jmin > 1 :
@@ -145,8 +174,8 @@ class getdata():
             print('North-south extents of the dataset ',lat[0],lat[-1],' are not sufficient to cover the entire model grid.')
             exit()
         ####
-        imin=tools.indx_bound(lon, geolim[0])
-        imax=tools.indx_bound(lon, geolim[1])
+        imin=indx_bound(lon, geolim[0])
+        imax=indx_bound(lon, geolim[1])
 
         if 0 < imin and imin < lon.shape[0] and 0 < imax and imax < lon.shape[0] :
             if imax > 1:
@@ -175,18 +204,18 @@ class getdata():
             shft_west=0
             if imin==0 :
                 shft_west=-1
-                imin=tools.indx_bound(lon, geolim[0]+360)
+                imin=indx_bound(lon, geolim[0]+360)
             elif imin==lon.shape[0] :
                 shft_west=+1
-                imin=tools.indx_bound(lon, geolim[0]-360)
+                imin=indx_bound(lon, geolim[0]-360)
         ##
             shft_east=0
             if imax == 0:
                 shft_east=-1
-                imax=tools.indx_bound(lon, geolim[1]+360)
+                imax=indx_bound(lon, geolim[1]+360)
             elif imax == lon.shape[0]:
                 shft_east=+1
-                imax=tools.indx_bound(lon, geolim[1]-360)
+                imax=indx_bound(lon, geolim[1]-360)
     
             if 0<imin and imin <lon.shape[0] and 0<imax and imax<lon.shape[0] :
                 if imin>1:

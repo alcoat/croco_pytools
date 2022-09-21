@@ -12,7 +12,6 @@ import pylab as plt
 import numpy as np
 import glob as glob
 from dateutil.relativedelta import relativedelta
-from time import strptime
 import sys
 sys.path.append("./Modules/")
 #import toolsf  # can also use fortran tools to compute zlevs 

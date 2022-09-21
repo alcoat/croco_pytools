@@ -10,14 +10,13 @@ import netCDF4 as netcdf
 import pylab as plt
 import numpy as np
 import glob as glob
-import collections
 from datetime import datetime
-from time import strptime
 import sys
 sys.path.append("./Modules/")
-#import toolsf  # can also use fortran tools to compute zlevs 
-import tools
-import tools_interp 
+import Cgrid_transformation_tools as grd_tools
+import interp_tools
+import sigmagrid_tools as sig_tools
+
 import croco_class as Croco
 import input_class as Inp
 ######################
@@ -58,7 +57,10 @@ if __name__ == '__main__':
     comp_delaunay=1
 
     Nzgoodmin = 4  # default value to consider a z-level fine to be used
-#_END USER DEFINED VARIABLES_______________________________________
+
+###############################################
+####### END USER CHANGES ######################
+###############################################
 
 
     # edit ini_filename to add starting date
@@ -102,21 +104,21 @@ if __name__ == '__main__':
         print('\nCompute Delaunay triangulation from GLORYS T-points to CROCO rho_points...')
         print('--------------------------------------------------------------------------')
 
-        [elemT,coefT] = tools_interp.get_tri_coef(inpdat.lonT,inpdat.latT,crocogrd.lon,crocogrd.lat)
+        [elemT,coefT] = interp_tools.get_tri_coef(inpdat.lonT,inpdat.latT,crocogrd.lon,crocogrd.lat)
         coefnorm=np.sum(coefT,axis=2)
         coefT=coefT/coefnorm[:,:,np.newaxis]
 
         print('\nCompute Delaunay triangulation from GLORYS U-points to CROCO rho_points...')
         print('--------------------------------------------------------------------------')
 
-        [elemU,coefU] = tools_interp.get_tri_coef(inpdat.lonU,inpdat.latU,crocogrd.lon,crocogrd.lat)
+        [elemU,coefU] = interp_tools.get_tri_coef(inpdat.lonU,inpdat.latU,crocogrd.lon,crocogrd.lat)
         coefnorm=np.sum(coefU,axis=2)
         coefU=coefU/coefnorm[:,:,np.newaxis]
 
         print('\nCompute Delaunay triangulation from GLORYS V-points to CROCO rho_points...')
         print('--------------------------------------------------------------------------')
 
-        [elemV,coefV] = tools_interp.get_tri_coef(inpdat.lonV,inpdat.latV,crocogrd.lon,crocogrd.lat)
+        [elemV,coefV] = interp_tools.get_tri_coef(inpdat.lonV,inpdat.latV,crocogrd.lon,crocogrd.lat)
         coefnorm=np.sum(coefV,axis=2)
         coefV=coefV/coefnorm[:,:,np.newaxis]
 
@@ -142,7 +144,7 @@ if __name__ == '__main__':
         print('\nProcessing *%s*' %vars)
         nc=netcdf.Dataset(croco_dir+ini_filename, 'a')
         if vars == 'ssh' :
-            (zeta,NzGood) = tools_interp.interp_tracers(inpdat,vars,tndx,-1,coefT,elemT)
+            (zeta,NzGood) = interp_tools.interp_tracers(inpdat,vars,tndx,-1,coefT,elemT)
             nc.variables['zeta'][0,:,:] = zeta*crocogrd.maskr
 
             nc.variables['ocean_time'][:] = oceant
@@ -152,16 +154,14 @@ if __name__ == '__main__':
 
             z_rho = crocogrd.scoord2z_r(zeta=zeta)
             z_w   = crocogrd.scoord2z_w(zeta=zeta)
-#             [z_rho,z_w]=toolsf.zlevs(crocogrd.h,zeta,chd_sigma_params['hc'],crocogrd.Cs_r(),crocogrd.Cs_w())
-#            z_w=z_w.transpose(2,0,1);z_rho=z_rho.transpose(2,0,1)
             
         elif vars == 'tracers':
             print('\nIn tracers processing Temp')
-            temp= tools_interp.interp3d(inpdat,'temp',tndx,Nzgoodmin,z_rho,coefT,elemT)
+            temp= interp_tools.interp3d(inpdat,'temp',tndx,Nzgoodmin,z_rho,coefT,elemT)
             nc.variables['temp'][0,:,:,:] = temp*crocogrd.mask3d()
             print('\nIn tracers processing Salt')
 
-            salt= tools_interp.interp3d(inpdat,'salt',tndx,Nzgoodmin,z_rho,coefT,elemT)
+            salt= interp_tools.interp3d(inpdat,'salt',tndx,Nzgoodmin,z_rho,coefT,elemT)
             nc.variables['salt'][0,:,:,:] = salt*crocogrd.mask3d()
 
         elif vars == 'velocity':
@@ -169,13 +169,13 @@ if __name__ == '__main__':
             cosa=np.cos(crocogrd.angle)
             sina=np.sin(crocogrd.angle)
 
-            [u,v,ubar,vbar]=tools_interp.interp3d_uv(inpdat,tndx,Nzgoodmin,z_rho,cosa,sina,\
+            [u,v,ubar,vbar]=interp_tools.interp3d_uv(inpdat,tndx,Nzgoodmin,z_rho,cosa,sina,\
                                    coefU,elemU,coefV,elemV)
               
             conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
             if conserv == 1:
-                (ubar_croco,h0)=tools.vintegr(u,tools.rho2u(z_w),tools.rho2u(z_rho),np.nan,np.nan)/tools.rho2u(crocogrd.h)
-                (vbar_croco,h0)=tools.vintegr(v,tools.rho2v(z_w),tools.rho2v(z_rho),np.nan,np.nan)/tools.rho2v(crocogrd.h)
+                (ubar_croco,h0)=sig_tools.vintegr(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)/grd_tools.rho2u(crocogrd.h)
+                (vbar_croco,h0)=sig_tools.vintegr(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)/grd_tools.rho2v(crocogrd.h)
 
                 u = u - ubar_croco ; u = u + np.tile(ubar,(z_rho.shape[0],1,1))
                 v = v - vbar_croco ; v = v + np.tile(vbar,(z_rho.shape[0],1,1))

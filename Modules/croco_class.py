@@ -1,5 +1,7 @@
 import numpy as np
-import tools
+import Cgrid_transformation_tools as grd_tools
+import sigmagrid_tools as sig_tools
+import netcdf_tools as nc_tools
 import netCDF4 as netcdf
 from datetime import datetime
 from collections import OrderedDict
@@ -10,22 +12,22 @@ class CROCO_grd(object):
         print('Reading CROCO grid: %s' %filename )
         self.grid_file = filename
         nc=netcdf.Dataset(filename,'r')
-        self.lon = tools.read_nc(filename,'lon_rho')
-        self.lat = tools.read_nc(filename,'lat_rho')
-        self.lonu =tools.read_nc(filename,'lon_u')
-        self.latu = tools.read_nc(filename,'lat_u')
-        self.lonv = tools.read_nc(filename,'lon_v')
-        self.latv = tools.read_nc(filename,'lat_v')
-        self.pm  = tools.read_nc(filename,'pm')
-        self.pn  = tools.read_nc(filename,'pn')
-        self.maskr = tools.read_nc(filename,'mask_rho')
-        self.angle = tools.read_nc(filename,'angle')
-        self.h = tools.read_nc(filename,'h')
-        self.hraw = tools.read_nc(filename,'hraw')
-        self.f = tools.read_nc(filename,'f')
-        self.umask=tools.rho2u(self.maskr)
-        self.vmask=tools.rho2v(self.maskr)
-        self.pmask=tools.rho2psi(self.maskr)
+        self.lon = nc_tools.read_nc(filename,'lon_rho')
+        self.lat = nc_tools.read_nc(filename,'lat_rho')
+        self.lonu =nc_tools.read_nc(filename,'lon_u')
+        self.latu = nc_tools.read_nc(filename,'lat_u')
+        self.lonv = nc_tools.read_nc(filename,'lon_v')
+        self.latv = nc_tools.read_nc(filename,'lat_v')
+        self.pm  = nc_tools.read_nc(filename,'pm')
+        self.pn  = nc_tools.read_nc(filename,'pn')
+        self.maskr = nc_tools.read_nc(filename,'mask_rho')
+        self.angle = nc_tools.read_nc(filename,'angle')
+        self.h = nc_tools.read_nc(filename,'h')
+        self.hraw = nc_tools.read_nc(filename,'hraw')
+        self.f = nc_tools.read_nc(filename,'f')
+        self.umask= grd_tools.rho2u(self.maskr)
+        self.vmask= grd_tools.rho2v(self.maskr)
+        self.pmask= grd_tools.rho2psi(self.maskr)
         self.theta_s = np.double(sigma_params['theta_s'])
         self.theta_b = np.double(sigma_params['theta_b'])
         self.hc = np.double(sigma_params['hc'])
@@ -53,122 +55,35 @@ class CROCO_grd(object):
     def latmax(self):
         return np.max(self.lat)
 
-    def _scoord2z(self, point_type, zeta, topo, alpha, beta):
-        """
-        z = scoord2z(h, theta_s, theta_b, hc, N, point_type, scoord, zeta)
-        scoord2z finds z at either rho or w points (positive up, zero at rest surface)
-        h          = array of depths (e.g., from grd file)
-        theta_s    = surface focusing parameter
-        theta_b    = bottom focusing parameter
-        hc         = critical depth
-        N          = number of vertical rho-points
-        point_type = 'r' or 'w'
-        scoord     = 'new2008' :new scoord 2008, 'new2006' : new scoord 2006,
-                      or 'old1994' for Song scoord
-        zeta       = sea surface height
-        message    = set to False if don't want message
-        """
-        def CSF(self, sc):
-            '''
-            Allows use of theta_b > 0 (July 2009)
-            '''
-            one64 = np.float64(1)
-            if self.theta_s > 0.:
-                csrf = ((one64 - np.cosh(self.theta_s * sc))
-                           / (np.cosh(self.theta_s) - one64))
-            else:
-                csrf = -sc ** 2
-            sc1 = csrf + one64
-            if self.theta_b > 0.:
-                Cs = ((np.exp(self.theta_b * sc1) - one64)
-                    / (np.exp(self.theta_b) - one64) - one64)
-            else:
-                Cs = csrf
-            return Cs
-
-        try:
-            self.scoord
-        except:
-            self.scoord = 'new2008'
-
-        N = np.float64(self.N.copy())
-        cff1 = 1. / np.sinh(self.theta_s)
-        cff2 = 0.5 / np.tanh(0.5 * self.theta_s)
-        sc_w = (np.arange(N + 1, dtype=np.float64) - N) / N
-        sc_r = ((np.arange(1, N + 1, dtype=np.float64)) - N - 0.5) / N
-
-        if 'w' in point_type:
-            sc = sc_w
-            N += 1. # add a level
-        else:
-            sc = sc_r
-        
-        if len(np.array(zeta).shape)>2: # case zeta is 3-D (in time)
-            z  = np.empty((int(zeta.shape[0]),) + (int(N),) + topo.shape, dtype=np.float64)
-        else:
-            z  = np.empty((int(N),) + topo.shape, dtype=np.float64)
-
-        if self.scoord in 'new2008':
-            Cs = CSF(self, sc)
-        if self.scoord in 'new2006' or self.scoord in 'new2008':
-            hinv = 1. / (topo + self.hc)
-            cff = self.hc * sc
-            cff1 = Cs
-            
-            if len(np.array(zeta).shape)>2:
-                for t in range(zeta.shape[0]):
-                    for k in np.arange(N, dtype=int):
-                        z[t,k] = zeta[t] + (zeta[t] + topo) * (cff[k] + cff1[k] * topo) * hinv
-            else:
-                for k in np.arange(N, dtype=int):
-                    z[k] = zeta + (zeta + topo) * (cff[k] + cff1[k] * topo) * hinv
-        elif self.scoord in 'old1994':
-            hinv = 1. / self.h
-            cff  = self.hc * (sc - Cs)
-            cff1 = Cs
-            cff2 = sc + 1
-
-            if len(np.array(zeta).shape)>2:
-                for t in range(zeta.shape[0]):
-                    for k in np.arange(N) + 1:
-                        z0      = cff[k-1] + cff1[k-1] * topo
-                        z[k-1, :] = z0 + zeta * (1. + z0 * hinv)
-            else:
-                for k in np.arange(N) + 1:
-                    z0      = cff[k-1] + cff1[k-1] * topo
-                    z[k-1, :] = z0 + zeta * (1. + z0 * hinv)
-        else:
-            raise Exception("Unknown scoord, should be 'new2008' or 'old1994'")
-        if self.sc_r is None:
-            self.sc_r = sc_r
-        return z.squeeze(), np.float32(Cs)
-
-
-    def scoord2z_r(self, zeta=0., bdy="", alpha=0., beta=1.):
+    def scoord2z_r(self, zeta=0., bdy="", scoord='new2008'):
         '''
         Depths at vertical rho points
         '''
-        return self._scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), alpha=alpha, beta=beta)[0]
+        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+                N=self.N,hc=self.hc,scoord=scoord)[0]
 
 
-    def Cs_r(self, zeta=0., bdy="", alpha=0., beta=1.):
+    def Cs_r(self, zeta=0., bdy="", scoord='new2008'):
         '''
         S-coordinate stretching curves at rho points
         '''
-        return self._scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))),  alpha=alpha, beta=beta)[1]
+        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+                N=self.N,hc=self.hc,scoord=scoord)[1]
 
 
-    def scoord2z_w(self, zeta=0., bdy="", alpha=0., beta=1.):
+    def scoord2z_w(self, zeta=0., bdy="", scoord='new2008'):
         '''
         Depths at vertical w points
         '''
-        return self._scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), alpha=alpha, beta=beta)[0]
+        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+                N=self.N,hc=self.hc,scoord=scoord)[0]
 
-    def Cs_w(self, zeta=0., bdy="", alpha=0., beta=1.):
+    def Cs_w(self, zeta=0., bdy="", scoord='new2008'):
         '''
         S-coordinate stretching curves at w points
         '''
-        return self._scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), alpha=alpha, beta=beta)[1]
+        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+                N=self.N,hc=self.hc,scoord=scoord)[1]
 
     def WEST_grid(self,indices="[:,0:2]"):
         '''
