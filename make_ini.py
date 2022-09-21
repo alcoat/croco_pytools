@@ -1,12 +1,39 @@
+__author__ = 'Mathieu Le Corre'
+__email__  = 'mathieu.lecorre@univ-brest.fr'
+__date__   = '2022-09'
+__license__='GPL3'
 '''
 ===========================================================================
+Further Information:  
+  http://www.croco-ocean.org
+  
+This file is part of CROCOTOOLS
 
 Create a CROCO initial file
-input?
-output?
+In the current state the script can handle:
+    - mercator (glorys)
+    - soda
+    - eccov4  (V4.3)
+
+To add a new dataset you just have to go in Modules/inputs_readers.py and
+create a dico with correspondance between croco_var(ssh,u,v,temp,salt)
+and dataset variable names.
+
+The periodicity of a dataset (if it is -180/180 or 0/360) is handle by the
+script. Just download the dataset and it should be fine
+
+The script works as follow:
+    - reads croco_grd
+    - reads input data and restricts the area of spatial coverage
+    - creates croco_ini.nc
+    - computes coefficients for horizontal interpolation on each grid (rho,u,v)
+    - Loop on var with:
+        * horizontal interpolation
+        * vertical interpolation
+    - Writes data in netcdf
 ===========================================================================
 '''
-#######################
+#--- Dependencies ---------------------------------------------------------
 import netCDF4 as netcdf
 import pylab as plt
 import numpy as np
@@ -20,67 +47,68 @@ import sigmagrid_tools as sig_tools
 
 import croco_class as Croco
 import input_class as Inp
-######################
+#--------------------------------------------------------------------------
+
+
+#--- USER CHANGES ---------------------------------------------------------
+
+# input informations
+inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
+input_dir = './'
+input_prefix='raw_motu_mercator_'
+multi_files=False # If variables are in different netcdf
+
+# input files
+Yini,Mini,Dini  = '2005','01','01' # Month and days need to be 2-digits format
+date_str = (Yini, Mini)
+input_file  = input_dir + input_prefix + 'Y%sM%s.nc' % date_str
+
+if multi_files: # Mutiple files
+    input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.%s.nc' % date_str, \
+                   'temp' : input_dir + input_prefix + 'THETA.%s.nc' % date_str, \
+                   'salt' : input_dir + input_prefix + 'SALT.%s.nc' % date_str, \
+                   'u'    : input_dir + input_prefix + 'EVEL.%s.nc' % date_str, \
+                   'v'    : input_dir + input_prefix + 'NVEL.%s.nc' % date_str\
+                }
+tndx=0 # time index in the file
+
+# CROCO path and filename informations
+croco_dir = './'
+croco_grd = 'croco_grd.nc'
+sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+
+Yzer,Mzer,Dzer = Yini, Mini, Dini # reference time (default = ini time).Month and days need to be 2-digits format
+
+# inifile informations
+ini_filename    = 'croco_ini.nc'
+
+# create delaunay weight
+comp_delaunay=1
+
+Nzgoodmin = 4  # default value to consider a z-level fine to be used
+
+#--- END USER CHANGES -----------------------------------------------------
 
 if __name__ == '__main__':
-    
-    # input informations
-    inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
-    input_dir = './'
-    input_prefix='raw_motu_mercator_'
-    multi_files=False # If variables are in different netcdf
-
-    # input files
-    Yini,Mini,Dini  = '2005','01','01' # Month and days need to be 2-digits format
-    date_str = (Yini, Mini)
-    input_file  = input_dir + input_prefix + 'Y%sM%s.nc' % date_str
-
-    if multi_files: # Mutiple files
-        input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.%s.nc' % date_str, \
-                       'temp' : input_dir + input_prefix + 'THETA.%s.nc' % date_str, \
-                       'salt' : input_dir + input_prefix + 'SALT.%s.nc' % date_str, \
-                       'u'    : input_dir + input_prefix + 'EVEL.%s.nc' % date_str, \
-                       'v'    : input_dir + input_prefix + 'NVEL.%s.nc' % date_str\
-                    }
-    tndx=0 # time index in the file
-
-    # CROCO path and filename informations
-    croco_dir = './'
-    croco_grd = 'croco_grd.nc'
-    sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
-
-    Yzer,Mzer,Dzer = Yini, Mini, Dini # reference time (default = ini time).Month and days need to be 2-digits format
-
-    # inifile informations
-    ini_filename    = 'croco_ini.nc'
-
-    # create delaunay weight
-    comp_delaunay=1
-
-    Nzgoodmin = 4  # default value to consider a z-level fine to be used
-
-###############################################
-####### END USER CHANGES ######################
-###############################################
-
-
     # edit ini_filename to add starting date
     ini_filename = ini_filename.replace('.nc', '_%s_Y%sM%s.nc' %(inputdata,Yini, Mini))
 
     # Load croco_grd
     crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)), sigma_params)
 
-    # Load input (restricted to croco_grd)
+    # --- Load input (restricted to croco_grd) ----------------------------
+
     inpdat=Inp.getdata(inputdata,input_file,crocogrd,muli_files)
 
     print(' ')
     print(' Making initial file: '+ini_filename)
     print(' ')
 
-    # Create the initial file
+    # --- Create the initial file -----------------------------------------
+
     Croco.CROCO.create_ini_nc(None,''.join((croco_dir + ini_filename)),crocogrd)
 
-    # Handle initial time
+    # --- Handle initial time ---------------------------------------------
     ini_date_num = datetime(int(Yini), int(Mini), int(Dini))
     ini_date_num = plt.date2num(ini_date_num) + 0.5
 
@@ -97,10 +125,11 @@ if __name__ == '__main__':
     tend=0.
 
 
-# Get the 2D interpolation coefficients
+   # --- Get the 2D interpolation coefficients ----------------------------
+
     if comp_delaunay==1:
-# Compute the Delaunay triangulation matrices (long but only done once)
-# (u and v are interpolated on croco rho_points because we may need to rotate them)
+    # Compute the Delaunay triangulation matrices (long but only done once)
+    # (u and v are interpolated on croco rho_points because we may need to rotate them)
 
         print('\nCompute Delaunay triangulation from GLORYS T-points to CROCO rho_points...')
         print('--------------------------------------------------------------------------')
@@ -123,11 +152,11 @@ if __name__ == '__main__':
         coefnorm=np.sum(coefV,axis=2)
         coefV=coefV/coefnorm[:,:,np.newaxis]
 
-# Save the Delaunay triangulation matrices
+    # Save the Delaunay triangulation matrices
         np.savez('coeffs.npz',coefT=coefT,elemT=elemT,\
              coefU=coefU,elemU=elemU,coefV=coefV,elemV=elemV)
     else:
-# Load the Delaunay triangulation matrices
+    # Load the Delaunay triangulation matrices
         print('Load Delaunay triangulation...')
         data=np.load('coeffs.npz')
         coefT = data['coefT']
@@ -139,7 +168,7 @@ if __name__ == '__main__':
 
         print('Delaunay triangulation done')
 
-####################################
+   #  --- Compute and save variables on CROCO grid ---------------
 
     for vars in ['ssh','tracers','velocity']:
         print('\nProcessing *%s*' %vars)

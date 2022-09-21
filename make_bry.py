@@ -1,11 +1,45 @@
+__author__ = 'Mathieu Le Corre'
+__email__  = 'mathieu.lecorre@univ-brest.fr'
+__date__   = '2022-09'
+__license__='GPL3'
+
 '''
 ===========================================================================
+Further Information:  
+  http://www.croco-ocean.org
+  
+This file is part of CROCOTOOLS
 
 Create a CROCO bounday files
+In the current state the script can handle:
+    - mercator (glorys)
+    - soda
+    - eccov4  (V4.3)
+
+To add a new dataset you just have to go in Modules/inputs_readers.py and
+create a dico with correspondance between croco_var(ssh,u,v,temp,salt)
+and dataset variable names.
+
+The periodicity of a dataset (if it is -180/180 or 0/360) is handle by the
+script. Just download the dataset and it should be fine
+
+The script works as follow:
+    - reads croco_grd
+    - reads input data and restricts the area of spatial coverage
+    - creates croco_bry.nc
+    - computes coefficients for horizontal interpolation on each grid (rho,u,v)
+      and for each open boudary
+    - Loop on open boundaries with:
+          check if data for before or after for continuity, if not duplicate first or last
+          loop on var with:
+              * horizontal interpolation
+              * vertical interpolation
+    - Writes data in netcdf
 
 ===========================================================================
 '''
-##################
+
+#--- Dependencies ---------------------------------------------------------
 import netCDF4 as netcdf
 import xarray as xr
 import pylab as plt
@@ -18,48 +52,54 @@ import tools
 import tools_interp
 import croco_class as Croco
 import input_class as Inp
-#####################
+#--------------------------------------------------------------------------
+
+
+#--- USER CHANGES ---------------------------------------------------------
+
+# input informations
+inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
+input_dir = '/local/tmp/3/'
+input_prefix='raw_motu_mercator_*'# Please use * to include all files
+
+multi_files=False
+if multi_files: # Multiple data files. Time is read in ssh file
+    input_file = { 'ssh'  : sorted(glob.glob(input_dir + input_prefix + 'ETAN.%s.nc' % date_str), \
+                   'temp' : sorted(glob.glob(input_dir + input_prefix + 'THETA.%s.nc' % date_str), \
+                   'salt' : sorted(glob.glob(input_dir + input_prefix + 'SALT.%s.nc' % date_str), \
+                   'u'    : sorted(glob.glob(input_dir + input_prefix + 'EVEL.%s.nc' % date_str), \
+                   'v'    : sorted(glob.glob(input_dir + input_prefix + 'NVEL.%s.nc' % date_str)\
+                }
+else:  # glob all files
+    input_file  = sorted(glob.glob(input_dir + input_prefix))
+
+
+# CROCO path and filename informations
+croco_dir = './' 
+croco_grd = 'croco_grd.nc'
+sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+
+# bryfile informations
+bry_filename    = 'croco_bry.nc'
+obc_dict = dict(south=1, west=1, east=1, north=1) # open boundaries (1=open , [S W E N])
+output_file_format="MONTHLY" # How outputs are spit (MONTHLY,YEARLY,FULL)
+cycle_bry=0.
+
+Yorig=2005 # year origin of time : days since Yorig-01-01
+Ystart,Mstart = '2005', '01'   # Starting month
+Yend,Mend  = '2005','02'       # Ending month 
+
+#  create delaunay weight 
+comp_delaunay=1
+
+Nzgoodmin=4 # default value to consider a z-level fine to be used
+#--- END USER CHANGES -----------------------------------------------------
+
+#--- START MAIN SCRIPT ----------------------------------------------------
 
 
 if __name__ == '__main__':
 
-    # input informations
-    inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
-    input_dir = '/local/tmp/3/'
-    input_prefix='raw_motu_mercator_*'# Please use * to include all files
-
-    multi_files=False
-    if multi_files: # Multiple data files. Time is read in ssh file
-        input_file = { 'ssh'  : sorted(glob.glob(input_dir + input_prefix + 'ETAN.%s.nc' % date_str), \
-                       'temp' : sorted(glob.glob(input_dir + input_prefix + 'THETA.%s.nc' % date_str), \
-                       'salt' : sorted(glob.glob(input_dir + input_prefix + 'SALT.%s.nc' % date_str), \
-                       'u'    : sorted(glob.glob(input_dir + input_prefix + 'EVEL.%s.nc' % date_str), \
-                       'v'    : sorted(glob.glob(input_dir + input_prefix + 'NVEL.%s.nc' % date_str)\
-                    }
-    else:  # glob all files
-        input_file  = sorted(glob.glob(input_dir + input_prefix))
-
-
-    # CROCO path and filename informations
-    croco_dir = './' 
-    croco_grd = 'croco_grd.nc'
-    sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
-
-    # bryfile informations
-    bry_filename    = 'croco_bry.nc'
-    obc_dict = dict(south=1, west=1, east=1, north=1) # open boundaries (1=open , [S W E N])
-    output_file_format="MONTHLY" # How outputs are spit (MONTHLY,YEARLY,FULL)
-    cycle_bry=0.
-
-    Yorig=2005 # year origin of time : days since Yorig-01-01
-    Ystart,Mstart = '2005', '01'   # Starting month
-    Yend,Mend  = '2005','02'       # Ending month 
-
-    #  create delaunay weight 
-    comp_delaunay=1
-
-    Nzgoodmin=4 # default value to consider a z-level fine to be used
-#_END USER DEFINED VARIABLES_______________________________________  
     # Put origin date to the right format
     day_zero   = str(Yorig)+'0101'    
     day_zero_num = plt.datetime.datetime(int(day_zero[:4]),
@@ -79,25 +119,26 @@ if __name__ == '__main__':
     dtenddt = plt.datetime.datetime(int(Yend),int(Mend),1,12) \
             + relativedelta(months=1,days=-1) # Last day of the ending month
 
-#    dtenddt = plt.datetime.datetime(int(end_date[:4]),
-#                                    int(end_date[4:6]),
-#                                    int(end_date[6:8]),
-#                                    int(end_date[8:]))
 
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
 
-    # Load croco_grd
+    # --- Load croco_grd --------------------------------------------------
+
     crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)), sigma_params)
-    # Initialize boundary vars
+
+    # --- Initialize boundary vars ----------------------------------------
+
     crocogrd.WEST_grid()
     crocogrd.EAST_grid()
     crocogrd.SOUTH_grid()
     crocogrd.NORTH_grid()
     
-    # Initialize input data class (imin,jmin,imax,jmax,...)
+    # --- Initialize input data class -------------------------------------
+
     inpdat = Inp.getdata(inputdata,input_file,crocogrd,multi_filesbdy=[obc_dict,cycle_bry])
 
-    # Get the 2D interpolation coefficients
+    # --- Get the 2D interpolation coefficients ---------------------------
+
     if comp_delaunay==1:
         for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):
             if is_open:
@@ -145,7 +186,8 @@ if __name__ == '__main__':
                 coefV_north = data['coefV']; elemV_north = data['elemV']
 
 
-    # Work on date format for the loop in time
+    # --- Work on date format for the loop in time ------------------------
+
     startloc=plt.datetime.datetime(int(start_date[:4]),
                                    int(start_date[4:6]),
                                    1)
@@ -163,7 +205,8 @@ if __name__ == '__main__':
         print("\n Output file format \"%s\" is not setup. Pease change it to MONTHLY, YEARLY or FULL")
         sys.exit()
  
-    # Begin the loop in time
+    # --- Start time loop loop in time ------------------------------------
+
     while plt.date2num(endloc) <= dtend:
 
         # Load full time dataset
@@ -213,7 +256,7 @@ if __name__ == '__main__':
 
             del tmp_str_date,tmp_end_date
 
-        # Check if data availabla for the surrounded months
+        # --- Check if data availabla for the surrounded months -----------
         print('-----------------------------------')
         tmp_str_date=startloc ; tmp_end_date = endloc
         prev_month_str = tmp_str_date+relativedelta(months=-1)
@@ -249,7 +292,8 @@ if __name__ == '__main__':
                 print('Aborting')
                 sys.exit()
          
-        ## handle bry_time
+        ## --- Handle bry_time --------------------------------------------
+
         bry_time= time[dtmin:dtmax+1] - day_zero_num 
         if prev == 1 and len(bry_time)==1:
             prev_time = plt.date2num(plt.num2date(bry_time[0]) + relativedelta(days=-30))
@@ -270,14 +314,14 @@ if __name__ == '__main__':
             nxt_time = plt.date2num(plt.num2date(bry_time[-1]) + relativedelta(days=date_dt))
             bry_time=np.append(bry_time,nxt_time)
             del nxt_time
-        ##
-
+        
         nc=netcdf.Dataset(bdy_filename, 'a')
 
         nc.variables['bry_time'].cycle=cycle_bry
         nc.variables['bry_time'][:]=bry_time
 
-        # Loop on boundaries
+        # --- Loop on boundaries ------------------------------------------
+
         for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):
             if is_open:
                 for vars in ['ssh','tracers','velocity']:
@@ -316,7 +360,8 @@ if __name__ == '__main__':
                             v = v - vbar_croco ; v = v + np.tile(vbar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
 
 
-                # Saving in netcdf
+    # --- Saving in netcdf ------------------------------------------------
+
                 print('\nSaving %sern boundary in Netcdf' % boundary)
                 print('----------------------------------')
   
@@ -352,7 +397,9 @@ if __name__ == '__main__':
                 # handle prev and nxt + save
 
         nc.close()
-
+    # --- END writting netcdf ---------------------------------------------
+    
+    # --- Preparing time for next loop ------------------------------------
         startloc=endloc+relativedelta(days=1,hours=-12)
         if output_file_format.upper() == "MONTHLY":
             endloc= startloc+relativedelta(months=1,days=-1,hour=12)
