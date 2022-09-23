@@ -17,8 +17,7 @@ from traitsui.wx.editor import Editor
 from traitsui.basic_editor_factory import BasicEditorFactory
 
 import matplotlib.pyplot as plt
-import tools
-import tools_topo
+import tools_make_grid
 
 class ComputeGridThread(Thread):
     """
@@ -31,12 +30,12 @@ class ComputeGridThread(Thread):
         """
         Runs the easygrid computing loop
         """
-        self.bmapoptions
+        self.coastres
         self.easy(self.inputs, self.outputs)
         if self.inputs.zview == 'topo':
             self.topo(self.outputs, self.topo_file)
         if self.inputs.zview == 'mask':
-            self.mask(self.outputs,self.bmapoptions,self.gshhs_file)
+            self.mask(self.outputs,self.coastres,self.gshhs_file)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
@@ -62,9 +61,9 @@ class ComputeSmthThread(Thread):
         """
         Runs the smoothing computing loop
         """
-        self.bmapoptions
+        self.coastres
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.bmapoptions,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -94,9 +93,9 @@ class ComputeZmThread(Thread):
         """
  
 #        self.prt_grd=tools_topo.topo_prt(self.croco_file) 
-        self.bmapoptions
+        self.coastres
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.bmapoptions,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
         self.match_topo(self.topo_prt,self.outputs,self.openb)
 
@@ -133,9 +132,9 @@ class ComputeC2cThread(Thread):
 #                self.display(' ny = N*refine_coef + 1 -- with N an integer \n')
 #        else:
 
-        self.bmapoptions #read coastline option
+        self.coastres #read coastline option
         self.nest(self.topo_prt,self.inputs,self.outputs)
-        self.mask(self.outputs,self.bmapoptions,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h))
         self.match_topo(self.topo_prt,self.outputs,self.openb) 
 
@@ -153,7 +152,7 @@ class SaveGridThread(Thread):
         """
         Runs the easygrid save to nc loop
         """
-        self.save2netcdf(self.outputs_dir,self.inputs, self.outputs,prt_grd=self.prt_grd)
+        self.save2netcdf.create_grid_nc(self.outputs_dir,self.inputs, self.outputs,prt_grd=self.prt_grd)
 
         if self.prt_grd is None or self.prt_grd[0]==False:
             easyparam = (self.inputs.nx, self.inputs.ny,

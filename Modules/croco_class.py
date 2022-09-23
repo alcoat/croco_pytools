@@ -157,7 +157,7 @@ class CROCO_grd(object):
 
         return self
 
-class CROCO(CROCO_grd):
+class CROCO():
 
     def create_ini_nc(self, filename, grdobj, created_by='make_ini.py'):#fillval
         # Global attributes
@@ -171,7 +171,7 @@ class CROCO(CROCO_grd):
         nc.Tcline = grdobj.hc
         nc.Cs_r = grdobj.Cs_r()
         nc.Cs_w = grdobj.Cs_w()
-        nc.VertCoordType = grdobj.scoord
+        nc.VertCoordType = 'NEW'
 
         # Dimensions
         nc.createDimension('xi_rho', grdobj.lon.shape[1])
@@ -430,6 +430,206 @@ class CROCO(CROCO_grd):
         nc.close()
 
 
+    def create_grid_nc(self,output_dir, inputs, outputs,prt_grd=None):    
+        """
+        Create and save a new CROCO grid file
+        """
+#        prt_grd=[AGRIF,prt_file,coef,imi,imax,jmin,jmax]
+        if prt_grd is not None:
+            if prt_grd[0]==True: # Means we are in AGRIF
+                lev=prt_grd[1][-1]
+                if not lev.isnumeric():
+                    grid_name='croco_grd.nc.1'
+                else:
+                    grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
+            else :  # We create offline zoom
+                grid_name='croco_chd_grd.nc'
+        else:
+            grid_name='croco_grd.nc'
+		 
+        nc = netcdf.Dataset(output_dir+grid_name, 'w', format='NETCDF4')
+
+        # create global variables
+        nc.created = datetime.now().isoformat()
+        nc.type = 'ROMS grid file produced by easygrid_python.py'
+        nc.VertCoordType = 'NEW';
+
+        nc.createDimension('one', 1)
+        if prt_grd is not None and prt_grd[0]: #AGRIF case
+            nc.nx=outputs.h.shape[1]-2
+            nc.ny=outputs.h.shape[0]-2
+
+            # create dimensions
+            nc.createDimension('xi_rho', outputs.h.shape[1])
+            nc.createDimension('eta_rho', outputs.h.shape[0])
+            nc.createDimension('xi_u', outputs.h.shape[1] - 1)
+            nc.createDimension('eta_v', outputs.h.shape[0] - 1)
+            nc.createDimension('xi_psi', outputs.h.shape[1] - 1)
+            nc.createDimension('eta_psi', outputs.h.shape[0] - 1)
+            nc.createDimension('four', 4)
+
+            # Some empty variables in AGRIF
+            nc.createVariable('xl', 'f8', ('one'))
+            nc.variables['xl'].long_name = 'domain length in the XI-direction'
+            nc.variables['xl'].units = 'meters'
+
+            nc.createVariable('el', 'f8', ('one'))
+            nc.variables['el'].long_name = 'domain length in the ETA-direction'
+            nc.variables['el'].units = 'meters'
+            nc.variables['el'][:] = inputs.ny
+
+        else: # Usual case
+
+            nc.nx = np.int32(inputs.nx)
+            nc.ny = np.int32(inputs.ny)
+            nc.size_x = inputs.size_x
+            nc.size_y = inputs.size_y
+            nc.tra_lon = inputs.tra_lon
+            nc.tra_lat = inputs.tra_lat
+            nc.rotation = inputs.rot
+		    
+            # create dimensions
+            nc.createDimension('xi_rho', inputs.nx + 2)
+            nc.createDimension('eta_rho', inputs.ny + 2)
+            nc.createDimension('xi_u', inputs.nx + 1)
+            nc.createDimension('eta_v', inputs.ny + 1)
+            nc.createDimension('xi_psi', inputs.nx + 1)
+            nc.createDimension('eta_psi', inputs.ny + 1)
+
+            nc.createVariable('xl', 'f8', ('one'))
+            nc.variables['xl'].long_name = 'domain length in the XI-direction'
+            nc.variables['xl'].units = 'meters'
+            nc.variables['xl'][:] = inputs.nx
+
+            nc.createVariable('el', 'f8', ('one'))
+            nc.variables['el'].long_name = 'domain length in the ETA-direction'
+            nc.variables['el'].units = 'meters'
+            nc.variables['el'][:] = inputs.ny
+
+		
+	# create variables and attributes
+        nc.createVariable('spherical', 'S1', ('one'))
+        nc.variables['spherical'].long_name = 'Grid type logical switch'
+        nc.variables['spherical'].option_T = 'spherical'
+        nc.variables['spherical'][:] = 'T'
+		
+        nc.createVariable('angle', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['angle'].long_name = 'angle between xi axis and east'
+        nc.variables['angle'].units = 'radians' 
+        nc.variables['angle'][:] = outputs.angle
+
+        nc.createVariable('h', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['h'].long_name = 'Final bathymetry at RHO-points'
+        nc.variables['h'].units = 'meter'
+        nc.variables['h'][:] = outputs.h
+
+        nc.createVariable('hraw', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['hraw'].long_name = 'Working bathymetry at RHO-points'
+        nc.variables['hraw'].units = 'meter'
+        nc.variables['hraw'][:] = outputs.hraw
+
+        nc.createVariable('f', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['f'].long_name = 'Coriolis parameter at RHO-points'
+        nc.variables['f'].units = 'second-1'
+        nc.variables['f'][:] = (4 * np.pi * np.sin(np.deg2rad(outputs.lat_rho)) /
+		                        (23.9344699 * 3600))
+
+        nc.createVariable('pm', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['pm'].long_name = 'curvilinear coordinate metric in XI'
+        nc.variables['pm'].units = 'meter-1'
+        nc.variables['pm'][:] = outputs.pm
+
+        nc.createVariable('pn', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['pn'].long_name = 'curvilinear coordinate metric in ETA'
+        nc.variables['pn'].units = 'meter-1'
+        nc.variables['pn'][:] = outputs.pn
+
+        nc.createVariable('lon_rho', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['lon_rho'].long_name = 'longitude of RHO-points'
+        nc.variables['lon_rho'].units = 'degree_east'
+        nc.variables['lon_rho'][:] = outputs.lon_rho
+
+        nc.createVariable('lat_rho', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['lat_rho'].long_name = 'latitude of RHO-points'
+        nc.variables['lat_rho'].units = 'degree_north'
+        nc.variables['lat_rho'][:] = outputs.lat_rho
+
+        nc.createVariable('mask_rho', 'f8', ('eta_rho', 'xi_rho'))
+        nc.variables['mask_rho'].long_name = 'mask on RHO-points'
+        nc.variables['mask_rho'].option_0 = 'land'
+        nc.variables['mask_rho'].option_1 = 'water'
+        nc.variables['mask_rho'][:] = outputs.mask_rho
+
+	# Extraneous variables should be placed at the end (ensures no
+	# later problems with e.g., partit
+        nc.createVariable('lon_psi', 'f8', ('eta_psi', 'xi_psi'))
+        nc.variables['lon_psi'].long_name = 'longitude of PSI-points'
+        nc.variables['lon_psi'].units = 'degree_east'
+        if prt_grd is not None and prt_grd[0]:
+            nc.variables['lon_psi'][:] = outputs.lon_psi
+        else:
+            nc.variables['lon_psi'][:] = outputs.lon_psi[1:-1, 1:-1]
+
+        nc.createVariable('lat_psi', 'f8', ('eta_psi', 'xi_psi'))
+        nc.variables['lat_psi'].long_name = 'latitude of PSI-points'
+        nc.variables['lat_psi'].units = 'degree_north'
+        if prt_grd is not None and prt_grd[0]:
+            nc.variables['lat_psi'][:] = outputs.lat_psi
+        else:
+            nc.variables['lat_psi'][:] = outputs.lat_psi[1:-1, 1:-1]
+
+        nc.createVariable('lon_u', 'f8', ('eta_rho', 'xi_u'))
+        nc.variables['lon_u'].long_name = 'longitude of U-points'
+        nc.variables['lon_u'].units = 'degree_east'
+        nc.variables['lon_u'][:] = outputs.lon_u
+
+        nc.createVariable('lat_u', 'f8', ('eta_rho', 'xi_u'))
+        nc.variables['lat_u'].long_name = 'latitude of U-points'
+        nc.variables['lat_u'].units = 'degree_north'
+        nc.variables['lat_u'][:] = outputs.lat_u
+
+        nc.createVariable('lon_v', 'f8', ('eta_v', 'xi_rho'))
+        nc.variables['lon_v'].long_name = 'longitude of V-points'
+        nc.variables['lon_v'].units = 'degree_east'
+        nc.variables['lon_v'][:] = outputs.lon_v
+
+        nc.createVariable('lat_v', 'f8', ('eta_v', 'xi_rho'))
+        nc.variables['lat_v'].long_name = 'latitude of RHO-points'
+        nc.variables['lat_v'].units = 'degree_north'
+        nc.variables['lat_v'][:] = outputs.lat_v
+
+        if prt_grd is not None and prt_grd[0]: 
+            nc.createVariable('refine_coef', 'i', ('one'))
+            nc.variables['refine_coef'].long_name ='Grid refinement coefficient'
+            nc.variables['refine_coef'][:]=prt_grd[2]
+
+            nc.createVariable('grd_pos','i',('four'))
+            nc.variables['grd_pos'].long_name='Subgrid location in the parent grid: psi corner points (imin imax jmin jmax)'
+            nc.variables['grd_pos'][:]=prt_grd[3:]
+
+
+        nc.close()
+        print('Writting '+grid_name+' done')
+
+        if prt_grd is not None and prt_grd[0]:
+            print('Create an AGRIF_FixedGrids.in file')
+            fname='AGRIF_FixedGrids.in'
+            fid=open(fname,'w')
+            fid.write('    1\n')#'%s\n','    1');
+            fid.write('    '+str(prt_grd[3])+ \
+                               '    '+str(prt_grd[4])+ \
+                               '    '+str(prt_grd[5])+\
+                               '    '+str(prt_grd[6])+\
+                               '    '+str(prt_grd[2])+\
+                               '    '+str(prt_grd[2])+\
+                               '    '+str(prt_grd[2])+\
+                               '    '+str(prt_grd[2]))
+            fid.write('\n    0')
+            fid.write('\n# number of children per parent')
+            fid.write('\n# imin imax jmin jmax spacerefx spacerefy timerefx timerefy')
+            fid.write('\n# [all coordinates are relative to each parent grid!]')
+            fid.write('\n~')
+            fid.close()
 
 
 

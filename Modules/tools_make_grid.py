@@ -1,201 +1,208 @@
 import numpy as np
-import matplotlib
-# We want matplotlib to use a wxPython backend
-matplotlib.use('WXAgg')
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx
-
-import scipy.interpolate as itp
-from scipy.interpolate import griddata
-
-from cartopy import crs as ccrs, feature as cfeature
-import cartopy.io as cio
-import cartopy.io.shapereader as shpreader
-
-from threading import Thread
-from time import sleep
-import wx
-
-from traits.api import *
-from traitsui.api import View, Item, Group, HSplit, Handler, EnumEditor, FileEditor,DirectoryEditor
-from traitsui.menu import NoButtons
-from traitsui.wx.editor import Editor
-#from traitsui.wx.basic_editor_factory import BasicEditorFactory
-from traitsui.basic_editor_factory import BasicEditorFactory
-
-import matplotlib.pyplot as plt
-import tools
+import netCDF4 as netcdf
 import topo_reader
-import tools_topo
 import toolsf
 import netCDF4 as netcdf
 from datetime import datetime
-
-class Inputs(HasTraits):
-    """
-    Inputs object
-    """
-    zview = Enum('grid outline', 'grid points', 'topo', '1/pm', '1/pn', 'angle', 'mask',
-        desc="the data to view",
-        label="View", )
-
-    tra_lon = CFloat(15,
-        desc="a central longitude",
-        label="longitude", )
-
-    tra_lat = CFloat(-32,
-        desc="a central latitude",
-        label="latitude", )
-
-    size_x = CFloat(1556,
-        desc="the mean distance along xi",
-        label="x size [km]", )
-
-    size_y = CFloat(1334,
-        desc="the mean distance along eta",
-        label="y size [km]", )
-
-    rot = CFloat(0,
-        desc="rotation about longitude, latitude",
-        label="rotation [deg]", )
-
-    nx = CInt(62,
-        desc="the number of points along xi",
-        label="nx", )
-
-    ny = CInt(53,
-        desc="the number of points along eta",
-        label="ny", )
-
-class Inputs_smth(HasTraits):
-    """
-    Inputs object for smoothing
-    """
-    depthmin=CFloat( 50,
-            desc="minimum depth",
-            label="Minimum depth [m]",)
-
-    depthmax=CFloat( 6000,
-            desc="maximum depth",
-            label="Maximum depth [m]",)
-
-    smthr=CFloat( 2,
-            desc="smoothing radius",
-            label="Smth radius [nb points]",)
-
-    rfact=CFloat( 0.2,
-            desc="maximum r-factor",
-            label="r-factor",)
-
-    smooth= Enum('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo',
-        desc="smoothing method",
-        label="Smoothing method", )
-
-class Inputs_smth_c2c(HasTraits):
-    """
-    Inputs object for smoothing
-    """
-    smthr=CFloat( 2,
-            desc="smoothing radius",
-            label="Smth radius [nb points]",)
-
-    rfact=CFloat( 0.2,
-            desc="maximum r-factor",
-            label="r-factor",)
-
-    smooth= Enum('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo',
-        desc="smoothing method",
-        label="Smoothing method", )
+import scipy.interpolate as itp
+from scipy.interpolate import griddata
 
 
+def topo_periodicity(topo_file, geolim):
+    '''
+    topo_periodicity checks whether domain is inside the topo file.
+    If so, check if there is a need for create a periodicity between
+    the last and first longitude points ( for global data).
+    It is returning lon/lat/topo adapted to the desired domain
+    geolim = [lonmin,lonmax,latmin,latmax]
+    '''
 
-class Inputs_zm(HasTraits):
-    """
-    Inputs object
-    """
-    tra_lon = CFloat(18,
-        desc="a central longitude",
-        label="longitude", )
+    topo_type = topo_reader.topo_file_id(topo_file)
 
-    tra_lat = CFloat(-33,
-        desc="a central latitude",
-        label="latitude", )
+    print('Reading topography file:', topo_file)
+    nc = netcdf.Dataset(topo_file)
+    topo_lon = nc.variables[topo_type['lon']][:]
+    topo_lat = nc.variables[topo_type['lat']][:]
+    if topo_lon.size==2: # gebco is a bit different
+        topo_lon = np.linspace(topo_lon[0],
+                               topo_lon[1], num=nc.variables['dimension'][0])
+        topo_lat = np.linspace(topo_lat[0],
+                               topo_lat[1], num=nc.variables['dimension'][1])[::-1]
+        gebco = True
+    else:
+        gebco = False
 
-    size_x = CFloat(550,
-        desc="the mean distance along xi",
-        label="x size [km]", )
+    for i in range(1,topo_lon.shape[0]): # Fix etopo5 discontinuity
+        if topo_lon[i]<topo_lon[i-1]:    # between 180/-180 in the
+            topo_lon[i]=topo_lon[i]+360  # middle
 
-    size_y = CFloat(550,
-        desc="the mean distance along eta",
-        label="y size [km]", )
+####
+    jmin=indx_bound(topo_lat, geolim[2])
+    jmax=indx_bound(topo_lat, geolim[-1])
+    if 0 < jmin and jmin < topo_lat.shape[0] and 0 < jmax and jmax < topo_lat.shape[0] :
+        if jmin > 1 :
+            jmin=jmin-1
+        jmax=jmax+2
+    else:
+        print('North-south extents of the dataset ',topo_lat[0],topo_lat[-1],' are not sufficient to cover the entire model grid.')
+        exit()
 
-    rot = CFloat(0,
-        desc="rotation about longitude, latitude",
-        label="rotation [deg]", )
-
-    nx = CInt(55,
-        desc="the number of points along xi",
-        label="nx", )
-
-    ny = CInt(55,
-        desc="the number of points along eta",
-        label="ny", )
-
-
-class Inputs_c2c(HasTraits):
-    """
-    Inputs object
-    """
-    coef = CInt(3,
-        desc="Refinement coefficient",
-        label="Refinement coef")
-
-    imin = CInt(35,
-        desc="Parent imin",
-        label="imin", )
-
-    imax = CInt(55,
-        desc="Parent imax",
-        label="imax", )
-
-    jmin = CInt(8,
-        desc="Parent jmin",
-        label="jmin", )
-
-    jmax = CInt(28,
-        desc="Parent jmax",
-        label="jmax", )
-
+    imin=indx_bound(topo_lon, geolim[0])
+    imax=indx_bound(topo_lon, geolim[1])
     
-class Outputs(HasTraits):
-    """
-    Outputs object
-    """
-    lon_rho = CArray()
-    lat_rho = CArray()
-    lon_u = CArray()
-    lat_u = CArray()
-    lon_v = CArray()
-    lat_v = CArray()
-    h = CArray()
-    hraw = CArray()
-    pm = CArray()
-    pn = CArray()
-    angle = CArray()
-    f = CArray()
-    mask_rho = CArray()
+    if 0 < imin and imin < topo_lon.shape[0] and 0 < imax and imax < topo_lon.shape[0] :
+        if imax > 1:
+            imin=imin-1
+        imax=imax+2
+        shft_west=0 ; shft_east=0
+        print('Single region dataset imin/imax=',imin,imax, )
+    else:
+        ######
+        ptest=topo_lon[-1]-topo_lon[0]-360
+        dx=(topo_lon[-1]-topo_lon[0])/(topo_lon.shape[0]-1)
+        epsil=0.01*abs(dx)
+        if abs(ptest) < epsil :
+            period=topo_lon.shape[0]-1
+        elif abs(ptest+dx) < epsil :
+            period=topo_lon.shape[0]
+        else:
+            period=0
 
-class BmapOptions(HasTraits):
-    """
-    Coastline options object
-    """
-    bmap_res = Enum('Crude', 'Low', 'Intermediate', 'High', 'Full',
-        desc="the coastline resolution",
-        label="Coastline resolution", )
+        if period>0:
+            print('Identified periodicity domain in data of ', period,' points out of', topo_lon.shape[0])
+        else :
+            print('ERROR: The data does not cover the entire grid. Change your grid definition')
+            exit()
+        ##
+        shft_west=0
+        if imin==0 :
+            shft_west=-1
+            imin=indx_bound(topo_lon, geolim[0]+360)
+        elif imin==topo_lon.shape[0] :
+            shft_west=+1
+            imin=indx_bound(topo_lon, geolim[0]-360)
+        ##
+        shft_east=0
+        if imax == 0:
+            shft_east=-1
+            imax=indx_bound(topo_lon, geolim[1]+360)
+        elif imax == topo_lon.shape[0]:
+            shft_east=+1
+            imax=indx_bound(topo_lon, geolim[1]-360)
+
+        if 0<imin and imin <topo_lon.shape[0] and 0<imax and imax<topo_lon.shape[0] :
+            if imin>1:
+                imin=imin-1
+            imax=imax+1
+        else:
+            print('ERROR: Data longitude covers 360 degrees, but still cannot find  starting and ending indices.')
+            exit()
+    
+    print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', \
+          'imin,imax =', imin,imax,'out of', topo_lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',topo_lat.shape[0])
+    ny_lat=jmax-jmin+1
+    start2=jmin ; end2=start2+ny_lat; count2=ny_lat
+    lat_tmp=np.zeros([ny_lat])
+    for j in range(0,ny_lat):
+        lat_tmp[j]=topo_lat[j+jmin-1]
+ 
+    #####
+
+    if imin < imax :
+        nx_lon=imax-imin+1
+        start1=imin ; end1=start1+nx_lon ; count1=nx_lon
+        if gebco:
+            topo = nc.variables[topo_type['topo']][:]
+            topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
+            topo = topo[start2:end2, start1:end1]
+        else:
+            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+        nc.close()
+
+        ishft=imin-1
+        lon_tmp=np.zeros([topo.shape[1]])
+        if shft_west>0 and shft_east>0:
+            for i in range(0,nx_lon):
+                lon_tmp[i]=topo_lon[i+ishft] +360
+        elif shft_west<0 and shft_east<0:
+            for i in range(0,nx_lon):
+                 lon_tmp[i]=topo_lon[i+ishft]-360
+        elif shft_west== 0 and shft_east==0:
+            for i in range(0,nx_lon) :
+                lon_tmp[i]=topo_lon[i+ishft]
+        else:
+            print('Error in shifting algoritm')
+            exit()
+
+    elif imin>imax:
+        print('Reading topography in two separate parts adjacent through 360-degree periodicity, first...' )
+
+        nx_lon=imax+period-imin+1
+        htopo = np.zeros([ny_lat,nx_lon])
+        xtmp  = np.zeros([nx_lon])
+        start1=0 ; end1=start1+nx_lon; count1=imax
+        if gebco:
+            topo = nc.variables[topo_type['topo']][:]
+            topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
+            topo = topo[start2:end2, start1:end1]
+        else:
+            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+        for j in range(0,count2):
+            for i in range(0,count1):
+                htopo[j,nx_lon-imax+i-1]=topo[j,i]
+        del topo
+
+        ishft=nx_lon-count1
+        if shft_east>0:
+            for i in range(0,count1):
+                xtmp[i+ishft]=topo_lon[i] +360
+        elif shft_east<0:
+            for i in range(0,count1):
+                xtmp[i+ishft]=topo_lon[i] -360
+        else:
+            for i in range(0,count1):
+                xtmp[i+ishft]=topo_lon[i]
+
+        print('second...')
+        start1=imin ; count1=period-imin; end1=start1+count1
+        if gebco:
+            topo = nc.variables[topo_type['topo']][:]
+            topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
+            topo = topo[start2:end2, start1:end1]
+        else:
+            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+        nc.close()
+
+        for j in range(0,count2):
+            for i in range(0,count1):
+                htopo[j,i]=topo[j,i]
+        del topo
+        ishft=imin-1
+        if shft_west>0:
+            for i in range(0,count1):
+                xtmp[i]=topo_lon[i+ishft] +360
+        elif shft_west<0 :
+            for i in range(0,count1):
+                xtmp[i]=topo_lon[i+ishft] -360
+        else:
+            for i in range(0,count1):
+                xtmp[i]=topo_lon[i+ishft]
+        lon_tmp=np.zeros([xtmp.shape[0]])
+        for i in range(0,nx_lon):
+            lon_tmp[i]=xtmp[i]
+
+        topo=np.copy(htopo)
+
+    del topo_lon,topo_lat
+    topo_lon=np.copy(lon_tmp)
+    topo_lat=np.copy(lat_tmp)
+
+    return topo_lon,topo_lat,topo
 
 
-class GetTopo(HasTraits):
+
+
+class GetTopo():
     """
     GetTopo object.  At present this class will identify and read nc files from:
       ETOPO
@@ -224,7 +231,7 @@ class GetTopo(HasTraits):
             topo=toolsf.srtopo(srtm_file,outputs.lon_rho,outputs.lat_rho,outputs.pm,outputs.pn,rd)
         else:          
             lonmin,lonmax,latmin,latmax=toolsf.roms_grid_geo_bounds(outputs.lon_rho,outputs.lat_rho,rd)
-            topo_lon,topo_lat,topo=tools_topo.topo_periodicity(topo_file,[lonmin,lonmax,latmin,latmax])
+            topo_lon,topo_lat,topo=topo_periodicity(topo_file,[lonmin,lonmax,latmin,latmax])
             print('Interpolating topography to ROMS grid')
             topo=toolsf.compute_hraw(topo_lon,topo_lat,topo.T,outputs.lon_rho,outputs.lat_rho,outputs.pm,outputs.pn,rd)
             print('Finished interpolating')
@@ -254,9 +261,7 @@ class GetTopo(HasTraits):
         outputs.h=topo.T
         return outputs
 
-
-
-class GetMask(HasTraits):
+class GetMask():
      def outline(lon, lat):
         '''
         Return lon, lat of perimeter around the grid
@@ -266,16 +271,16 @@ class GetMask(HasTraits):
                               var[::-1, -1], var[0, ::-1][1:]])
         return func(lon), func(lat)
 
-     def mask(self, outputs,bmapoptions,gfile,sgl_connect=None):
+     def mask(self, outputs,coastres,gfile,sgl_connect=None):
 
          llcrnrlon = outputs.lon_rho[1:-1, 1:-1].min()
          urcrnrlon = outputs.lon_rho[1:-1, 1:-1].max()
          llcrnrlat = outputs.lat_rho[1:-1, 1:-1].min()
          urcrnrlat = outputs.lat_rho[1:-1, 1:-1].max()
     
-         bmapoptions_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
+         coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
                            'High':'h', 'Full':'f'}
-         resolution = bmapoptions_dic[bmapoptions.bmap_res]
+         resolution = coastres_dic[coastres.coast_res]
          
          rmask=toolsf.gshhs_to_roms_mask(outputs.lon_rho,outputs.lat_rho,gfile+'/gshhs_'+resolution+'.b')
          outputs.mask_rho=np.zeros(rmask.shape)
@@ -284,7 +289,8 @@ class GetMask(HasTraits):
              outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
          return outputs
 
-class EasyGrid(HasTraits):
+
+class EasyGrid():
     """
     EasyGrid object. Implements both the easygrid computation, and
     the picture acquisition.
@@ -744,211 +750,80 @@ class EasyGrid(HasTraits):
 
         return outputs
 
-
-class Save2Netcdf(HasTraits):
+def indx_bound(x, x0):
     """
-    Save2Netcdf object
+    Conversion of fortran tools indx_bound
     """
-    def save2netcdf(self,output_dir, inputs, outputs,prt_grd=None):
-    
-        """
-        Create and save a new CROCO grid file
-        """
-#        prt_grd=[AGRIF,prt_file,coef,imi,imax,jmin,jmax]
-        if prt_grd is not None:
-            if prt_grd[0]==True: # Means we are in AGRIF
-                lev=prt_grd[1][-1]
-                if not lev.isnumeric():
-                    grid_name='croco_grd.nc.1'
-                else:
-                    grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
+    n=x.shape[0]
+    if x0 < x[0] :
+        i=0                      # if x0 is outside the full range
+    elif x0 > x[-1] :            # of x(1) ... x(n), then return
+        i=n                      # i=0 or i=n.
+    else:
+        i=int( ( x[-1]-x0 +n*(x0-x[0]) )/(x[-1]-x[0]) )
+        if x[i+1]<x0 :
+            while x[i+1] <x0 :  # This algorithm computes "i" as
+                i=i+1           # linear interpolation between x(1)
+                                # and x(n) which should yield the
+        elif x[i] > x0 :        # correct value for "i" right a way
+            while x[i] > x0 :   # because array elements x(i) are
+                i=i-1           # equidistantly spaced.  The while
+                                # loops are here merely to address
+                                # possible roundoff errors.
 
-            else :  # We create offline zoom
-                grid_name='croco_chd_grd.nc'
-        else:
-            grid_name='croco_grd.nc'
-         
-        nc = netcdf.Dataset(output_dir+grid_name, 'w', format='NETCDF4')
-
-        # create global variables
-        nc.created = datetime.now().isoformat()
-        nc.type = 'ROMS grid file produced by easygrid_python.py'
-        nc.VertCoordType = 'NEW';
-
-        nc.createDimension('one', 1)
-        if prt_grd is not None and prt_grd[0]: #AGRIF case
-            nc.nx=outputs.h.shape[1]-2
-            nc.ny=outputs.h.shape[0]-2
-
-            # create dimensions
-            nc.createDimension('xi_rho', outputs.h.shape[1])
-            nc.createDimension('eta_rho', outputs.h.shape[0])
-            nc.createDimension('xi_u', outputs.h.shape[1] - 1)
-            nc.createDimension('eta_v', outputs.h.shape[0] - 1)
-            nc.createDimension('xi_psi', outputs.h.shape[1] - 1)
-            nc.createDimension('eta_psi', outputs.h.shape[0] - 1)
-            nc.createDimension('four', 4)
-
-            # Some empty variables in AGRIF
-            nc.createVariable('xl', 'f8', ('one'))
-            nc.variables['xl'].long_name = 'domain length in the XI-direction'
-            nc.variables['xl'].units = 'meters'
-
-            nc.createVariable('el', 'f8', ('one'))
-            nc.variables['el'].long_name = 'domain length in the ETA-direction'
-            nc.variables['el'].units = 'meters'
-            nc.variables['el'][:] = inputs.ny
-
-        else: # Usual case
-
-            nc.nx = np.int32(inputs.nx)
-            nc.ny = np.int32(inputs.ny)
-            nc.size_x = inputs.size_x
-            nc.size_y = inputs.size_y
-            nc.tra_lon = inputs.tra_lon
-            nc.tra_lat = inputs.tra_lat
-            nc.rotation = inputs.rot
-            
-            # create dimensions
-            nc.createDimension('xi_rho', inputs.nx + 2)
-            nc.createDimension('eta_rho', inputs.ny + 2)
-            nc.createDimension('xi_u', inputs.nx + 1)
-            nc.createDimension('eta_v', inputs.ny + 1)
-            nc.createDimension('xi_psi', inputs.nx + 1)
-            nc.createDimension('eta_psi', inputs.ny + 1)
-
-            nc.createVariable('xl', 'f8', ('one'))
-            nc.variables['xl'].long_name = 'domain length in the XI-direction'
-            nc.variables['xl'].units = 'meters'
-            nc.variables['xl'][:] = inputs.nx
-
-            nc.createVariable('el', 'f8', ('one'))
-            nc.variables['el'].long_name = 'domain length in the ETA-direction'
-            nc.variables['el'].units = 'meters'
-            nc.variables['el'][:] = inputs.ny
-
-        
-        # create variables and attributes
-        nc.createVariable('spherical', 'S1', ('one'))
-        nc.variables['spherical'].long_name = 'Grid type logical switch'
-        nc.variables['spherical'].option_T = 'spherical'
-        nc.variables['spherical'][:] = 'T'
-        
-        nc.createVariable('angle', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['angle'].long_name = 'angle between xi axis and east'
-        nc.variables['angle'].units = 'radians' 
-        nc.variables['angle'][:] = outputs.angle
-
-        nc.createVariable('h', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['h'].long_name = 'Final bathymetry at RHO-points'
-        nc.variables['h'].units = 'meter'
-        nc.variables['h'][:] = outputs.h
-
-        nc.createVariable('hraw', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['hraw'].long_name = 'Working bathymetry at RHO-points'
-        nc.variables['hraw'].units = 'meter'
-        nc.variables['hraw'][:] = outputs.hraw
-
-        nc.createVariable('f', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['f'].long_name = 'Coriolis parameter at RHO-points'
-        nc.variables['f'].units = 'second-1'
-        nc.variables['f'][:] = (4 * np.pi * np.sin(np.deg2rad(outputs.lat_rho)) /
-                                (23.9344699 * 3600))
-
-        nc.createVariable('pm', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['pm'].long_name = 'curvilinear coordinate metric in XI'
-        nc.variables['pm'].units = 'meter-1'
-        nc.variables['pm'][:] = outputs.pm
-
-        nc.createVariable('pn', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['pn'].long_name = 'curvilinear coordinate metric in ETA'
-        nc.variables['pn'].units = 'meter-1'
-        nc.variables['pn'][:] = outputs.pn
-
-        nc.createVariable('lon_rho', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['lon_rho'].long_name = 'longitude of RHO-points'
-        nc.variables['lon_rho'].units = 'degree_east'
-        nc.variables['lon_rho'][:] = outputs.lon_rho
-
-        nc.createVariable('lat_rho', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['lat_rho'].long_name = 'latitude of RHO-points'
-        nc.variables['lat_rho'].units = 'degree_north'
-        nc.variables['lat_rho'][:] = outputs.lat_rho
-
-        nc.createVariable('mask_rho', 'f8', ('eta_rho', 'xi_rho'))
-        nc.variables['mask_rho'].long_name = 'mask on RHO-points'
-        nc.variables['mask_rho'].option_0 = 'land'
-        nc.variables['mask_rho'].option_1 = 'water'
-        nc.variables['mask_rho'][:] = outputs.mask_rho
-
-        # Extraneous variables should be placed at the end (ensures no
-        # later problems with e.g., partit
-        nc.createVariable('lon_psi', 'f8', ('eta_psi', 'xi_psi'))
-        nc.variables['lon_psi'].long_name = 'longitude of PSI-points'
-        nc.variables['lon_psi'].units = 'degree_east'
-        if prt_grd is not None and prt_grd[0]:
-            nc.variables['lon_psi'][:] = outputs.lon_psi
-        else:
-            nc.variables['lon_psi'][:] = outputs.lon_psi[1:-1, 1:-1]
-
-        nc.createVariable('lat_psi', 'f8', ('eta_psi', 'xi_psi'))
-        nc.variables['lat_psi'].long_name = 'latitude of PSI-points'
-        nc.variables['lat_psi'].units = 'degree_north'
-        if prt_grd is not None and prt_grd[0]:
-            nc.variables['lat_psi'][:] = outputs.lat_psi
-        else:
-            nc.variables['lat_psi'][:] = outputs.lat_psi[1:-1, 1:-1]
-
-        nc.createVariable('lon_u', 'f8', ('eta_rho', 'xi_u'))
-        nc.variables['lon_u'].long_name = 'longitude of U-points'
-        nc.variables['lon_u'].units = 'degree_east'
-        nc.variables['lon_u'][:] = outputs.lon_u
-
-        nc.createVariable('lat_u', 'f8', ('eta_rho', 'xi_u'))
-        nc.variables['lat_u'].long_name = 'latitude of U-points'
-        nc.variables['lat_u'].units = 'degree_north'
-        nc.variables['lat_u'][:] = outputs.lat_u
-
-        nc.createVariable('lon_v', 'f8', ('eta_v', 'xi_rho'))
-        nc.variables['lon_v'].long_name = 'longitude of V-points'
-        nc.variables['lon_v'].units = 'degree_east'
-        nc.variables['lon_v'][:] = outputs.lon_v
-
-        nc.createVariable('lat_v', 'f8', ('eta_v', 'xi_rho'))
-        nc.variables['lat_v'].long_name = 'latitude of RHO-points'
-        nc.variables['lat_v'].units = 'degree_north'
-        nc.variables['lat_v'][:] = outputs.lat_v
-
-        if prt_grd is not None and prt_grd[0]: 
-            nc.createVariable('refine_coef', 'i', ('one'))
-            nc.variables['refine_coef'].long_name ='Grid refinement coefficient'
-            nc.variables['refine_coef'][:]=prt_grd[2]
-
-            nc.createVariable('grd_pos','i',('four'))
-            nc.variables['grd_pos'].long_name='Subgrid location in the parent grid: psi corner points (imin imax jmin jmax)'
-            nc.variables['grd_pos'][:]=prt_grd[3:]
+        if x[i+1]-x0 < 0 or x0-x[i] < 0 :
+            print('### ERROR: indx_bound :: ',x[i], x0, x[i+1], x0-x[i], x[i+1]-x0)
+            exit()
+    indx_bound=i
+    return indx_bound
 
 
-        nc.close()
-        print('Writting '+grid_name+' done')
 
-        if prt_grd is not None and prt_grd[0]:
-            print('Create an AGRIF_FixedGrids.in file')
-            fname='AGRIF_FixedGrids.in'
-            fid=open(fname,'w')
-            fid.write('    1\n')#'%s\n','    1');
-            fid.write('    '+str(prt_grd[3])+ \
-                               '    '+str(prt_grd[4])+ \
-                               '    '+str(prt_grd[5])+\
-                               '    '+str(prt_grd[6])+\
-                               '    '+str(prt_grd[2])+\
-                               '    '+str(prt_grd[2])+\
-                               '    '+str(prt_grd[2])+\
-                               '    '+str(prt_grd[2]))
-            fid.write('\n    0')
-            fid.write('\n# number of children per parent')
-            fid.write('\n# imin imax jmin jmax spacerefx spacerefy timerefx timerefy')
-            fid.write('\n# [all coordinates are relative to each parent grid!]')
-            fid.write('\n~')
-            fid.close()
 
+
+##################################
+
+#############################
+### Class for normal mode ###
+class inputs():
+    '''
+    Inputs to locate grid
+    '''
+    def __init__(self,tra_lon,tra_lat,size_x,size_y,nx,ny,rot):
+
+        self.tra_lon = tra_lon
+        self.tra_lat = tra_lat
+        self.size_x  = size_x
+        self.size_y  = size_y
+        self.rot     = rot
+        self.nx      = nx
+        self.ny      = ny
+
+class inputs_smth():
+    '''
+    Inputs for smoothing
+    '''
+    def __init__(self,depthmin,depthmax,smthr,rfact,smooth):
+        self.depthmin  = depthmin
+        self.depthmax  = depthmax
+        self.smthr     = smthr
+        self.rfact     = rfact
+        self.smooth    = smooth
+#######################
+### Read parent grid ##
+
+class topo_prt():
+
+    def __init__(self,prt_file):
+       nc=netcdf.Dataset(prt_file,'r')
+       self.lon_rho  = nc.variables['lon_rho'][:]
+       self.lat_rho  = nc.variables['lat_rho'][:]
+       self.lon_psi  = nc.variables['lon_psi'][:]
+       self.lat_psi  = nc.variables['lat_psi'][:]
+       self.lon_u    = nc.variables['lon_u'][:]
+       self.lat_u    = nc.variables['lat_u'][:]
+       self.lon_v    = nc.variables['lon_v'][:]
+       self.lat_v    = nc.variables['lat_v'][:]
+       self.mask_rho = nc.variables['mask_rho'][:]
+       self.h        = nc.variables['h'][:]
+       nc.close()

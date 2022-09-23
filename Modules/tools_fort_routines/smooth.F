@@ -70,8 +70,7 @@
 
       integer iters_cond, iters_lin
       integer(kind=2), allocatable, dimension(:,:) :: msk
-      integer nargs, ncx,ncy, i,j, ierr, ncid, lgrd,
-     &                                     read_str_dble
+      integer nargs, ncx,ncy, i,j, ierr, ncid, lgrd
 
 
       include "netcdf.inc"

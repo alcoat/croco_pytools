@@ -48,8 +48,9 @@ import glob as glob
 from dateutil.relativedelta import relativedelta
 import sys
 sys.path.append("./Modules/")
-import tools
-import tools_interp
+import interp_tools
+import sigmagrid_tools as sig_tools
+import Cgrid_transformation_tools as grd_tools
 import croco_class as Croco
 import input_class as Inp
 #--------------------------------------------------------------------------
@@ -64,11 +65,11 @@ input_prefix='raw_motu_mercator_*'# Please use * to include all files
 
 multi_files=False
 if multi_files: # Multiple data files. Time is read in ssh file
-    input_file = { 'ssh'  : sorted(glob.glob(input_dir + input_prefix + 'ETAN.%s.nc' % date_str), \
-                   'temp' : sorted(glob.glob(input_dir + input_prefix + 'THETA.%s.nc' % date_str), \
-                   'salt' : sorted(glob.glob(input_dir + input_prefix + 'SALT.%s.nc' % date_str), \
-                   'u'    : sorted(glob.glob(input_dir + input_prefix + 'EVEL.%s.nc' % date_str), \
-                   'v'    : sorted(glob.glob(input_dir + input_prefix + 'NVEL.%s.nc' % date_str)\
+    input_file = { 'ssh'  : sorted(glob.glob(input_dir + input_prefix + 'ETAN.%s.nc' % date_str)), \
+                   'temp' : sorted(glob.glob(input_dir + input_prefix + 'THETA.%s.nc' % date_str)), \
+                   'salt' : sorted(glob.glob(input_dir + input_prefix + 'SALT.%s.nc' % date_str)), \
+                   'u'    : sorted(glob.glob(input_dir + input_prefix + 'EVEL.%s.nc' % date_str)), \
+                   'v'    : sorted(glob.glob(input_dir + input_prefix + 'NVEL.%s.nc' % date_str))\
                 }
 else:  # glob all files
     input_file  = sorted(glob.glob(input_dir + input_prefix))
@@ -135,7 +136,7 @@ if __name__ == '__main__':
     
     # --- Initialize input data class -------------------------------------
 
-    inpdat = Inp.getdata(inputdata,input_file,crocogrd,multi_filesbdy=[obc_dict,cycle_bry])
+    inpdat = Inp.getdata(inputdata,input_file,crocogrd,multi_files,bdy=[obc_dict,cycle_bry])
 
     # --- Get the 2D interpolation coefficients ---------------------------
 
@@ -147,19 +148,19 @@ if __name__ == '__main__':
 
             if 'west' in boundary and is_open:
                 (elemT_west,coefT_west,elemU_west,coefU_west,elemV_west,coefV_west)\
-                =tools_interp.get_delaunay_bry(crocogrd.lon_west,crocogrd.lat_west,inpdat,'W')
+                =interp_tools.get_delaunay_bry(crocogrd.lon_west,crocogrd.lat_west,inpdat,'W')
 
             elif 'east' in boundary and is_open:
                 (elemT_east,coefT_east,elemU_east,coefU_east,elemV_east,coefV_east)\
-                =tools_interp.get_delaunay_bry(crocogrd.lon_east,crocogrd.lat_east,inpdat,'E')
+                =interp_tools.get_delaunay_bry(crocogrd.lon_east,crocogrd.lat_east,inpdat,'E')
 
             elif 'south' in boundary and is_open:
                 (elemT_south,coefT_south,elemU_south,coefU_south,elemV_south,coefV_south)\
-                =tools_interp.get_delaunay_bry(crocogrd.lon_south,crocogrd.lat_south,inpdat,'S')
+                =interp_tools.get_delaunay_bry(crocogrd.lon_south,crocogrd.lat_south,inpdat,'S')
 
             elif 'north' in boundary and is_open:
                 (elemT_north,coefT_north,elemU_north,coefU_north,elemV_north,coefV_north)\
-                =tools_interp.get_delaunay_bry(crocogrd.lon_north,crocogrd.lat_north,inpdat,'N')
+                =interp_tools.get_delaunay_bry(crocogrd.lon_north,crocogrd.lat_north,inpdat,'N')
     else:
     # Load the Delaunay triangulation matrices
         print('Load Delaunay triangulation...')
@@ -328,17 +329,17 @@ if __name__ == '__main__':
                     print('\n     Processing *%s* for %sern boundary' %(vars, boundary))
                     print('     ------------------------------------------')
                     if vars == 'ssh': 
-                        (zeta,NzGood) = tools_interp.interp_tracers3D(inpdat,vars,-1,eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper()) 
+                        (zeta,NzGood) = interp_tools.interp_tracers3D(inpdat,vars,-1,eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper()) 
                         z_rho = crocogrd.scoord2z_r(zeta=zeta,bdy="_"+boundary)
                         z_w   = crocogrd.scoord2z_w(zeta=zeta,bdy="_"+boundary)
     
                     elif vars == 'tracers':
                         print('\nIn tracers processing Temp')
-                        temp= tools_interp.interp4d(inpdat,'temp',Nzgoodmin,z_rho,\
+                        temp= interp_tools.interp4d(inpdat,'temp',Nzgoodmin,z_rho,\
                                                    eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
             
                         print('\nIn tracers processing Salt')
-                        salt= tools_interp.interp4d(inpdat,'salt',Nzgoodmin,z_rho,\
+                        salt= interp_tools.interp4d(inpdat,'salt',Nzgoodmin,z_rho,\
                                                 eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper())
         
                     elif vars == 'velocity':
@@ -346,15 +347,15 @@ if __name__ == '__main__':
                         cosa=np.cos(eval(''.join(('crocogrd.angle_',boundary))) )
                         sina=np.sin(eval(''.join(('crocogrd.angle_',boundary))) )
 
-                        [u,v,ubar,vbar]=tools_interp.interp4d_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,\
+                        [u,v,ubar,vbar]=interp_tools.interp4d_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,\
                                            eval(''.join(("coefU_"+boundary))),eval(''.join(("elemU_"+boundary))),\
                                            eval(''.join(("coefV_"+boundary))),eval(''.join(("elemV_"+boundary))),\
                                            dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
 
-                        conserv=0  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
+                        conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
                         if conserv == 1:
-                            (ubar_croco,h0)=tools.vintegr4D(u,tools.rho2u(z_w),tools.rho2u(z_rho),np.nan,np.nan)/tools.rho2u(crocogrd.h)
-                            (vbar_croco,h0)=tools.vintegr4D(v,tools.rho2v(z_w),tools.rho2v(z_rho),np.nan,np.nan)/tools.rho2v(crocogrd.h)
+                            (ubar_croco,h0)=sig_tools.vintegr4D(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)/grd_tools.rho2u(crocogrd.h)
+                            (vbar_croco,h0)=sig_tools.vintegr4D(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)/grd_tools.rho2v(crocogrd.h)
 
                             u = u - ubar_croco ; u = u + np.tile(ubar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
                             v = v - vbar_croco ; v = v + np.tile(vbar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))

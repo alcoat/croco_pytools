@@ -11,7 +11,6 @@
 !!
 !!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!# include "tools_fort_routines/zlevs.F"
 # include "tools_fort_routines/sigma_to_z_intr.F"
 # include "tools_fort_routines/sigma_to_z_intr_bot.F"
 # include "tools_fort_routines/sigma_to_z_intr_bot_2d.F"
@@ -74,7 +73,6 @@
 !!! tools used for smoothing !!!
 # include "tools_fort_routines/smooth_utils.F"
 # include "tools_fort_routines/tiling.F"
-# include "tools_fort_routines/read_string.F"
 # include "tools_fort_routines/lenstr.F"
 # include "tools_fort_routines/mrg_zone_subs.F"
 # include "tools_fort_routines/r2r_interp_init.F"

@@ -31,14 +31,12 @@ The smoothing and mask generation are fortran functions to be faster
 
 #--- Dependencies ---------------------------------------------------------
 import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
 import sys
 sys.path.append("./Modules/")
 sys.path.append("./Modules/graphicUI_tools/")
-import tools_topo
-from grid_main import *
-#--------------------------------------------------------------------------
+from main_window import *
+import tools_make_grid
+#####################
 
 
 #--- USER CHANGES ---------------------------------------------------------

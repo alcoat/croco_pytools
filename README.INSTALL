@@ -5,7 +5,7 @@
 #environement (what is describe in the following). Else you can check on the page how to 
 #install wxPython: https://wxpython.org/pages/downloads/
 
-# This conda env will use python3.6 version. Small updates should be needed for other versions.
+# This conda env will use python3.9 version. Small updates should be needed for other versions.
 # The following instructions should allow scripts to run properly.
 
 #---------------------------------------------

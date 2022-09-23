@@ -5,7 +5,8 @@ matplotlib.use('WXAgg')
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
-
+from cartopy import crs as ccrs, feature as cfeature
+import cartopy.io.shapereader as shpreader
 from threading import Thread
 from time import sleep
 import wx
@@ -17,8 +18,10 @@ from traitsui.wx.editor import Editor
 #from traitsui.wx.basic_editor_factory import BasicEditorFactory
 from traitsui.basic_editor_factory import BasicEditorFactory
 
-from grid_thread import *
-from grid_hastraits import *
+from button_actions import *
+import tools_make_grid
+from tools_make_grid import EasyGrid,GetTopo,GetMask
+from croco_class import CROCO
 #################################
 #### FOR FIGURE #################
 class _MPLFigureEditor(Editor):
@@ -53,6 +56,169 @@ class MPLFigureEditor(BasicEditorFactory):
     from http://github.enthought.com/traitsui/tutorials/traits_ui_scientific_app.html
     """
     klass = _MPLFigureEditor
+#############################
+
+class Inputs(HasTraits):
+    """
+    Inputs object
+    """
+    zview = Enum('grid outline', 'grid points', 'topo', '1/pm', '1/pn', 'angle', 'mask',
+        desc="the data to view",
+        label="View", )
+
+    tra_lon = CFloat(15,
+        desc="a central longitude",
+        label="longitude", )
+
+    tra_lat = CFloat(-32,
+        desc="a central latitude",
+        label="latitude", )
+
+    size_x = CFloat(1556,
+        desc="the mean distance along xi",
+        label="x size [km]", )
+
+    size_y = CFloat(1334,
+        desc="the mean distance along eta",
+        label="y size [km]", )
+
+    rot = CFloat(0,
+        desc="rotation about longitude, latitude",
+        label="rotation [deg]", )
+
+    nx = CInt(62,
+        desc="the number of points along xi",
+        label="nx", )
+
+    ny = CInt(53,
+        desc="the number of points along eta",
+        label="ny", )
+
+class Inputs_smth(HasTraits):
+    """
+    Inputs object for smoothing
+    """
+    depthmin=CFloat( 50,
+            desc="minimum depth",
+            label="Minimum depth [m]",)
+
+    depthmax=CFloat( 6000,
+            desc="maximum depth",
+            label="Maximum depth [m]",)
+
+    smthr=CFloat( 2,
+            desc="smoothing radius",
+            label="Smth radius [nb points]",)
+
+    rfact=CFloat( 0.2,
+            desc="maximum r-factor",
+            label="r-factor",)
+
+    smooth= Enum('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo',
+        desc="smoothing method",
+        label="Smoothing method", )
+
+class Inputs_smth_c2c(HasTraits):
+    """
+    Inputs object for smoothing
+    """
+    smthr=CFloat( 2,
+            desc="smoothing radius",
+            label="Smth radius [nb points]",)
+
+    rfact=CFloat( 0.2,
+            desc="maximum r-factor",
+            label="r-factor",)
+
+    smooth= Enum('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo',
+        desc="smoothing method",
+        label="Smoothing method", )
+
+
+
+class Inputs_zm(HasTraits):
+    """
+    Inputs object
+    """
+    tra_lon = CFloat(18,
+        desc="a central longitude",
+        label="longitude", )
+
+    tra_lat = CFloat(-33,
+        desc="a central latitude",
+        label="latitude", )
+
+    size_x = CFloat(550,
+        desc="the mean distance along xi",
+        label="x size [km]", )
+
+    size_y = CFloat(550,
+        desc="the mean distance along eta",
+        label="y size [km]", )
+
+    rot = CFloat(0,
+        desc="rotation about longitude, latitude",
+        label="rotation [deg]", )
+
+    nx = CInt(55,
+        desc="the number of points along xi",
+        label="nx", )
+
+    ny = CInt(55,
+        desc="the number of points along eta",
+        label="ny", )
+
+
+class Inputs_c2c(HasTraits):
+    """
+    Inputs object
+    """
+    coef = CInt(3,
+        desc="Refinement coefficient",
+        label="Refinement coef")
+
+    imin = CInt(35,
+        desc="Parent imin",
+        label="imin", )
+
+    imax = CInt(55,
+        desc="Parent imax",
+        label="imax", )
+
+    jmin = CInt(8,
+        desc="Parent jmin",
+        label="jmin", )
+
+    jmax = CInt(28,
+        desc="Parent jmax",
+        label="jmax", )
+
+    
+class Outputs(HasTraits):
+    """
+    Outputs object
+    """
+    lon_rho = CArray()
+    lat_rho = CArray()
+    lon_u = CArray()
+    lat_u = CArray()
+    lon_v = CArray()
+    lat_v = CArray()
+    h = CArray()
+    hraw = CArray()
+    pm = CArray()
+    pn = CArray()
+    angle = CArray()
+    f = CArray()
+    mask_rho = CArray()
+
+class CoastlineRes(HasTraits):
+    """
+    Coastline options object
+    """
+    coast_res = Enum('Crude', 'Low', 'Intermediate', 'High', 'Full',
+        desc="the coastline resolution",
+        label="Coastline resolution", )
 
 #############################
 
@@ -118,7 +284,7 @@ class MainWindow(HasTraits):
     gshhs_file=Directory(value='./Modules/gshhs',
                      label='GSHHS file',
                      desc='costline path')
-    bmapoptions = Instance(BmapOptions, ()) # related to gshhs_file
+    coastres = Instance(CoastlineRes, ()) # related to gshhs_file
 
     topo_file = File(value='./etopo5.nc',
                      label='Topography file',
@@ -128,7 +294,7 @@ class MainWindow(HasTraits):
     easy = Instance(EasyGrid, ())
     get_topo = Instance(GetTopo, ())
     get_mask = Instance(GetMask, ())
-    save2netcdf = Instance(Save2Netcdf, ())
+    save2netcdf = Instance(CROCO, ())
 
     single_connect = Bool(value=True,label='Single connect')
     sglc_i = CInt(20,label='i0')
@@ -153,7 +319,7 @@ class MainWindow(HasTraits):
                           Item(name='inputs', style='custom', show_label=False, springy=True),
                           '_',
                           Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='bmapoptions', style='custom',show_label=False,springy=True),
+                          Item(name='coastres', style='custom',show_label=False,springy=True),
                           '_',
                           Item(name='results_string', style='custom', show_label=False, springy=True, height=200 ),
                           '_',
@@ -166,7 +332,7 @@ class MainWindow(HasTraits):
                     Group(
                           Item('inputs_smth',style='custom', show_label=False, springy=True),
                           '_',
-                          Item(name='bmapoptions', style='custom',show_label=False,springy=True),
+                          Item(name='coastres', style='custom',show_label=False,springy=True),
                           '_',
                           HGroup('single_connect','sglc_i', 'sglc_j'),
                           '_',
@@ -185,7 +351,7 @@ class MainWindow(HasTraits):
                           Item(name='inputs_zm', style='custom', show_label=False, springy=True),
 #                          '_',
                           Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='bmapoptions', style='custom',show_label=False,springy=True),
+                          Item(name='coastres', style='custom',show_label=False,springy=True),
 #                          '_',
                           Item(name='checklist',label='Open boundaries', style='custom'),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
@@ -209,7 +375,7 @@ class MainWindow(HasTraits):
                           Item(name='inputs_c2c', style='custom', show_label=False, springy=True),
                           '_',
                           Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='bmapoptions', style='custom',show_label=False,springy=True),
+                          Item(name='coastres', style='custom',show_label=False,springy=True),
                           '_',
                           Item(name='checklist',label='Open boundaries', style='custom', id="custom"),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
@@ -247,7 +413,7 @@ class MainWindow(HasTraits):
         elif self.compute_grid_thread.inputs.zview=='mask':
             self.compute_grid_thread.gshhs_file = self.gshhs_file
             self.compute_grid_thread.mask = self.get_mask.mask
-        self.compute_grid_thread.bmapoptions = self.bmapoptions
+        self.compute_grid_thread.coastres = self.coastres
         self.compute_grid_thread.display = self.add_line
         self.compute_grid_thread.easy = self.easy.easygrid
         self.compute_grid_thread.grid_show = self.grid_show
@@ -264,7 +430,7 @@ class MainWindow(HasTraits):
         self.compute_smooth_thread.topo_file = self.topo_file
         self.compute_smooth_thread.topo = self.get_topo.topo
         self.compute_smooth_thread.gshhs_file = self.gshhs_file
-        self.compute_smooth_thread.bmapoptions = self.bmapoptions
+        self.compute_smooth_thread.coastres = self.coastres
         self.compute_smooth_thread.easy = self.easy.easygrid
         self.compute_smooth_thread.grid_show = self.grid_show
         self.compute_smooth_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
@@ -284,14 +450,14 @@ class MainWindow(HasTraits):
         self.compute_zm_thread.match_topo = self.get_topo.match_topo
         self.compute_zm_thread.openb  = [self.checklist,self.merge]
         self.compute_zm_thread.gshhs_file = self.gshhs_file
-        self.compute_zm_thread.bmapoptions = self.bmapoptions
+        self.compute_zm_thread.coastres = self.coastres
         self.compute_zm_thread.easy = self.easy.easygrid
         self.compute_zm_thread.croco_file = self.croco_file
         self.compute_zm_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_zm_thread.grid_show_zm = self.grid_show_zm
         self.compute_zm_thread.display = self.add_line
-        self.compute_zm_thread.topo_prt =tools_topo.topo_prt(self.croco_file)
-        prt_grd=tools_topo.topo_prt(self.croco_file)
+        self.compute_zm_thread.topo_prt =tools_make_grid.topo_prt(self.croco_file)
+        prt_grd=tools_make_grid.topo_prt(self.croco_file)
         self.compute_zm_thread.start()
         self.compute_zm_thread.join()
         self.compute_zm_thread.grid_show_zm(prt_grd)
@@ -306,12 +472,12 @@ class MainWindow(HasTraits):
         self.compute_c2c_thread.topo = self.get_topo.topo
         self.compute_c2c_thread.match_topo = self.get_topo.match_topo
         self.compute_c2c_thread.gshhs_file = self.gshhs_file
-        self.compute_c2c_thread.bmapoptions = self.bmapoptions
+        self.compute_c2c_thread.coastres = self.coastres
         self.compute_c2c_thread.openb  = [self.checklist,self.merge]
         self.compute_c2c_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_c2c_thread.nest = self.easy.AGRIFgrid
-        self.compute_c2c_thread.topo_prt =tools_topo.topo_prt(self.croco_file)
-        prt_grd=tools_topo.topo_prt(self.croco_file)
+        self.compute_c2c_thread.topo_prt =tools_make_grid.topo_prt(self.croco_file)
+        prt_grd=tools_make_grid.topo_prt(self.croco_file)
         self.compute_c2c_thread.grid_show = self.grid_show_zm
         self.compute_c2c_thread.display = self.add_line
         self.compute_c2c_thread.start()
@@ -325,7 +491,7 @@ class MainWindow(HasTraits):
         self.save_grid_thread.outputs_dir = self.opt_dir
         self.save_grid_thread.display = self.add_line
         self.save_grid_thread.prt_grd= None
-        self.save_grid_thread.save2netcdf = self.save2netcdf.save2netcdf
+        self.save_grid_thread.save2netcdf = self.save2netcdf
         self.save_grid_thread.start()
 
     def _save_grid_zm_fired(self):
@@ -335,7 +501,7 @@ class MainWindow(HasTraits):
         self.save_grid_zm_thread.outputs_dir = self.opt_dir
         self.save_grid_zm_thread.display = self.add_line
         self.save_grid_zm_thread.prt_grd=[False]
-        self.save_grid_zm_thread.save2netcdf = self.save2netcdf.save2netcdf
+        self.save_grid_zm_thread.save2netcdf = self.save2netcdf
         self.save_grid_zm_thread.start()
 
     def _save_grid_c2c_fired(self):
@@ -346,7 +512,7 @@ class MainWindow(HasTraits):
         self.save_grid_c2c_thread.display = self.add_line
         self.save_grid_c2c_thread.prt_grd=[True,self.croco_file,self.inputs_c2c.coef,self.inputs_c2c.imin
                 ,self.inputs_c2c.imax,self.inputs_c2c.jmin,self.inputs_c2c.jmax]
-        self.save_grid_c2c_thread.save2netcdf = self.save2netcdf.save2netcdf
+        self.save_grid_c2c_thread.save2netcdf = self.save2netcdf
         self.save_grid_c2c_thread.start()
 
 
@@ -382,9 +548,9 @@ class MainWindow(HasTraits):
         llcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].min()
         urcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].max()
 
-        bmapoptions_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
+        coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
                            'High':'h', 'Full':'f'}
-        resolution = bmapoptions_dic[self.bmapoptions.bmap_res]
+        resolution = coastres_dic[self.coastres.coast_res]
 
         x_rho, y_rho = self.outputs.lon_rho,self.outputs.lat_rho
         x_psi, y_psi = self.outputs.lon_psi,self.outputs.lat_psi
@@ -478,9 +644,9 @@ class MainWindow(HasTraits):
         llcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].min()
         urcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].max()
 
-        bmapoptions_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
+        coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
                            'High':'h', 'Full':'f'}
-        resolution = bmapoptions_dic[self.bmapoptions.bmap_res]
+        resolution = coastres_dic[self.coastres.coast_res]
 
         prt_xr, prt_yr = prt_grd.lon_rho,prt_grd.lat_rho
         prt_xp, prt_yp = prt_grd.lon_psi,prt_grd.lat_psi

@@ -39,7 +39,7 @@ class getdata():
             [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,'u')
             [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,'v')        
         elif bdy is not None and bdy[-1]==0: # bdy case
-            if multi_files == True:
+            if multi_files == False:
                 dataxr=xr.open_mfdataset(inputfile)
                 self.depth=eval(''.join(("dataxr."+self.var['depth'])))
                 dataxr=xr.open_mfdataset(inputfile,chunks={self.var['depth']:len(self.depth)})
@@ -93,7 +93,7 @@ class getdata():
                     [self.lonVN ,self.latVN ,self.idminVN ,self.idmaxVN ,self.jdminVN ,self.jdmaxVN ,self.periodVN ]  = self.handle_periodicity(crocogrd,'v',bdy='north')
  
     #####################################
-    def indx_bound(x, x0):
+    def indx_bound(self,x, x0):
         """
         Conversion of fortran tools indx_bound
         """
@@ -163,8 +163,8 @@ class getdata():
         else:
             geolim=[crocogrd.lonmin()-1,crocogrd.lonmax()+1,crocogrd.latmin()-1,crocogrd.latmax()+1]
 
-        jmin=indx_bound(lat, geolim[2])
-        jmax=indx_bound(lat, geolim[-1])
+        jmin=self.indx_bound(lat, geolim[2])
+        jmax=self.indx_bound(lat, geolim[-1])
 
         if 0 < jmin and jmin < lat.shape[0] and 0 < jmax and jmax < lat.shape[0] :
             if jmin > 1 :
@@ -174,8 +174,8 @@ class getdata():
             print('North-south extents of the dataset ',lat[0],lat[-1],' are not sufficient to cover the entire model grid.')
             exit()
         ####
-        imin=indx_bound(lon, geolim[0])
-        imax=indx_bound(lon, geolim[1])
+        imin=self.indx_bound(lon, geolim[0])
+        imax=self.indx_bound(lon, geolim[1])
 
         if 0 < imin and imin < lon.shape[0] and 0 < imax and imax < lon.shape[0] :
             if imax > 1:
@@ -204,18 +204,18 @@ class getdata():
             shft_west=0
             if imin==0 :
                 shft_west=-1
-                imin=indx_bound(lon, geolim[0]+360)
+                imin=self.indx_bound(lon, geolim[0]+360)
             elif imin==lon.shape[0] :
                 shft_west=+1
-                imin=indx_bound(lon, geolim[0]-360)
+                imin=self.indx_bound(lon, geolim[0]-360)
         ##
             shft_east=0
             if imax == 0:
                 shft_east=-1
-                imax=indx_bound(lon, geolim[1]+360)
+                imax=self.indx_bound(lon, geolim[1]+360)
             elif imax == lon.shape[0]:
                 shft_east=+1
-                imax=indx_bound(lon, geolim[1]-360)
+                imax=self.indx_bound(lon, geolim[1]-360)
     
             if 0<imin and imin <lon.shape[0] and 0<imax and imax<lon.shape[0] :
                 if imin>1:
@@ -309,6 +309,11 @@ class getdata():
             imin=eval(''.join(("self.idmin"+bdy))) ; imax=eval(''.join(("self.idmax"+bdy)))
             jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
             period=eval(''.join(("self.period"+bdy)));grdid='r'
+        
+        if type(l) == int:
+            mintime=l;maxtime=l+1
+        else:
+            mintime=min(l);maxtime=max(l)+1
 
         ny_lat=jmax-jmin+1
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
@@ -318,9 +323,9 @@ class getdata():
             start1=imin ; end1=start1+nx_lon ; count1=nx_lon
 
             if k==-1:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
             else:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
 
         elif imin>imax:    
             nx_lon=imax+period-imin+1
@@ -333,9 +338,9 @@ class getdata():
             start1=0 ; end1=start1+nx_lon; count1=imax
         
             if k==-1:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
             else:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
@@ -351,9 +356,9 @@ class getdata():
             # Second
             start1=imin ; count1=period-imin; end1=start1+count1
             if k==-1:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
             else:
-                field=np.array(self.ncglo[vname][min(l):max(l)+1,k,start2:end2,start1:end1])
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
