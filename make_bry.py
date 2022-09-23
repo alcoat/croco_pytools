@@ -354,8 +354,8 @@ if __name__ == '__main__':
 
                         conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
                         if conserv == 1:
-                            (ubar_croco,h0)=sig_tools.vintegr4D(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)/grd_tools.rho2u(crocogrd.h)
-                            (vbar_croco,h0)=sig_tools.vintegr4D(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)/grd_tools.rho2v(crocogrd.h)
+                            ubar_croco=sig_tools.vintegr4D(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)[0]/grd_tools.rho2u(eval(''.join(('crocogrd.h_'+boundary))))
+                            vbar_croco=sig_tools.vintegr4D(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)[0]/grd_tools.rho2v(eval(''.join(('crocogrd.h_'+boundary))))
 
                             u = u - ubar_croco ; u = u + np.tile(ubar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
                             v = v - vbar_croco ; v = v + np.tile(vbar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
