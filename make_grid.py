@@ -99,12 +99,13 @@ if __name__ == "__main__":
 
         print("In normal mode")
  
-        from grid_hastraits import EasyGrid,Outputs,GetMask,GetTopo,BmapOptions,Save2Netcdf
-
+        from tools_make_grid import inputs,inputs_smth,EasyGrid,GetMask,GetTopo
+        from croco_class import CROCO
+        from main_window import Outputs,CoastlineRes
         # --- Create inputs and outputs class -----------------------------
 
-        inputs=tools_topo.inputs(tra_lon,tra_lat,size_x,size_y,nx,ny,rot)
-        inputs_smth=tools_topo.inputs_smth(hmin,hmax,smth_rad,rfact,smooth_meth)
+        inputs=inputs(tra_lon,tra_lat,size_x,size_y,nx,ny,rot)
+        inputs_smth=inputs_smth(hmin,hmax,smth_rad,rfact,smooth_meth)
         outputs=Outputs()
 
         # --- Create lon/lat grid -----------------------------------------
@@ -113,16 +114,16 @@ if __name__ == "__main__":
         
         # --- Build mask and topo -----------------------------------------
 
-        bmap=BmapOptions()
-        bmap.bmap_res=res 
+        cres=CoastlineRes()
+        cres.coast_res=res 
         
-        GetMask.mask(None,outputs,bmap,gshhs_file,sgl_connect=sgl_connect)
+        GetMask.mask(None,outputs,cres,gshhs_file,sgl_connect=sgl_connect)
         GetTopo.topo(None,outputs,topofile,smooth=inputs_smth)
 
         # --- Save netcdf -------------------------------------------------
        
         print('Writing Topography')
-        Save2Netcdf.save2netcdf(None,output_dir,inputs,outputs)
+        CROCO.create_grid_nc(None,output_dir,inputs,outputs)
 
 
 
