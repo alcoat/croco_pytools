@@ -51,6 +51,7 @@ make
 #  Python
 #  ------
 #    - RuntimeError: Importing from wx backend after selecting qt4 backend!  -> in .bashrc export ETS_TOOLKIT="wx"
+#    - AttributeError: 'GeoAxes' object has no attribute '_autoscaleXon' -> use cartopy 0.21 or downgrade matplotlib 3.5.2
 #    - ModuleNotFoundError: No module named 'importlib.metadata' -> install importlib-metadata
 #    - ModuleNotFoundError: No module named 'importlib_resources' -> install importlib_resources
 #    - ImportError: ./Modules/tools_fort.cpython-36m-x86_64-linux-gnu.so: undefined symbol: **** \
@@ -62,4 +63,8 @@ make
 #    - ImportError means you have missing librairies. In your terminal do nf-config --flibs and check that you have
 #      -lnetcdff -lnetcdf -lhdf5 -lhdf5_fortran (eventually -lz for zlib).
 #    - Be sure of not having "-Wl,-Bsymbolic-functions -Wl" in your nf-config --flibs. It will creates error while compiling
+#    - If you manage to compile fortran tools but, when launching make_grid you have 
+#    	ImportError: undefined symbol: omp_get_thread_num_
+#    	Add, in Modules/Makefile:
+#    		FCFLAGS= --f90flags="-g -check all -CA -CB -CS -fopenmp" -lgomp
 ######################################################################

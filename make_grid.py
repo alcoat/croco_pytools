@@ -47,8 +47,8 @@ tra_lat = -32 # Latitude of the grid center
 # Grid resolution [km]
 size_x = 1556
 size_y = 1334
-nx     = 62
-ny     = 53
+nx     = 43
+ny     = 44
 
 # Rotation [degree]
 rot=0
@@ -64,7 +64,7 @@ smooth_meth = 'smooth' # Smoothing method ('smooth', 'lsmooth', 'lsmooth_legacy'
 # Topo file
 topofile='./etopo5.nc'
 
-# Mask resolution ( From basemap which is related to gshhs)
+# Mask resolution 
 gshhs_file='./Modules/gshhs'
 res="Crude" # 'Crude', 'Low', 'Intermediate', 'High', 'Full'
 
