@@ -23,14 +23,19 @@ def topo_periodicity(topo_file, geolim):
     nc = netcdf.Dataset(topo_file)
     topo_lon = nc.variables[topo_type['lon']][:]
     topo_lat = nc.variables[topo_type['lat']][:]
-    if topo_lon.size==2: # gebco is a bit different
-        topo_lon = np.linspace(topo_lon[0],
-                               topo_lon[1], num=nc.variables['dimension'][0])
-        topo_lat = np.linspace(topo_lat[0],
-                               topo_lat[1], num=nc.variables['dimension'][1])[::-1]
+    if topo_lon.ndim==2: #
+        topo_lon = np.linspace(topo_lon[0,0],
+                               topo_lon[0,-1], num=topo_lon.shape[1])
+        topo_lat = np.linspace(topo_lat[0,0],
+                               topo_lat[-1,0], num=topo_lat.shape[0])
         gebco = True
     else:
         gebco = False
+
+    if topo_type['zaxis']== 'down':
+        topo_fact=-1
+    else:
+        topo_fact=1
 
     for i in range(1,topo_lon.shape[0]): # Fix etopo5 discontinuity
         if topo_lon[i]<topo_lon[i-1]:    # between 180/-180 in the
@@ -112,11 +117,11 @@ def topo_periodicity(topo_file, geolim):
         nx_lon=imax-imin+1
         start1=imin ; end1=start1+nx_lon ; count1=nx_lon
         if gebco:
-            topo = nc.variables[topo_type['topo']][:]
+            topo = topo_fact*nc.variables[topo_type['topo']][:]
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
         nc.close()
 
         ishft=imin-1
@@ -142,11 +147,11 @@ def topo_periodicity(topo_file, geolim):
         xtmp  = np.zeros([nx_lon])
         start1=0 ; end1=start1+nx_lon; count1=imax
         if gebco:
-            topo = nc.variables[topo_type['topo']][:]
+            topo = topo_fact*nc.variables[topo_type['topo']][:]
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
         for j in range(0,count2):
             for i in range(0,count1):
                 htopo[j,nx_lon-imax+i-1]=topo[j,i]
@@ -166,11 +171,11 @@ def topo_periodicity(topo_file, geolim):
         print('second...')
         start1=imin ; count1=period-imin; end1=start1+count1
         if gebco:
-            topo = nc.variables[topo_type['topo']][:]
+            topo = topo_fact*nc.variables[topo_type['topo']][:]
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
         nc.close()
 
         for j in range(0,count2):
