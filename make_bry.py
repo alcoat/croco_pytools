@@ -1,5 +1,5 @@
 __author__ = 'Mathieu Le Corre'
-__email__  = 'mathieu.lecorre@univ-brest.fr'
+__email__  = 'mathieu.le.corre@shom.fr'
 __date__   = '2022-09'
 __license__='GPL3'
 

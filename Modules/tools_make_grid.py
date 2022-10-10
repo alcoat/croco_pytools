@@ -7,6 +7,9 @@ from datetime import datetime
 import scipy.interpolate as itp
 from scipy.interpolate import griddata
 
+import regionmask
+import geopandas as gp
+from shapely.geometry import Polygon
 
 def topo_periodicity(topo_file, geolim):
     '''
@@ -276,22 +279,30 @@ class GetMask():
                               var[::-1, -1], var[0, ::-1][1:]])
         return func(lon), func(lat)
 
-     def mask(self, outputs,coastres,gfile,sgl_connect=None):
+     def mask(self, outputs,gfile,sgl_connect=None):
 
-         llcrnrlon = outputs.lon_rho[1:-1, 1:-1].min()
-         urcrnrlon = outputs.lon_rho[1:-1, 1:-1].max()
-         llcrnrlat = outputs.lat_rho[1:-1, 1:-1].min()
-         urcrnrlat = outputs.lat_rho[1:-1, 1:-1].max()
+         llcrnrlon = outputs.lon_rho.ravel().min()-0.5
+         urcrnrlon = outputs.lon_rho.ravel().max()+0.5
+         llcrnrlat = outputs.lat_rho.ravel().min()-0.5
+         urcrnrlat = outputs.lat_rho.ravel().max()+0.5
     
-         coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
-                           'High':'h', 'Full':'f'}
-         resolution = coastres_dic[coastres.coast_res]
+         lon_point=[llcrnrlon,llcrnrlon,urcrnrlon,urcrnrlon,llcrnrlon]
+         lat_point=[llcrnrlat,urcrnrlat,urcrnrlat,llcrnrlat,llcrnrlat]
+         polygon_geom = Polygon(zip(lon_point, lat_point))
+
+         geoshp=gp.read_file(gfile,mask=polygon_geom)        
          
-         rmask=toolsf.gshhs_to_roms_mask(outputs.lon_rho,outputs.lat_rho,gfile+'/gshhs_'+resolution+'.b')
+         print('Building mask from ', gfile)
+         rmask = regionmask.mask_geopandas(geoshp.geometry,outputs.lon_rho, outputs.lat_rho,method='shapely').values
          outputs.mask_rho=np.zeros(rmask.shape)
-         outputs.mask_rho[rmask==0]=1
+         outputs.mask_rho[np.isnan(rmask)]=1
+
          if sgl_connect is not None:
-             outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
+             if sgl_connect[0]:
+                 if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
+                    print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
+                    exit()
+                 outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
          return outputs
 
 

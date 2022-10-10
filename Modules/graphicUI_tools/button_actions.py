@@ -30,12 +30,11 @@ class ComputeGridThread(Thread):
         """
         Runs the easygrid computing loop
         """
-        self.coastres
         self.easy(self.inputs, self.outputs)
         if self.inputs.zview == 'topo':
             self.topo(self.outputs, self.topo_file)
         if self.inputs.zview == 'mask':
-            self.mask(self.outputs,self.coastres,self.gshhs_file)
+            self.mask(self.outputs,self.shp_file)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
@@ -61,9 +60,8 @@ class ComputeSmthThread(Thread):
         """
         Runs the smoothing computing loop
         """
-        self.coastres
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -93,9 +91,8 @@ class ComputeZmThread(Thread):
         """
  
 #        self.prt_grd=tools_topo.topo_prt(self.croco_file) 
-        self.coastres
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
         self.match_topo(self.topo_prt,self.outputs,self.openb)
 
@@ -132,9 +129,8 @@ class ComputeC2cThread(Thread):
 #                self.display(' ny = N*refine_coef + 1 -- with N an integer \n')
 #        else:
 
-        self.coastres #read coastline option
         self.nest(self.topo_prt,self.inputs,self.outputs)
-        self.mask(self.outputs,self.coastres,self.gshhs_file,sgl_connect=self.single_connect)
+        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h))
         self.match_topo(self.topo_prt,self.outputs,self.openb) 
 

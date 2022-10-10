@@ -212,14 +212,6 @@ class Outputs(HasTraits):
     f = CArray()
     mask_rho = CArray()
 
-class CoastlineRes(HasTraits):
-    """
-    Coastline options object
-    """
-    coast_res = Enum('Crude', 'Low', 'Intermediate', 'High', 'Full',
-        desc="the coastline resolution",
-        label="Coastline resolution", )
-
 #############################
 
 class MainWindowHandler(Handler):
@@ -281,11 +273,10 @@ class MainWindow(HasTraits):
                      label='Parent grid file',
                      desc='Parent path and filename')
 
-    gshhs_file=Directory(value='./Modules/gshhs',
-                     label='GSHHS file',
+    shp_file=File(value='./Modules/gshhs/GSHHS_shp/f/GSHHS_f_L1.shp',
+                     label='Coastline file',
                      desc='costline path')
-    coastres = Instance(CoastlineRes, ()) # related to gshhs_file
-
+    
     topo_file = File(value='./etopo5.nc',
                      label='Topography file',
                      desc='path and topography filename')
@@ -318,8 +309,7 @@ class MainWindow(HasTraits):
                     Group(
                           Item(name='inputs', style='custom', show_label=False, springy=True),
                           '_',
-                          Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='coastres', style='custom',show_label=False,springy=True),
+                          Item(name='shp_file',editor=DirectoryEditor(entries=1),style='simple'),
                           '_',
                           Item(name='results_string', style='custom', show_label=False, springy=True, height=200 ),
                           '_',
@@ -331,8 +321,6 @@ class MainWindow(HasTraits):
                   ########## Second tab ######
                     Group(
                           Item('inputs_smth',style='custom', show_label=False, springy=True),
-                          '_',
-                          Item(name='coastres', style='custom',show_label=False,springy=True),
                           '_',
                           HGroup('single_connect','sglc_i', 'sglc_j'),
                           '_',
@@ -350,8 +338,7 @@ class MainWindow(HasTraits):
 #                          '_',
                           Item(name='inputs_zm', style='custom', show_label=False, springy=True),
 #                          '_',
-                          Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='coastres', style='custom',show_label=False,springy=True),
+                          Item(name='shp_file',editor=DirectoryEditor(entries=1),style='simple'),
 #                          '_',
                           Item(name='checklist',label='Open boundaries', style='custom'),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
@@ -374,8 +361,7 @@ class MainWindow(HasTraits):
                           '_',
                           Item(name='inputs_c2c', style='custom', show_label=False, springy=True),
                           '_',
-                          Item(name='gshhs_file',editor=DirectoryEditor(entries=1),style='simple'),
-                          Item(name='coastres', style='custom',show_label=False,springy=True),
+                          Item(name='shp_file',editor=DirectoryEditor(entries=1),style='simple'),
                           '_',
                           Item(name='checklist',label='Open boundaries', style='custom', id="custom"),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
@@ -411,9 +397,8 @@ class MainWindow(HasTraits):
             self.compute_grid_thread.topo_file = self.topo_file
             self.compute_grid_thread.topo = self.get_topo.topo
         elif self.compute_grid_thread.inputs.zview=='mask':
-            self.compute_grid_thread.gshhs_file = self.gshhs_file
+            self.compute_grid_thread.shp_file = self.shp_file
             self.compute_grid_thread.mask = self.get_mask.mask
-        self.compute_grid_thread.coastres = self.coastres
         self.compute_grid_thread.display = self.add_line
         self.compute_grid_thread.easy = self.easy.easygrid
         self.compute_grid_thread.grid_show = self.grid_show
@@ -429,8 +414,7 @@ class MainWindow(HasTraits):
         self.compute_smooth_thread.mask = self.get_mask.mask
         self.compute_smooth_thread.topo_file = self.topo_file
         self.compute_smooth_thread.topo = self.get_topo.topo
-        self.compute_smooth_thread.gshhs_file = self.gshhs_file
-        self.compute_smooth_thread.coastres = self.coastres
+        self.compute_smooth_thread.shp_file = self.shp_file
         self.compute_smooth_thread.easy = self.easy.easygrid
         self.compute_smooth_thread.grid_show = self.grid_show
         self.compute_smooth_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
@@ -449,8 +433,7 @@ class MainWindow(HasTraits):
         self.compute_zm_thread.topo = self.get_topo.topo
         self.compute_zm_thread.match_topo = self.get_topo.match_topo
         self.compute_zm_thread.openb  = [self.checklist,self.merge]
-        self.compute_zm_thread.gshhs_file = self.gshhs_file
-        self.compute_zm_thread.coastres = self.coastres
+        self.compute_zm_thread.shp_file = self.shp_file
         self.compute_zm_thread.easy = self.easy.easygrid
         self.compute_zm_thread.croco_file = self.croco_file
         self.compute_zm_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
@@ -471,8 +454,7 @@ class MainWindow(HasTraits):
         self.compute_c2c_thread.topo_file = self.topo_file
         self.compute_c2c_thread.topo = self.get_topo.topo
         self.compute_c2c_thread.match_topo = self.get_topo.match_topo
-        self.compute_c2c_thread.gshhs_file = self.gshhs_file
-        self.compute_c2c_thread.coastres = self.coastres
+        self.compute_c2c_thread.shp_file = self.shp_file
         self.compute_c2c_thread.openb  = [self.checklist,self.merge]
         self.compute_c2c_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_c2c_thread.nest = self.easy.AGRIFgrid
@@ -548,10 +530,6 @@ class MainWindow(HasTraits):
         llcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].min()
         urcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].max()
 
-        coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
-                           'High':'h', 'Full':'f'}
-        resolution = coastres_dic[self.coastres.coast_res]
-
         x_rho, y_rho = self.outputs.lon_rho,self.outputs.lat_rho
         x_psi, y_psi = self.outputs.lon_psi,self.outputs.lat_psi
 
@@ -604,7 +582,7 @@ class MainWindow(HasTraits):
             #M.scatter(x_rho, y_rho, s=2, c='k', edgecolor='k', ax=self.figure.gca(), zorder=3)
 
             if not 'mask' in self.inputs.zview:
-                 path_shp=self.gshhs_file+'/GSHHS_shp/'+resolution+'/GSHHS_'+resolution+'_L1.shp'
+                 path_shp=self.shp_file
                  tch=shpreader.Reader(path_shp)
                  # here ccrs define the projection of the data (coastline)
                  shape_feature = cfeature.ShapelyFeature(tch.geometries(),ccrs.PlateCarree())
@@ -643,10 +621,6 @@ class MainWindow(HasTraits):
         urcrnrlon = prt_grd.lon_rho[1:-1, 1:-1].max()
         llcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].min()
         urcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].max()
-
-        coastres_dic = {'Crude':'c', 'Low':'l', 'Intermediate':'l',
-                           'High':'h', 'Full':'f'}
-        resolution = coastres_dic[self.coastres.coast_res]
 
         prt_xr, prt_yr = prt_grd.lon_rho,prt_grd.lat_rho
         prt_xp, prt_yp = prt_grd.lon_psi,prt_grd.lat_psi

@@ -1,5 +1,5 @@
 __author__ = 'Mathieu Le Corre'
-__email__  = 'mathieu.lecorre@univ-brest.fr'
+__email__  = 'mathieu.le.corre@shom.fr'
 __date__   = '2022-09'
 __license__='GPL3'
 '''
@@ -64,12 +64,11 @@ smooth_meth = 'smooth' # Smoothing method ('smooth', 'lsmooth', 'lsmooth_legacy'
 # Topo file
 topofile='./etopo5.nc'
 
-# Mask resolution 
-gshhs_file='./Modules/gshhs'
-res="Crude" # 'Crude', 'Low', 'Intermediate', 'High', 'Full'
+# Coastline file (for the mask)
+shp_file='./Modules/gshhs/GSHHS_shp/f/GSHHS_f_L1.shp'
 
 # Single Connect [Mask water not connected to the main domain]
-sgl_connect=[True,20,50] # Precise True or false and a point index inside the main domain
+sgl_connect=[True,20,20] # Precise True or false and a point index inside the main domain
 
 # Output dir
 output_dir="./"
@@ -101,7 +100,7 @@ if __name__ == "__main__":
  
         from tools_make_grid import inputs,inputs_smth,EasyGrid,GetMask,GetTopo
         from croco_class import CROCO
-        from main_window import Outputs,CoastlineRes
+        from main_window import Outputs
         # --- Create inputs and outputs class -----------------------------
 
         inputs=inputs(tra_lon,tra_lat,size_x,size_y,nx,ny,rot)
@@ -113,11 +112,8 @@ if __name__ == "__main__":
         EasyGrid.easygrid(None,inputs,outputs)
         
         # --- Build mask and topo -----------------------------------------
-
-        cres=CoastlineRes()
-        cres.coast_res=res 
-        
-        GetMask.mask(None,outputs,cres,gshhs_file,sgl_connect=sgl_connect)
+       
+        GetMask.mask(None,outputs,shp_file,sgl_connect=sgl_connect)
         GetTopo.topo(None,outputs,topofile,smooth=inputs_smth)
 
         # --- Save netcdf -------------------------------------------------
