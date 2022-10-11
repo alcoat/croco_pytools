@@ -525,19 +525,22 @@ class MainWindow(HasTraits):
                                   var[::-1, -1], var[0, ::-1][1:]])
             return func(lon), func(lat)
 
-        llcrnrlon = self.outputs.lon_rho[1:-1, 1:-1].min()
-        urcrnrlon = self.outputs.lon_rho[1:-1, 1:-1].max()
-        llcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].min()
-        urcrnrlat = self.outputs.lat_rho[1:-1, 1:-1].max()
-
         x_rho, y_rho = self.outputs.lon_rho,self.outputs.lat_rho
         x_psi, y_psi = self.outputs.lon_psi,self.outputs.lat_psi
 
         ox_psi, oy_psi  = outline(self.outputs.lon_psi[1:-1, 1:-1], self.outputs.lat_psi[1:-1, 1:-1])
 
+        if min(x_rho.ravel())<180 and max(x_rho.ravel())>180:
+            # check if grid cross lon=180 and change central lon for cartopy
+            mid=180
+            x_rho=x_rho-180;x_psi=x_psi-180
+            ox_psi=ox_psi-180
+        else:
+            mid=0
+
         self.figure.clf()
 
-        ax=self.figure.add_axes(rect=[0.1, 0.04, 0.80, 0.9],projection=ccrs.PlateCarree())
+        ax=self.figure.add_axes(rect=[0.1, 0.04, 0.80, 0.9],projection=ccrs.PlateCarree(central_longitude=mid))
         ax.plot(ox_psi, oy_psi, 'r',zorder=5) #, ax=self.figure.gca(), zorder=3)
 
         # Colorbar position
@@ -617,11 +620,6 @@ class MainWindow(HasTraits):
                                   var[::-1, -1], var[0, ::-1][1:]])
             return func(lon), func(lat)
 
-        llcrnrlon = prt_grd.lon_rho[1:-1, 1:-1].min()
-        urcrnrlon = prt_grd.lon_rho[1:-1, 1:-1].max()
-        llcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].min()
-        urcrnrlat = prt_grd.lat_rho[1:-1, 1:-1].max()
-
         prt_xr, prt_yr = prt_grd.lon_rho,prt_grd.lat_rho
         prt_xp, prt_yp = prt_grd.lon_psi,prt_grd.lat_psi
 
@@ -630,6 +628,15 @@ class MainWindow(HasTraits):
 
         prt_oxp, prt_oyp  = outline(prt_grd.lon_psi[1:-1, 1:-1], prt_grd.lat_psi[1:-1, 1:-1])
         chd_oxp, chd_oyp  = outline(self.outputs.lon_psi[1:-1, 1:-1], self.outputs.lat_psi[1:-1, 1:-1])
+
+        if min(prt_xr.ravel())<180 and max(prt_xr.ravel())>180:
+            # check if grid cross lon=180 and change central lon for cartopy
+            mid=180
+            prt_xr=prt_xr-180;chd_xr=chd_xr-180
+            prt_oxp=prt_oxp-180;chd_oxp=chd_oxp-180
+        else:
+            mid=0
+
 
         self.figure.clf()
 
