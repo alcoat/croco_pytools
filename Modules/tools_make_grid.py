@@ -148,7 +148,7 @@ def topo_periodicity(topo_file, geolim):
         nx_lon=imax+period-imin+1
         htopo = np.zeros([ny_lat,nx_lon])
         xtmp  = np.zeros([nx_lon])
-        start1=0 ; end1=start1+nx_lon; count1=imax
+        start1=0 ; end1=start1+nx_lon; count1=imax+1
         if gebco:
             topo = topo_fact*nc.variables[topo_type['topo']][:]
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
