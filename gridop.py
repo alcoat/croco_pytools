@@ -2,6 +2,7 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 from xgcm import Grid
+import intake
 
 import time
 import os.path as path
@@ -14,7 +15,27 @@ def open_files(model, gridname, filenames,
                grid_metrics=1,
                drop_variables=[], chunks={'t':1},
                suffix='',
+               verbose=False
               ):
+    """
+    open Netcdf files or zarr archive
+    input: 
+        model : instance of the Model class defined in the model.py module
+        gridname : path to the grid file
+        filenames : path to the Netcdf files or to the zarr archive
+        grid_metrics : type of xgcm grid 
+                       0: no metrics
+                       1: horizontal metrics
+                       2: horizontal and vertical metrics
+        drop_variables : list of variables to drop
+        chunks: chunks to override those in the yaml file
+        suffix: to remove suffixes in dimensions or variables
+        verbose: verbose mode
+    outputs:
+        ds: an xarray dataset
+        grid: the associated xgcm grid
+                       
+    """
                   
     # convert filenames to list of strings if string
     filenames = filenames.tolist() if isinstance(filenames,str) else filenames
@@ -23,22 +44,87 @@ def open_files(model, gridname, filenames,
     open_kwargs = {'concat_dim': concat_dim,
                    'combine': 'nested',
                    'coords': 'minimal',
-                   'parallel': False,
+                   'parallel': True,
                    'compat': 'override'
                   }
     try : 
+        # zarr archive
         ds = xr.open_zarr(filenames[0], drop_variables=drop_variables)
     except:
         try : 
+            # list of explicit filenames
             ds = xr.open_mfdataset(filenames, drop_variables=drop_variables, **open_kwargs)  
         except :
-            print('open_files: unknown format: only Netcdf or Zarr')
-            print('or filenames do not exist')
-            return
+            try :
+                # list of files with wildcards
+                ds = xr.open_mfdataset(filenames[0], drop_variables=drop_variables, **open_kwargs)
+            except:
+                print('open_files: unknown format: only Netcdf or Zarr')
+                print('or filenames do not exist')
+                return
         
+    # delete suffix from dimension or variable names
     if suffix != '' : ds = del_name_suffix(ds,suffix)
+    # change the names in the dataset according to the model instance
     model.ds = adjust_grid(model, ds)
     
+    # add the grid and the xgcm grid to the dataset
+    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
+    model.ds = ds.chunk(chunks=chunks)
+    return model.ds, grid
+
+def open_catalog(model, gridname, catalog, source=None,
+                 grid_metrics=1,
+                 chunks={},
+                 suffix='',
+                 verbose=False,
+                ):
+    """
+    open files through an intake catalog
+    input: 
+        model : instance of the Model class defined in the model.py module
+        gridname : path to the grid file
+        catalog : path to the intake yaml catalog
+        source : source to open in the catalog (if None, the first)
+        grid_metrics : type of xgcm grid 
+                       0: no metrics
+                       1: horizontal metrics
+                       2: horizontal and vertical metrics
+        chunks: chunks to override those in the yaml file
+        suffix: to remove suffixes in dimensions or variables
+        verbose: verbose mode
+    outputs:
+        ds: an xarray dataset
+        grid: the associated xgcm grid
+                       
+    """
+    
+    try : 
+        # open intake catalog
+        cat = intake.open_catalog(catalog)
+        if verbose: print('Available sources are: ',list(cat))
+    except:
+        print('open_catalog: yaml catalog not found')
+        return
+    
+    # find the first source of the catalog if source is None
+    source = list(cat)[0] if source is None else source
+    if verbose: 
+        print('Source :', source)
+        print('   ', cat[source])
+    # open the source as a dataset
+    try:
+        ds = cat[source].to_dask() # chunks={'time_counter': 50})
+    except:
+        print('May be the source is not found in the yaml catalog')
+        return
+    
+    # delete suffix from dimension or variable names
+    if suffix != '' : ds = del_name_suffix(ds,suffix)
+    # change the names in the dataset according to the model instance
+    model.ds = adjust_grid(model, ds)
+    
+    # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds, grid

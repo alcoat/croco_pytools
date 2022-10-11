@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 
+import dask
 from dask import delayed
 
 from matplotlib import pyplot as plt
@@ -69,7 +70,7 @@ def array2cmap(X):
 
 
 
-def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False, 
+def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False, 
                 cmap=None, figsize=(10,8), dpi=150, **kwargs):
     '''
     Plot an 2d xarray DataArray
@@ -124,7 +125,7 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
         ax.grid(color='gray', alpha=0.5, linestyle='dashed')
     
     # put the title
-    if 't' in da.coords: date = np.datetime_as_string(da.t, unit='m')
+    if 't' in da.coords and date is None: date = np.datetime_as_string(da.t, unit='m')
     title = fig_suffix+', date = %s'%(date)
     ax.set_title(title)
     
@@ -138,7 +139,7 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=' ', save=False,
 # -------------------------------- movies --------------------------------------
 
 def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),  
-                      dpi=150, fps=5, **kwargs):
+                  date=None, dpi=150, fps=5, **kwargs):
 
     if fig_dir is None:
         try:
@@ -155,11 +156,13 @@ def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),
     tasks = [
         delayed(plotfig)(da.isel(t=i), i, fig_dir=fig_dir, 
                          fig_suffix=fig_suffix, 
-                         save=True, dpi=dpi, figsize=figsize, **kwargs,
+                         save=True, dpi=dpi, figsize=figsize, 
+                         date=date, **kwargs,
                          ) for i in range(da.t.size)
     ]
 
-    dask_compute_batch(tasks, client)
+    # dask_compute_batch(tasks, client)
+    out = dask.compute(*tasks)
     
     fig_name = fig_dir+fig_suffix+'_t%05d.png'
     movie_name = fig_dir+fig_suffix+'.mp4'
