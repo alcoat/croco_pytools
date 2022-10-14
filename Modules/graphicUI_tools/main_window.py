@@ -240,9 +240,16 @@ class MainWindow(HasTraits):
     inputs_smth_c2c = Instance(Inputs_smth_c2c, ())
 
     outputs = Instance(Outputs, ())
-    opt_dir = Directory(value='./',
-                     label='Output directory',
+    opt_file = File(value='./croco_grd.nc',
+                     label='Output file',
                      desc='Output path')
+    opt_file_zm = File(value='./croco_chd_grd.nc',
+                     label='Output file',
+                     desc='Output path')
+    opt_dir = File(value='./',
+                     label='Output dir',
+                     desc='Output path')
+
     results_string = String()
 
     # Button #
@@ -328,7 +335,7 @@ class MainWindow(HasTraits):
                           '_',
                           Item(name='compute_smooth', show_label=False),
                           '_',
-                          Item(name='opt_dir',show_label=True),
+                          Item(name='opt_file',show_label=True),
                           Item(name='save_grid', show_label=False )
                           ,label="Topo smoothing",dock='tab'),
                   ########## Third tab ######
@@ -351,7 +358,7 @@ class MainWindow(HasTraits):
 #                          '_',
                           Item(name='compute_zm', show_label=False),
 #                          '_',
-                          Item(name='opt_dir',show_label=True),
+                          Item(name='opt_file_zm',show_label=True),
                           Item(name='save_grid_zm', show_label=False ),
                           label="Create offline zoom",dock='tab'),
                   ########## Fourth tab ########
@@ -392,7 +399,7 @@ class MainWindow(HasTraits):
         self.compute_grid_thread = ComputeGridThread()
         self.compute_grid_thread.inputs = self.inputs
         self.compute_grid_thread.outputs = self.outputs
-        self.compute_grid_thread.outputs_dir = self.opt_dir
+        self.compute_grid_thread.outputs_file = self.opt_file
         if self.compute_grid_thread.inputs.zview=='topo':
             self.compute_grid_thread.topo_file = self.topo_file
             self.compute_grid_thread.topo = self.get_topo.topo
@@ -470,7 +477,7 @@ class MainWindow(HasTraits):
         self.save_grid_thread = SaveGridThread()
         self.save_grid_thread.inputs = self.inputs
         self.save_grid_thread.outputs = self.outputs
-        self.save_grid_thread.outputs_dir = self.opt_dir
+        self.save_grid_thread.outputs_file = self.opt_file
         self.save_grid_thread.display = self.add_line
         self.save_grid_thread.prt_grd= None
         self.save_grid_thread.save2netcdf = self.save2netcdf
@@ -480,7 +487,7 @@ class MainWindow(HasTraits):
         self.save_grid_zm_thread = SaveGridThread()
         self.save_grid_zm_thread.inputs = self.inputs_zm
         self.save_grid_zm_thread.outputs = self.outputs
-        self.save_grid_zm_thread.outputs_dir = self.opt_dir
+        self.save_grid_zm_thread.outputs_file = self.opt_file_zm
         self.save_grid_zm_thread.display = self.add_line
         self.save_grid_zm_thread.prt_grd=[False]
         self.save_grid_zm_thread.save2netcdf = self.save2netcdf
@@ -490,7 +497,7 @@ class MainWindow(HasTraits):
         self.save_grid_c2c_thread = SaveGridThread()
         self.save_grid_c2c_thread.inputs = self.inputs
         self.save_grid_c2c_thread.outputs = self.outputs
-        self.save_grid_c2c_thread.outputs_dir = self.opt_dir
+        self.save_grid_c2c_thread.outputs_file = self.opt_dir
         self.save_grid_c2c_thread.display = self.add_line
         self.save_grid_c2c_thread.prt_grd=[True,self.croco_file,self.inputs_c2c.coef,self.inputs_c2c.imin
                 ,self.inputs_c2c.imax,self.inputs_c2c.jmin,self.inputs_c2c.jmax]
@@ -533,7 +540,7 @@ class MainWindow(HasTraits):
         if min(x_rho.ravel())<180 and max(x_rho.ravel())>180:
             # check if grid cross lon=180 and change central lon for cartopy
             mid=180
-            x_rho=x_rho-180;x_psi=x_psi-180
+            x_rho=x_rho-180
             ox_psi=ox_psi-180
         else:
             mid=0

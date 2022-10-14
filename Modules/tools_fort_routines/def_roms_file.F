@@ -1,5 +1,5 @@
-      subroutine def_roms_file(ncid, fname, xi_rho,eta_rho,s_rho,
-     &                            theta_s,theta_b, hc, Cs_w,Cs_r)
+      subroutine def_roms_file(ntrc,ncid, fname, xi_rho,eta_rho,s_rho,
+     &                        theta_s,theta_b, hc, Cs_w,Cs_r,tracer)
 
 ! Set up netCDF structure for a file suitable to be ROMS initial or
 ! climatological input file.  Note that the file itself is expected to
@@ -14,8 +14,10 @@
       implicit none
       character(len=*) fname
       integer ncid, xi_rho,xi_u, eta_rho,eta_v, s_rho, ierr, 
-     &                        old_fill_mode, varid, lfnm
+     &                        old_fill_mode, varid, lfnm,itrc
       real(kind=8) theta_s,theta_b, hc, Cs_w(0:s_rho),Cs_r(s_rho)
+      integer :: ntrc,ipt_trc_len
+      character(len=4), dimension(ntrc) :: tracer
 #ifdef WITH_REC_DIM
       integer timedim
       integer, parameter :: n2d=3, n3d=4
@@ -35,7 +37,7 @@
       if (ierr /= nf_noerr) then
         write(*,'(/1x,A/)') '### WARNING: Cannot set nofill mode.'
       endif
-
+      ipt_trc_len=4
 ! Define dimensions
 
       xi_u=xi_rho-1 ; eta_v=eta_rho-1
@@ -162,17 +164,24 @@
      &                                                  FillValue)
 
 ! Tracer variables.
-
-      ierr=nf_def_var(ncid, 'temp', nf_real, n3d, r3dgrd, varid)
-      ierr=nf_put_att_text(ncid, varid, 'long_name', 21,
-     &                                   'potential temperature')
-      ierr=nf_put_att_text(ncid, varid, 'units', 7,    'Celsius')
-      ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
-     &                                              1, FillValue)
-
-      ierr=nf_def_var(ncid, 'salt', nf_real, n3d, r3dgrd, varid)
-      ierr=nf_put_att_text(ncid, varid, 'long_name', 8,'salinity')
-      ierr=nf_put_att_text(ncid, varid, 'units',     3,     'PSU')
-      ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
-     &                                              1, FillValue)
+      do itrc=1,ntrc/ipt_trc_len
+        if ( trim(tracer(itrc)) == 'temp' ) then
+          ierr=nf_def_var(ncid, 'temp', nf_real, n3d, r3dgrd, varid)
+          ierr=nf_put_att_text(ncid, varid, 'long_name', 21,
+     &                                       'potential temperature')
+          ierr=nf_put_att_text(ncid, varid, 'units', 7,    'Celsius')
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
+        elseif ( trim(tracer(itrc)) == 'salt' ) then
+          ierr=nf_def_var(ncid, 'salt', nf_real, n3d, r3dgrd, varid)
+          ierr=nf_put_att_text(ncid, varid, 'long_name', 8,'salinity')
+          ierr=nf_put_att_text(ncid, varid, 'units',     3,     'PSU')
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
+        else
+          write(*,*) 'No ', trim(tracer(itrc)),' defined. Please edit', 
+     &                ' def_roms_file and recompile.'
+          stop
+        endif
+      enddo
       end

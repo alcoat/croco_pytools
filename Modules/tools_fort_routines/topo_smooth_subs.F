@@ -11,7 +11,7 @@
 
       real(kind=8),    dimension(0:Lm+1,0:Mm+1) :: h,Lgh,Lgh1
       real(kind=8), allocatable, dimension(:) :: FX,FE, FX1,FE1
-      real(kind=8) :: hmin, hmax, r_max
+      real(kind=8) :: hmin,lcl_hmin, hmax, r_max
 
       integer(kind=2), dimension(0:Lm+1,0:Mm+1) :: msk
       integer istr,iend,jstr,jend, i,j, iter,ifrst_call
@@ -69,10 +69,17 @@ c**   nsub_x=1 ; nsub_y=1 !<-- for testing parallel correctness only
         do j=jstr,jend
           do i=istr,iend
             h(i,j)=min( hmax, max( hmin, h(i,j) ))
+            if ( hmin<=0 ) then
+                  h(i,j)=h(i,j)-hmin+0.1  ! raise topo when hmin<=0 to avoid log error
+                  lcl_hmin=0.1
+              else
+                  lcl_hmin=hmin
+              endif
+            
             if ( any( log_list == method ) ) then
               transform_to_log=1
-              if (h(i,j) > hmin) then
-                Lgh(i,j)=log(h(i,j)/hmin)
+              if (h(i,j) > lcl_hmin) then
+                Lgh(i,j)=log(h(i,j)/lcl_hmin)
               else
                 Lgh(i,j)=0.D0
               endif
@@ -145,7 +152,7 @@ C$OMP BARRIER
 
             do j=jstr,jend                ! this backward conversion is
               do i=istr,iend              ! needed because "rx_diag_tile"
-                h(i,j)=hmin*exp(Lgh(i,j)) ! expects "h" to report "r_max"
+                h(i,j)=lcl_hmin*exp(Lgh(i,j)) ! expects "h" to report "r_max"
               enddo                       ! values achieved at every
             enddo                         ! iteration.
           endif
@@ -153,6 +160,11 @@ C$OMP BARRIER
         enddo   !<-- tile
 C$OMP BARRIER
       enddo  !<-- iter
+
+      if ( hmin<=0 ) then
+        h=h+hmin-0.1       ! Deepens topo if hmin<0 as we previously raise it   
+      endif
+
 
 ! Final linear smoothing
 

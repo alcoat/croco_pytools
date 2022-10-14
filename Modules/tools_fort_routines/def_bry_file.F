@@ -1,6 +1,6 @@
       subroutine def_bry_file(fname, ncid, xi_rho,eta_rho,N,
      &                OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,
-     &                        theta_s, theta_b, hc, Cs_w,Cs_r)
+     &                theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer)
       implicit none
       character(len=*) fname
       integer  ncid, xi_rho,eta_rho,N
@@ -9,10 +9,13 @@
       integer r2d_EW(2), u2d_EW(2), r3d_EW(3), u3d_EW(3),
      &        r2d_NS(2), v2d_NS(2), r3d_NS(3), v3d_NS(3),
      &        vert_dim, time_dim, varid, ierr,
-     &        old_fill_mode,lfname
+     &        old_fill_mode,lfname,itrc
+      integer :: ntrc,ipt_trc_len
+      character(len=4), dimension(ntrc) :: tracer
+
       include "spval.h"
       include "netcdf.inc"
-     
+      ipt_trc_len=4
       call lenstr(fname,lfname)
       write(*,'(1x,3A)',advance='no') 'def_bry_file :: creating ''',
      &                            fname(1:lfname),  ''' ...'
@@ -87,17 +90,25 @@
         ierr=nf_put_att_text(ncid,varid, 'units', 12,'meter/second')
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
-
-        ierr=nf_def_var(ncid, 'temp_west',nf_real, 3,r3d_NS,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                   FillValue)
-
-        ierr=nf_def_var(ncid, 'salt_west',nf_real, 3,r3d_NS,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
+        do itrc=1,ntrc/ipt_trc_len
+          if (trim(tracer(itrc)) == 'temp') then
+            ierr=nf_def_var(ncid, 'temp_west',nf_real, 3,r3d_NS,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                       FillValue)
+          elseif (trim(tracer(itrc)) == 'salt') then
+            ierr=nf_def_var(ncid, 'salt_west',nf_real, 3,r3d_NS,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                      FillValue)
+          else 
+           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit', 
+     &               '  def_bry_file and recompile.' 
+           stop 
+          endif
+        enddo       
       endif
+          
 
       if (OBC_EAST) then
         ierr=nf_def_var(ncid, 'zeta_east',nf_real, 2,r2d_NS,varid)
@@ -124,16 +135,23 @@
         ierr=nf_put_att_text(ncid,varid, 'units', 12,'meter/second')
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                   FillValue)
-
-        ierr=nf_def_var(ncid, 'temp_east',nf_real, 3,r3d_NS,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                   FillValue)
-
-        ierr=nf_def_var(ncid, 'salt_east',nf_real, 3,r3d_NS,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
+        do itrc=1,ntrc/ipt_trc_len
+          if ( trim(tracer(itrc)) == 'temp' ) then
+            ierr=nf_def_var(ncid, 'temp_east',nf_real, 3,r3d_NS,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                     FillValue)
+          elseif ( trim(tracer(itrc)) == 'salt' ) then 
+            ierr=nf_def_var(ncid, 'salt_east',nf_real, 3,r3d_NS,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                    FillValue)
+          else
+           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit', 
+     &                  ' def_bry_file and recompile.'
+            stop
+          endif
+        enddo 
       endif
 
       if (OBC_SOUTH) then
@@ -161,16 +179,23 @@
         ierr=nf_put_att_text(ncid,varid, 'units', 12,'meter/second')
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
-
-        ierr=nf_def_var(ncid, 'temp_south',nf_real,3,r3d_EW,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
-
-        ierr=nf_def_var(ncid, 'salt_south',nf_real,3,r3d_EW,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
+        do itrc=1,ntrc/ipt_trc_len
+          if ( trim(tracer(itrc)) == 'temp' ) then
+            ierr=nf_def_var(ncid, 'temp_south',nf_real,3,r3d_EW,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                      FillValue)
+          elseif ( trim(tracer(itrc)) == 'salt' ) then
+            ierr=nf_def_var(ncid, 'salt_south',nf_real,3,r3d_EW,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                      FillValue)
+          else
+           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit',
+     &                  ' def_bry_file and recompile.'
+            stop
+          endif
+        enddo
       endif
 
       if (OBC_NORTH) then
@@ -198,16 +223,23 @@
         ierr=nf_put_att_text(ncid,varid, 'units', 12,'meter/second')
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
-
-        ierr=nf_def_var(ncid, 'temp_north',nf_real,3,r3d_EW,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
-
-        ierr=nf_def_var(ncid, 'salt_north',nf_real,3,r3d_EW,varid)
-        ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-        ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                  FillValue)
+        do itrc=1,ntrc/ipt_trc_len
+          if ( trim(tracer(itrc)) == 'temp' ) then
+            ierr=nf_def_var(ncid, 'temp_north',nf_real,3,r3d_EW,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                      FillValue)
+          elseif ( trim(tracer(itrc)) == 'salt' ) then
+            ierr=nf_def_var(ncid, 'salt_north',nf_real,3,r3d_EW,varid)
+            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
+            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
+     &                                                      FillValue)
+          else
+            write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit',
+     &                 ' def_bry_file and recompile.'
+            stop
+          endif
+        enddo
       endif
       write(*,*) '...done.'
       end

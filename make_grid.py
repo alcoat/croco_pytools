@@ -68,10 +68,10 @@ topofile='./etopo5.nc'
 shp_file='./Modules/gshhs/GSHHS_shp/f/GSHHS_f_L1.shp'
 
 # Single Connect [Mask water not connected to the main domain]
-sgl_connect=[True,20,20] # Precise True or false and a point index inside the main domain
+sgl_connect=[False,20,20] # Precise True or false and a point index inside the main domain
 
 # Output dir
-output_dir="./"
+output_file="./croco_grd.nc"
 
 #--- END USER CHANGES -----------------------------------------------------
 
@@ -112,14 +112,14 @@ if __name__ == "__main__":
         EasyGrid.easygrid(None,inputs,outputs)
         
         # --- Build mask and topo -----------------------------------------
-       
-        GetMask.mask(None,outputs,shp_file,sgl_connect=sgl_connect)
+        if hmin>0:
+            GetMask.mask(None,outputs,shp_file,sgl_connect=sgl_connect)
         GetTopo.topo(None,outputs,topofile,smooth=inputs_smth)
 
         # --- Save netcdf -------------------------------------------------
        
         print('Writing Topography')
-        CROCO.create_grid_nc(None,output_dir,inputs,outputs)
+        CROCO.create_grid_nc(None,output_file,inputs,outputs)
 
 
 

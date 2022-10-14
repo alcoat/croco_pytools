@@ -151,9 +151,9 @@ C$OMP MASTER
         allc_ext_size=(nx+2)*(ny+2)
         if (allocated(qext)) deallocate(qext)
         allocate(qext(allc_ext_size))
-        write(*,'(1x,2A,F16.8,1x,A)') 'etch_into_land_thread :: ',
-     &             'allocated',  dble((nx+2)*(ny+2))/dble(262144),
-     &                                'MB shared workspace array'
+!        write(*,'(1x,2A,F16.8,1x,A)') 'etch_into_land_thread :: ',
+!     &             'allocated',  dble((nx+2)*(ny+2))/dble(262144),
+!     &                                'MB shared workspace array'
       endif
 C$OMP END MASTER
 C$OMP BARRIER
@@ -175,13 +175,14 @@ C$OMP BARRIER
         allocate(  ijmsk(2,alloc_msk_size),  nijmsk(alloc_msk_size),
      &            ijptch(2,alloc_msk_size),    ptch(alloc_msk_size),
      &                                                 stat=ierr )
-        if (ierr == 0) then
+!        if (ierr == 0) then
 C$OMP CRITICAL(etch_cr_rgn)
-          write(*,'(1x,2A,F16.8,1x,A,I3)') 'etch_into_land_thread :: ',
-     &               'allocated',  dble(4*alloc_msk_size)/dble(262144),
-     &                             'MB private workspace, trd =', trd
+!          write(*,'(1x,2A,F16.8,1x,A,I3)') 'etch_into_land_thread :: ',
+!     &               'allocated',  dble(4*alloc_msk_size)/dble(262144),
+!     &                             'MB private workspace, trd =', trd
 C$OMP END CRITICAL(etch_cr_rgn)
-        else
+!        else
+         if (ierr /= 0) then
           write(*,*) '### ERROR: etch_into_land_thread :: ',
      &                           'memory allocation error.'
         endif

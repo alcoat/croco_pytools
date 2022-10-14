@@ -49,6 +49,7 @@ class ComputeGridThread(Thread):
                               'lon=%.2f, lat=%.2f, sx=%.2f, sy=%.2f, ',
                               'rot=%.2f)')) % easyparam)
 
+        print('Done computing grid')
 class ComputeSmthThread(Thread):
     """
     This is the worker thread that
@@ -61,7 +62,8 @@ class ComputeSmthThread(Thread):
         Runs the smoothing computing loop
         """
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
+        if self.inputs_smth.depthmin>0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
+            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -77,6 +79,7 @@ class ComputeSmthThread(Thread):
         self.display(''.join(('--- computing grid (nx=%i, ny=%i, ',
                               'lon=%.2f, lat=%.2f, sx=%.2f, sy=%.2f, ',
                               'rot=%.2f)')) % easyparam)
+        print('Done soomthing')
 
 class ComputeZmThread(Thread):
     """
@@ -92,7 +95,9 @@ class ComputeZmThread(Thread):
  
 #        self.prt_grd=tools_topo.topo_prt(self.croco_file) 
         self.easy(self.inputs, self.outputs)
-        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
+        if self.inputs_smth.depthmin >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
+            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
+
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
         self.match_topo(self.topo_prt,self.outputs,self.openb)
 
@@ -108,6 +113,7 @@ class ComputeZmThread(Thread):
         self.display(''.join(('--- computing grid (nx=%i, ny=%i, ',
                               'lon=%.2f, lat=%.2f, sx=%.2f, sy=%.2f, ',
                               'rot=%.2f)')) % easyparam)
+        print('Done making zoom')
 
 class ComputeC2cThread(Thread):
     """
@@ -130,14 +136,15 @@ class ComputeC2cThread(Thread):
 #        else:
 
         self.nest(self.topo_prt,self.inputs,self.outputs)
-        self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
+        if np.nanmin(self.topo_prt.h) >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
+            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
         self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h))
         self.match_topo(self.topo_prt,self.outputs,self.openb) 
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
 
-
+        print('Done making AGRIF zoom')
 class SaveGridThread(Thread):
     """
     
@@ -148,7 +155,7 @@ class SaveGridThread(Thread):
         """
         Runs the easygrid save to nc loop
         """
-        self.save2netcdf.create_grid_nc(self.outputs_dir,self.inputs, self.outputs,prt_grd=self.prt_grd)
+        self.save2netcdf.create_grid_nc(self.outputs_file,self.inputs, self.outputs,prt_grd=self.prt_grd)
 
         if self.prt_grd is None or self.prt_grd[0]==False:
             easyparam = (self.inputs.nx, self.inputs.ny,

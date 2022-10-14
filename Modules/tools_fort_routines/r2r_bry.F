@@ -1,5 +1,5 @@
-      subroutine r2r_bry (nhists,chldgrd,theta_s,theta_b,hc,N, WESN ,
-     &         prntgrd,prnt_data)
+      subroutine r2r_bry (ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN
+     &         ,prntgrd,prnt_data,tracer)
 
 ! Creates open boundary forcing file by extracting and interpolating
 ! relevant data from parent-grid solution. Should be used as
@@ -56,9 +56,9 @@ c--#define VERBOSE
       character(len=16) :: roms_bry
       character(len=10) :: time_var_name
       character(len=16) :: VertCoordType,str, vname, trgname, time_units
-      integer :: ntrc
+      integer :: ntrc,ipt_trc_len
       character(len=4) :: WESN
-      character(len=4) tracer(2)
+      character(len=4), dimension(ntrc):: tracer
       integer :: btm_slp ! no-slip=-1; +1 free; 0 natural
      &         , btm_trc ! +1 Neumann; 0 natural;
       logical :: OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH
@@ -143,7 +143,7 @@ c--#define VERBOSE
 #endif
       include "phys_const.h"
       include "netcdf.inc"
-Cf2py intent(in) nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_data
+Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_data,tracer
 #ifdef TIMING
       call cpu_time(tstart)
       nclk=1
@@ -152,11 +152,10 @@ Cf2py intent(in) nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_data
       write(*,*) 'clk_rate=', clk_rate, ' clk_max =', clk_max
 # endif
 #endif
-      ntrc=2; btm_slp=-1 ; btm_trc=+1;margn=8 ! parameters
+      btm_slp=-1 ; btm_trc=+1;margn=8 ! parameters
       roms_bry='croco_chd_bry.nc'
       time_var_name='scrum_time'
-      ipt_char_len=160
-      tracer(1)='temp' ; tracer(2)='salt'
+      ipt_char_len=160;ipt_trc_len=4
       ihis=1 ; rec=1; recout=0 ; time_units='                  '
       OBC_WEST=.false. ; OBC_SOUTH=.false.
       OBC_EAST=.false. ; OBC_NORTH=.false.
@@ -1136,7 +1135,7 @@ Cf2py intent(in) nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_data
         write(*,*) 'hihi',N
         call def_bry_file(roms_bry, nctarg, ncx,ncy,N,
      &         OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,
-     &                 theta_s, theta_b, hc, Cs_w,Cs_r)
+     &        theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer)
         ierr=nf_inq_varid(nctarg, 'bry_time', tvar_out)
         if (ierr /= nf_noerr) then
           write(*,*) '### ERROR 2: nf_inq_varid(. tvar_out .)'
@@ -1504,8 +1503,8 @@ C$OMP END PARALLEL
 
 ! Tracers...
 
-          do itrc=1,ntrc
-            vname=tracer(itrc) ; call lenstr(vname,lvar)
+          do itrc=1,ntrc/ipt_trc_len
+            vname=trim(tracer(itrc)) ; call lenstr(vname,lvar)
             call get_patch_by_name_real(ncsrc, prt_tmp,vname,
      &                             iwestpg,jsouthpg, nx,ny,Np,rec, wrk1)
             do k=1,Np

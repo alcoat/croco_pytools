@@ -60,7 +60,7 @@ import input_class as Inp
 
 # input informations
 inputdata='mercator'   # At hte current time can handle mercator,soda,eccov4
-input_dir = '/local/tmp/3/'
+input_dir = './'
 input_prefix='raw_motu_mercator_*'# Please use * to include all files
 
 multi_files=False
@@ -318,9 +318,11 @@ if __name__ == '__main__':
         
         nc=netcdf.Dataset(bdy_filename, 'a')
 
+        nc.Input_data_type=inputdata 
         nc.variables['bry_time'].cycle=cycle_bry
         nc.variables['bry_time'][:]=bry_time
-
+        if cycle_bry==0:
+            nc.variables['bry_time'].units='seconds since %s-01-01 00:00:00' %(Yorig)
         # --- Loop on boundaries ------------------------------------------
 
         for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):

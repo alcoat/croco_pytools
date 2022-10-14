@@ -1,5 +1,6 @@
 import numpy as np
 import netCDF4 as netcdf
+import xarray as xr
 import topo_reader
 import toolsf
 import netCDF4 as netcdf
@@ -22,11 +23,16 @@ def topo_periodicity(topo_file, geolim):
 
     topo_type = topo_reader.topo_file_id(topo_file)
 
-    print('Reading topography file:', topo_file)
-    nc = netcdf.Dataset(topo_file)
-    topo_lon = nc.variables[topo_type['lon']][:]
-    topo_lat = nc.variables[topo_type['lat']][:]
-    if topo_lon.ndim==2: #
+    try:
+        print('Reading topography file:', topo_file)
+#        nc = netcdf.Dataset(topo_file)
+        nc = xr.open_dataset(topo_file)
+    except:
+        print('Warning: \n', 'Topo file -> ',topo_file ,' does not exist... ')
+    
+    topo_lon = eval(''.join(("nc."+topo_type['lon']+'.values')))
+    topo_lat = eval(''.join(("nc."+topo_type['lat']+'.values')))
+    if topo_lon.ndim==2: # gebco is a bit different
         topo_lon = np.linspace(topo_lon[0,0],
                                topo_lon[0,-1], num=topo_lon.shape[1])
         topo_lat = np.linspace(topo_lat[0,0],
@@ -109,34 +115,34 @@ def topo_periodicity(topo_file, geolim):
     print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', \
           'imin,imax =', imin,imax,'out of', topo_lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',topo_lat.shape[0])
     ny_lat=jmax-jmin+1
-    start2=jmin ; end2=start2+ny_lat; count2=ny_lat
-    lat_tmp=np.zeros([ny_lat])
-    for j in range(0,ny_lat):
+    start2=jmin ; end2=start2+ny_lat+1; count2=ny_lat+1
+    lat_tmp=np.zeros([count2])
+    for j in range(0,count2):
         lat_tmp[j]=topo_lat[j+jmin-1]
  
     #####
 
     if imin < imax :
         nx_lon=imax-imin+1
-        start1=imin ; end1=start1+nx_lon ; count1=nx_lon
+        start1=imin ; end1=start1+nx_lon+1 ; count1=nx_lon+1
         if gebco:
-            topo = topo_fact*nc.variables[topo_type['topo']][:]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
         nc.close()
 
         ishft=imin-1
         lon_tmp=np.zeros([topo.shape[1]])
         if shft_west>0 and shft_east>0:
-            for i in range(0,nx_lon):
+            for i in range(0,count1):
                 lon_tmp[i]=topo_lon[i+ishft] +360
         elif shft_west<0 and shft_east<0:
-            for i in range(0,nx_lon):
+            for i in range(0,count1):
                  lon_tmp[i]=topo_lon[i+ishft]-360
         elif shft_west== 0 and shft_east==0:
-            for i in range(0,nx_lon) :
+            for i in range(0,count1) :
                 lon_tmp[i]=topo_lon[i+ishft]
         else:
             print('Error in shifting algoritm')
@@ -144,20 +150,20 @@ def topo_periodicity(topo_file, geolim):
 
     elif imin>imax:
         print('Reading topography in two separate parts adjacent through 360-degree periodicity, first...' )
-
-        nx_lon=imax+period-imin+1
-        htopo = np.zeros([ny_lat,nx_lon])
+        print('first..., ')
+        nx_lon=imax+period-imin+2
+        htopo = np.zeros([count2,nx_lon])
         xtmp  = np.zeros([nx_lon])
-        start1=0 ; end1=start1+nx_lon; count1=imax+1
+        start1=0 ; end1=start1+nx_lon+1; count1=imax+2
         if gebco:
-            topo = topo_fact*nc.variables[topo_type['topo']][:]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
         for j in range(0,count2):
             for i in range(0,count1):
-                htopo[j,nx_lon-imax+i-1]=topo[j,i]
+                htopo[j,nx_lon-imax+i-2]=topo[j,i]
         del topo
 
         ishft=nx_lon-count1
@@ -202,6 +208,9 @@ def topo_periodicity(topo_file, geolim):
         topo=np.copy(htopo)
 
     del topo_lon,topo_lat
+   
+    topo[np.isnan(topo)]=np.nanmax(topo.ravel())
+    
     topo_lon=np.copy(lon_tmp)
     topo_lat=np.copy(lat_tmp)
 
@@ -247,9 +256,19 @@ class GetTopo():
         if smooth is not None:
             outputs.hraw = topo
             if hmin is not None and hmax is not None: #Means you are in zoom AGRIF
+                if hmin<=0:
+                   outputs.mask_rho=np.ones(topo.shape)
+                   if hmin<np.nanmin(topo.ravel()):
+                       hmin=np.ceil(np.nanmin(topo.ravel()))
+                   outputs.mask_rho[topo<=hmin]=0
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,hmin,hmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             else:
+                if smooth.depthmin<=0:
+                   outputs.mask_rho=np.ones(topo.shape)
+                   if smooth.depthmin<np.nanmin(topo.ravel()):
+                       smooth.depthmin=np.ceil(np.nanmin(topo.ravel()))
+                   outputs.mask_rho[topo<=smooth.depthmin]=0
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,smooth.depthmin,smooth.depthmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             outputs.h=topo
@@ -420,6 +439,7 @@ class EasyGrid():
             """
             n, m = lon1.shape
             rot = np.deg2rad(rot)
+            eps=1e-20
             # translate into x,y,z
             # conventions:  (lon,lat) = (0,0)  corresponds to (x,y,z) = ( 0,-r, 0)
             #                   (lon,lat) = (0,90) corresponds to (x,y,z) = ( 0, 0, r)
@@ -441,8 +461,7 @@ class EasyGrid():
             rp1 = np.sqrt(x1 ** 2 + z1 ** 2)
 
             ap1 = 0.5 * np.pi * np.ones((n, m))
-            ap1[np.abs(x1) > 1.e-5] = np.arctan(np.abs(z1[np.abs(x1) > 1.e-5] /
-                                                       x1[np.abs(x1) > 1.e-5]))
+            ap1[np.abs(x1) > eps] = np.arctan(np.abs(z1[np.abs(x1) > eps]/x1[np.abs(x1) > eps]))
             ap1[x1 < 0.] = np.pi - ap1[x1 < 0.]
             ap1[z1 < 0.] = -ap1[z1 < 0.]
 
@@ -452,15 +471,13 @@ class EasyGrid():
             z2 = rp1 * np.sin(ap2)
 
             lon2 = 0.5 * np.pi * np.ones((n, m))
-            lon2[np.abs(y2) > 1.e-5] = np.arctan(np.abs(x2[np.abs(y2) > 1.e-5] /
-                                                        y2[np.abs(y2) > 1.e-5]))
+            lon2[np.abs(y2) > eps] = np.arctan(np.abs(x2[np.abs(y2) > eps]/ y2[np.abs(y2) > eps]))
             lon2[y2 < 0.] = np.pi - lon2[y2 < 0.]
             lon2[x2 < 0.] = -lon2[x2 < 0.]
 
             pr2 = np.hypot(x2, y2)
             lat2 = 0.5 * np.pi * np.ones((n, m))
-            lat2[np.abs(pr2) > 1.e-5] = np.arctan(np.abs(z2[np.abs(pr2) > 1.e-5] /
-                                                        pr2[np.abs(pr2) > 1.e-5]))
+            lat2[np.abs(pr2) > eps] = np.arctan(np.abs(z2[np.abs(pr2) > eps]/pr2[np.abs(pr2) > eps]))
             lat2[z2 < 0] = -lat2[z2 < 0]
 
             return lon2, lat2

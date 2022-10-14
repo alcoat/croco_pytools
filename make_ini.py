@@ -176,9 +176,10 @@ if __name__ == '__main__':
         if vars == 'ssh' :
             (zeta,NzGood) = interp_tools.interp_tracers(inpdat,vars,tndx,-1,coefT,elemT)
             nc.variables['zeta'][0,:,:] = zeta*crocogrd.maskr
-
+            nc.Input_data_type=inputdata
             nc.variables['ocean_time'][:] = oceant
             nc.variables['scrum_time'][:] = scrumt
+            nc.variables['scrum_time'].units='seconds since %s-%s-%s 00:00:00' %(Yzer,Mzer,Dzer)
             nc.variables['tstart'][:] = tstart
             nc.variables['tend'][:] = tend
 

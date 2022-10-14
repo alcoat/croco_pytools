@@ -296,7 +296,7 @@ class CROCO():
         # Global attributes
         nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
         nc.created = datetime.now().isoformat()
-        nc.type = 'ROMS boundary file produced by %s' %created_by
+        nc.type = 'CROCO boundary file produced by %s' %created_by
         nc.grd_file = grdobj.grid_file
         nc.hc = grdobj.hc
         nc.theta_s = grdobj.theta_s
@@ -430,7 +430,7 @@ class CROCO():
         nc.close()
 
 
-    def create_grid_nc(self,output_dir, inputs, outputs,prt_grd=None):    
+    def create_grid_nc(self,output_file, inputs, outputs,prt_grd=None):    
         """
         Create and save a new CROCO grid file
         """
@@ -442,12 +442,9 @@ class CROCO():
                     grid_name='croco_grd.nc.1'
                 else:
                     grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
-            else :  # We create offline zoom
-                grid_name='croco_chd_grd.nc'
-        else:
-            grid_name='croco_grd.nc'
+                output_file=output_file+grid_name
 		 
-        nc = netcdf.Dataset(output_dir+grid_name, 'w', format='NETCDF4')
+        nc = netcdf.Dataset(output_file, 'w', format='NETCDF4')
 
         # create global variables
         nc.created = datetime.now().isoformat()
@@ -609,7 +606,7 @@ class CROCO():
 
 
         nc.close()
-        print('Writting '+grid_name+' done')
+        print('Writting '+output_file+' done')
 
         if prt_grd is not None and prt_grd[0]:
             print('Create an AGRIF_FixedGrids.in file')

@@ -27,6 +27,8 @@ prt_grd='croco_grd.nc'     # Parent grid file
 chd_grd='croco_chd_grd.nc' # Child grid file
 ts=6;tb=4;hc=75;n=50       # Child vertical coordinates parameters
 
+tracers=['temp','salt'] # if no tracers leave empty. string must be 4 or less
+
 ### Ini file ###
 make_ini=False    # Do you build ini file
 prt_his_ini='croco_his_20050201_20050205.nc' # History file to start child simulation
@@ -40,15 +42,20 @@ rec=1    # record index in the ini file
 # Be aware that duplicated files are only used once. Use "sorted" intead of "set" 
 #  if you really want to use mutiple imes one file
 
-make_bry=True # Do you build bry file
+make_bry=False # Do you build bry file
 prt_his_bry=['croco_his_2005021*','croco_his_2005020?*']  
 obc_cond='SWEN' #SWEN First letters of the boundaries that are opened.
 
 #--- END USER CHANGES -----------------------------------------------------
 
+if len(tracers)>0:
+    all_tracers = np.zeros((4,len(tracers) ), dtype='c')
+    for i in range(len(tracers)):
+        all_tracers[0:4,i]=tracers[i]
+    print(all_tracers.shape)
 # --- Make ini ------------------------------------------------------------
 if make_ini:
-    toolsf.r2r_init(chd_grd,ts,tb,hc,n,prt_grd,prt_his_ini,rec)
+    toolsf.r2r_init(chd_grd,ts,tb,hc,n,prt_grd,prt_his_ini,rec,all_tracers)
 
 # --- Make bry ------------------------------------------------------------
 if make_bry:
@@ -71,4 +78,4 @@ if make_bry:
         all_files[0:ll,i]=inputfiles[i]
 
     # --- Create child bry ------------------------------------------------
-    toolsf.r2r_bry(chd_grd,ts,tb,hc,n,obc_cond,prt_grd,all_files)
+    toolsf.r2r_bry(chd_grd,ts,tb,hc,n,obc_cond,prt_grd,all_files,all_tracers)

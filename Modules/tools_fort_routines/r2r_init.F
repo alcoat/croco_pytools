@@ -1,5 +1,5 @@
-      subroutine r2r_init(chldgrd,theta_s,theta_b,hc,N,prntgrd,
-     &                    prnt_data,rec)
+      subroutine r2r_init(ntrc,chldgrd,theta_s,theta_b,hc,N,prntgrd,
+     &                    prnt_data,rec,tracer)
 
 ! Creates initial condition file for child-grid model by interpolating
 ! user-specified record of parent-grid solution.  Should be used as
@@ -66,17 +66,18 @@
 
 #define PARENT_GRID_SUBREGION
 #undef CONTOUR_CHILD_MASK
+#undef VERBOSE
 c-#define WITH_REC_DIM
-#define TIMING
+#undef TIMING
 c--#define VERBOSE
 
       implicit none
       character(len=16) :: VertCoordType, str
-      character(len=80) :: chldgrd, prntgrd, prnt_data
+      character(len=160) :: chldgrd, prntgrd, prnt_data
       character(len=16) :: roms_init
       character(len=10) :: time_var_name
-      integer :: ntrc
-      character(len=4) :: tracer(2)
+      integer :: ntrc,ipt_char_len
+      character(len=4), dimension(ntrc) :: tracer
       real(kind=8) :: theta_s,theta_b,hc,hcp, xcmin,xcmax, cff,cff1,cff2
       real(kind=8), allocatable, dimension(:) :: Cs_w,Cs_r,Csp_w,Csp_r,
      &                                           srX,srY,sXY,sYX, kprnt
@@ -110,7 +111,7 @@ c--#define VERBOSE
 #endif
       include "phys_const.h"
       include "netcdf.inc"
-Cf2py intent(in) chldgrd,theta_s,theta_b,hc,N,prntgrd,prnt_data,rec
+Cf2py intent(in) ntrc,chldgrd,theta_s,theta_b,hc,N,prntgrd,prnt_data,rec,tracer
 
 #ifdef TIMING
       call cpu_time(tstart)
@@ -123,9 +124,9 @@ Cf2py intent(in) chldgrd,theta_s,theta_b,hc,N,prntgrd,prnt_data,rec
 #endif
       roms_init='croco_chd_ini.nc';time_var_name='scrum_time'
       margn=8
-      ntrc=2;btm_slp=-1 ; btm_trc=+1
-      tracer(1)='temp' ; tracer(2)='salt'
-
+      ipt_char_len=4 ! nb of tracers char
+      btm_slp=-1 ; btm_trc=+1
+ 
       call lenstr(chldgrd,lcgrd)
       ierr=nf_open(chldgrd(1:lcgrd), nf_nowrite, nccgrd)
       if (ierr /= nf_noerr) then
@@ -598,8 +599,8 @@ c**      stop !<-- to test initialization
 
       ierr=nf_create(roms_init, nf_64bit_offset, nctarg)
       if (ierr == nf_noerr) then
-        call def_roms_file(nctarg, roms_init, ncx,ncy,N,
-     &                     theta_s,theta_b, hc, Cs_w,Cs_r)
+        call def_roms_file(ntrc,nctarg, roms_init, ncx,ncy,N,
+     &                     theta_s,theta_b, hc, Cs_w,Cs_r,tracer)
         ierr=nf_put_att_text(nctarg, nf_global, 'memo', 19,
      &                              'created by r2r_init')
         if (ierr == nf_noerr) then
@@ -805,9 +806,8 @@ C$OMP END PARALLEL
       write(*,'(F8.2,1x,A,F8.2,1x,A/)') dble(net_clk)/dble(clk_rate),
      &            'complete in', dble(inc_clk)/dble(clk_rate), 'sec'
 #endif
-
-      do itrc=1,ntrc
-        call get_patch_by_name_real(ncsrc, prnt_data, tracer(itrc),
+      do itrc=1,ntrc/ipt_char_len
+        call get_patch_by_name_real(ncsrc, prnt_data,trim(tracer(itrc)),
      &                          iwestpg,jsouthpg, nx,ny,Np,rec, wrk1)
         do k=1,Np
           isrc=1+(k-1)*nx*ny ; itrg=1+(k-1)*ncx*ncy
@@ -828,7 +828,7 @@ C$OMP PARALLEL SHARED(ncx,ncy, mask, Np,wrmx, N,kprnt,wrk1)
      &                                        N,kprnt,wrk1)
 C$OMP END PARALLEL
         call apply_mask(ncx,ncy,N, mask,wrk1)
-        call put_rec_by_name_real(nctarg,roms_init, tracer(itrc),
+        call put_rec_by_name_real(nctarg,roms_init,trim(tracer(itrc)),
      &                                        ncx,ncy,N,1, wrk1)
 #ifdef TIMING
       nclk=3-nclk

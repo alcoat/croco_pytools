@@ -323,9 +323,9 @@ class getdata():
             start1=imin ; end1=start1+nx_lon ; count1=nx_lon
 
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
         elif imin>imax:    
             nx_lon=imax+period-imin+1
@@ -338,9 +338,9 @@ class getdata():
             start1=0 ; end1=start1+nx_lon; count1=imax
         
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
@@ -356,9 +356,9 @@ class getdata():
             # Second
             start1=imin ; count1=period-imin; end1=start1+count1
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime+1,k,start2:end2,start1:end1]))
+                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):

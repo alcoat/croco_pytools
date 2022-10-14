@@ -32,11 +32,6 @@ def topo_file_id(topo_file):
         topo_type['topo'] = 'elevation'
         topo_type['zaxis'] = 'up'
         topo_type['srtm']= True
-    # croco file
-    elif 'croco' in topo_file.split('/')[-1].lower():
-        topo_type['lon'] = 'lon_rho'
-        topo_type['lat'] = 'lat_rho'
-        topo_type['topo'] = ''
     # homonym file
     elif 'homonim' in topo_file.split('/')[-1].lower():
         topo_type['lon'] = 'longitude'
