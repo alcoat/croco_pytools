@@ -598,12 +598,17 @@ c**             write(*,'(I2,4F19.16)') iter,cx,dcx, cy,dcy
         enddo
 #endif
 
-        do i=0,Lm+1                     ! Convert topographic data
-          if (h(i,j) < 0.D0) then       ! into ROMS standard: ETOPO
-            h(i,j)=-h(i,j)              ! and SRTM conventions imply
-          else                          ! that "htopo" is elevation,
-            h(i,j)=0.D0                 ! hence it is positive above
-          endif                         ! and negative below sea
+        do i=0,Lm+1                     
+            h(i,j)=-h(i,j)  ! Convert into CROCO standart
+
+                            ! but do not set h<0 to 0
+                            ! as it can serve when doing wet_and_dry
+                                         ! Convert topographic data
+!          if (h(i,j) < 0.D0) then       ! into ROMS standard: ETOPO
+!            h(i,j)=-h(i,j)              ! and SRTM conventions imply
+!          else                          ! that "htopo" is elevation,
+!            h(i,j)=0.D0                 ! hence it is positive above
+!          endif                         ! and negative below sea
         enddo                           ! level.  ROMS convention
       enddo   !<-- j, while(.true.)     ! anticipates positive depth.
 !  98  continue
