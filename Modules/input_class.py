@@ -367,7 +367,7 @@ class getdata():
             else:
                 for j in range(0,count2):
                     for i in range(0,count1):
-                        ftmp[:,j,nx_lon-imax+i-1]=field[:,j,i]
+                        ftmp[:,j,i]=field[:,j,i]
 
             del field
 
