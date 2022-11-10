@@ -1,7 +1,7 @@
 import numpy as np
 import netCDF4 as netcdf
 import xarray as xr
-import inputs_readers as dico
+import inputs_reader as dico
 '''
 This class need to:
     - open netcdf
@@ -163,15 +163,15 @@ class getdata():
         else:
             geolim=[crocogrd.lonmin()-1,crocogrd.lonmax()+1,crocogrd.latmin()-1,crocogrd.latmax()+1]
 
-        jmin=self.indx_bound(lat, geolim[2])
-        jmax=self.indx_bound(lat, geolim[-1])
+        jmin=self.indx_bound(lat.data, geolim[2])
+        jmax=self.indx_bound(lat.data, geolim[-1])
 
         if 0 < jmin and jmin < lat.shape[0] and 0 < jmax and jmax < lat.shape[0] :
             if jmin > 1 :
                 jmin=jmin-1
             jmax=jmax+2
         else:
-            print('North-south extents of the dataset ',lat[0],lat[-1],' are not sufficient to cover the entire model grid.')
+            print('North-south extents of the dataset ',lat.data[0],lat.data[-1],' are not sufficient to cover the entire model grid.')
             exit()
         ####
         imin=self.indx_bound(lon, geolim[0])
@@ -231,13 +231,13 @@ class getdata():
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
         lat_tmp=np.zeros([ny_lat])
         for j in range(0,ny_lat):
-            lat_tmp[j]=lat[j+jmin-1]
+            lat_tmp[j]=lat[j+jmin]
         #####
         if imin < imax :
             nx_lon=imax-imin+1
             start1=imin ; end1=start1+nx_lon ; count1=nx_lon
 
-            ishft=imin-1
+            ishft=imin
             lon_tmp=np.zeros([nx_lon])
             if shft_west>0 and shft_east>0:
                 for i in range(0,nx_lon):
@@ -259,7 +259,7 @@ class getdata():
             xtmp  = np.zeros([nx_lon])
             start1=0 ; end1=start1+nx_lon; count1=imax
 
-            ishft=nx_lon-count1
+            ishft=nx_lon-count1-1
             if shft_east>0:
                 for i in range(0,count1):
                     xtmp[i+ishft]=lon[i] +360
@@ -272,7 +272,7 @@ class getdata():
 
             print('Second...')
             start1=imin ; count1=period-imin; end1=start1+count1
-            ishft=imin-1
+            ishft=imin
             if shft_west>0:
                 for i in range(0,count1):
                     xtmp[i]=lon[i+ishft] +360
@@ -310,10 +310,10 @@ class getdata():
             jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
             period=eval(''.join(("self.period"+bdy)));grdid='r'
         
-        if type(l) == int:
-            mintime=l;maxtime=l+1
-        else:
+        try:
             mintime=min(l);maxtime=max(l)+1
+        except:
+            mintime=l;maxtime=l+1
 
         ny_lat=jmax-jmin+1
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
@@ -335,8 +335,7 @@ class getdata():
             except:
                 ftmp = np.zeros([ny_lat,nx_lon])
             # First
-            start1=0 ; end1=start1+nx_lon; count1=imax
-        
+            start1=0 ; end1=start1+nx_lon; count1=imax 
             if k==-1:
                 field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:

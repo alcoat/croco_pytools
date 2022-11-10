@@ -19,7 +19,7 @@ bash
 
 # Go in python_tools repository and install a new virtual env 
 conda env create -f requirements.yaml #It will create a conda env with python 3.9 version
-conda activate crocoenv # By doing it you enter your environement
+conda activate envcroco # By doing it you enter your environement
 
 #------------------------
 # Compiling fortran tools

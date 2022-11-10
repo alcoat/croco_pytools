@@ -79,7 +79,7 @@ class ComputeSmthThread(Thread):
         self.display(''.join(('--- computing grid (nx=%i, ny=%i, ',
                               'lon=%.2f, lat=%.2f, sx=%.2f, sy=%.2f, ',
                               'rot=%.2f)')) % easyparam)
-        print('Done soomthing')
+        print('Done smoothing')
 
 class ComputeZmThread(Thread):
     """

@@ -7,11 +7,11 @@ import netCDF4 as netcdf
 from datetime import datetime
 import scipy.interpolate as itp
 from scipy.interpolate import griddata
-
 import regionmask
 import geopandas as gp
 from shapely.geometry import Polygon
 
+#
 def topo_periodicity(topo_file, geolim):
     '''
     topo_periodicity checks whether domain is inside the topo file.
@@ -63,7 +63,7 @@ def topo_periodicity(topo_file, geolim):
 
     imin=indx_bound(topo_lon, geolim[0])
     imax=indx_bound(topo_lon, geolim[1])
-    
+
     if 0 < imin and imin < topo_lon.shape[0] and 0 < imax and imax < topo_lon.shape[0] :
         if imax > 1:
             imin=imin-1
@@ -115,16 +115,16 @@ def topo_periodicity(topo_file, geolim):
     print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', \
           'imin,imax =', imin,imax,'out of', topo_lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',topo_lat.shape[0])
     ny_lat=jmax-jmin+1
-    start2=jmin ; end2=start2+ny_lat+1; count2=ny_lat+1
-    lat_tmp=np.zeros([count2])
-    for j in range(0,count2):
-        lat_tmp[j]=topo_lat[j+jmin-1]
+    start2=jmin ; end2=start2+ny_lat; count2=ny_lat
+    lat_tmp=np.zeros([ny_lat])
+    for j in range(0,ny_lat):
+        lat_tmp[j]=topo_lat[j+jmin]
  
     #####
 
     if imin < imax :
         nx_lon=imax-imin+1
-        start1=imin ; end1=start1+nx_lon+1 ; count1=nx_lon+1
+        start1=imin ; end1=start1+nx_lon ; count1=nx_lon
         if gebco:
             topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
@@ -133,28 +133,29 @@ def topo_periodicity(topo_file, geolim):
             topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
         nc.close()
 
-        ishft=imin-1
-        lon_tmp=np.zeros([topo.shape[1]])
+        ishft=imin
+        lon_tmp=np.zeros([nx_lon])
         if shft_west>0 and shft_east>0:
-            for i in range(0,count1):
+            for i in range(0,nx_lon):
                 lon_tmp[i]=topo_lon[i+ishft] +360
         elif shft_west<0 and shft_east<0:
-            for i in range(0,count1):
+            for i in range(0,nx_lon):
                  lon_tmp[i]=topo_lon[i+ishft]-360
         elif shft_west== 0 and shft_east==0:
-            for i in range(0,count1) :
+            for i in range(0,nx_lon) :
                 lon_tmp[i]=topo_lon[i+ishft]
         else:
             print('Error in shifting algoritm')
             exit()
 
     elif imin>imax:
-        print('Reading topography in two separate parts adjacent through 360-degree periodicity, first...' )
+        print('Reading topography in two separate parts adjacent through 360-degree periodicity,' )
         print('first..., ')
-        nx_lon=imax+period-imin+2
+        nx_lon=imax+period-imin+1
         htopo = np.zeros([count2,nx_lon])
         xtmp  = np.zeros([nx_lon])
-        start1=0 ; end1=start1+nx_lon+1; count1=imax+2
+        start1=0 ; end1=start1+imax+1; count1=imax+1
+
         if gebco:
             topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
@@ -163,7 +164,7 @@ def topo_periodicity(topo_file, geolim):
             topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
         for j in range(0,count2):
             for i in range(0,count1):
-                htopo[j,nx_lon-imax+i-2]=topo[j,i]
+                htopo[j,nx_lon-imax+i-1]=topo[j,i]
         del topo
 
         ishft=nx_lon-count1
@@ -180,18 +181,19 @@ def topo_periodicity(topo_file, geolim):
         print('second...')
         start1=imin ; count1=period-imin; end1=start1+count1
         if gebco:
-            topo = topo_fact*nc.variables[topo_type['topo']][:]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*nc.variables[topo_type['topo']][start2:end2, start1:end1]
+            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
         nc.close()
 
         for j in range(0,count2):
             for i in range(0,count1):
                 htopo[j,i]=topo[j,i]
         del topo
-        ishft=imin-1
+
+        ishft=imin
         if shft_west>0:
             for i in range(0,count1):
                 xtmp[i]=topo_lon[i+ishft] +360

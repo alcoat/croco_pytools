@@ -30,7 +30,7 @@ ts=6;tb=4;hc=75;n=50       # Child vertical coordinates parameters
 tracers=['temp','salt'] # if no tracers leave empty. string must be 4 or less
 
 ### Ini file ###
-make_ini=False    # Do you build ini file
+make_ini=True    # Do you build ini file
 prt_his_ini='croco_his_20050201_20050205.nc' # History file to start child simulation
 rec=1    # record index in the ini file
 

@@ -15,7 +15,7 @@ In the current state the script can handle:
     - soda
     - eccov4  (V4.3)
 
-To add a new dataset you just have to go in Modules/inputs_readers.py and
+To add a new dataset you just have to go in Readers/inputs_readers.py and
 create a dico with correspondance between croco_var(ssh,u,v,temp,salt)
 and dataset variable names.
 
@@ -26,7 +26,6 @@ The script works as follow:
     - reads croco_grd
     - reads input data and restricts the area of spatial coverage
     - creates croco_ini.nc
-    - computes coefficients for horizontal interpolation on each grid (rho,u,v)
     - Loop on var with:
         * horizontal interpolation
         * vertical interpolation
@@ -41,12 +40,12 @@ import glob as glob
 from datetime import datetime
 import sys
 sys.path.append("./Modules/")
+sys.path.append("./Readers/")
 import Cgrid_transformation_tools as grd_tools
 import interp_tools
 import sigmagrid_tools as sig_tools
-
 import croco_class as Croco
-import input_class as Inp
+import inputs_class as Inp
 #--------------------------------------------------------------------------
 
 
@@ -71,6 +70,7 @@ if multi_files: # Mutiple files
                    'v'    : input_dir + input_prefix + 'NVEL.%s.nc' % date_str\
                 }
 tndx=0 # time index in the file
+Nzgoodmin = 4  # default value to consider a z-level fine to be used
 
 # CROCO path and filename informations
 croco_dir = './'
@@ -81,11 +81,6 @@ Yzer,Mzer,Dzer = Yini, Mini, Dini # reference time (default = ini time).Month an
 
 # inifile informations
 ini_filename    = 'croco_ini.nc'
-
-# create delaunay weight
-comp_delaunay=1
-
-Nzgoodmin = 4  # default value to consider a z-level fine to be used
 
 #--- END USER CHANGES -----------------------------------------------------
 
@@ -124,57 +119,13 @@ if __name__ == '__main__':
     oceant = tstart*3600*24
     tend=0.
 
-
-   # --- Get the 2D interpolation coefficients ----------------------------
-
-    if comp_delaunay==1:
-    # Compute the Delaunay triangulation matrices (long but only done once)
-    # (u and v are interpolated on croco rho_points because we may need to rotate them)
-
-        print('\nCompute Delaunay triangulation from GLORYS T-points to CROCO rho_points...')
-        print('--------------------------------------------------------------------------')
-
-        [elemT,coefT] = interp_tools.get_tri_coef(inpdat.lonT,inpdat.latT,crocogrd.lon,crocogrd.lat)
-        coefnorm=np.sum(coefT,axis=2)
-        coefT=coefT/coefnorm[:,:,np.newaxis]
-
-        print('\nCompute Delaunay triangulation from GLORYS U-points to CROCO rho_points...')
-        print('--------------------------------------------------------------------------')
-
-        [elemU,coefU] = interp_tools.get_tri_coef(inpdat.lonU,inpdat.latU,crocogrd.lon,crocogrd.lat)
-        coefnorm=np.sum(coefU,axis=2)
-        coefU=coefU/coefnorm[:,:,np.newaxis]
-
-        print('\nCompute Delaunay triangulation from GLORYS V-points to CROCO rho_points...')
-        print('--------------------------------------------------------------------------')
-
-        [elemV,coefV] = interp_tools.get_tri_coef(inpdat.lonV,inpdat.latV,crocogrd.lon,crocogrd.lat)
-        coefnorm=np.sum(coefV,axis=2)
-        coefV=coefV/coefnorm[:,:,np.newaxis]
-
-    # Save the Delaunay triangulation matrices
-        np.savez('coeffs.npz',coefT=coefT,elemT=elemT,\
-             coefU=coefU,elemU=elemU,coefV=coefV,elemV=elemV)
-    else:
-    # Load the Delaunay triangulation matrices
-        print('Load Delaunay triangulation...')
-        data=np.load('coeffs.npz')
-        coefT = data['coefT']
-        elemT = data['elemT']
-        coefU = data['coefU']
-        elemU = data['elemU']
-        coefV = data['coefV']
-        elemV = data['elemV']
-
-        print('Delaunay triangulation done')
-
    #  --- Compute and save variables on CROCO grid ---------------
 
     for vars in ['ssh','tracers','velocity']:
         print('\nProcessing *%s*' %vars)
         nc=netcdf.Dataset(croco_dir+ini_filename, 'a')
         if vars == 'ssh' :
-            (zeta,NzGood) = interp_tools.interp_tracers(inpdat,vars,tndx,-1,coefT,elemT)
+            (zeta,NzGood) = interp_tools.interp_tracers(inpdat,vars,-1,crocogrd,tndx,tndx)
             nc.variables['zeta'][0,:,:] = zeta*crocogrd.maskr
             nc.Input_data_type=inputdata
             nc.variables['ocean_time'][:] = oceant
@@ -188,11 +139,11 @@ if __name__ == '__main__':
             
         elif vars == 'tracers':
             print('\nIn tracers processing Temp')
-            temp= interp_tools.interp3d(inpdat,'temp',tndx,Nzgoodmin,z_rho,coefT,elemT)
+            temp= interp_tools.interp(inpdat,'temp',Nzgoodmin,z_rho,crocogrd,tndx,tndx)
             nc.variables['temp'][0,:,:,:] = temp*crocogrd.mask3d()
             print('\nIn tracers processing Salt')
 
-            salt= interp_tools.interp3d(inpdat,'salt',tndx,Nzgoodmin,z_rho,coefT,elemT)
+            salt= interp_tools.interp(inpdat,'salt',Nzgoodmin,z_rho,crocogrd,tndx,tndx)
             nc.variables['salt'][0,:,:,:] = salt*crocogrd.mask3d()
 
         elif vars == 'velocity':
@@ -200,8 +151,7 @@ if __name__ == '__main__':
             cosa=np.cos(crocogrd.angle)
             sina=np.sin(crocogrd.angle)
 
-            [u,v,ubar,vbar]=interp_tools.interp3d_uv(inpdat,tndx,Nzgoodmin,z_rho,cosa,sina,\
-                                   coefU,elemU,coefV,elemV)
+            [u,v,ubar,vbar]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,tndx,tndx)
               
             conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
             if conserv == 1:

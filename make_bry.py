@@ -16,7 +16,7 @@ In the current state the script can handle:
     - soda
     - eccov4  (V4.3)
 
-To add a new dataset you just have to go in Modules/inputs_readers.py and
+To add a new dataset you just have to go in Readers/inputs_readers.py and
 create a dico with correspondance between croco_var(ssh,u,v,temp,salt)
 and dataset variable names.
 
@@ -27,8 +27,6 @@ The script works as follow:
     - reads croco_grd
     - reads input data and restricts the area of spatial coverage
     - creates croco_bry.nc
-    - computes coefficients for horizontal interpolation on each grid (rho,u,v)
-      and for each open boudary
     - Loop on open boundaries with:
           check if data for before or after for continuity, if not duplicate first or last
           loop on var with:
@@ -48,11 +46,12 @@ import glob as glob
 from dateutil.relativedelta import relativedelta
 import sys
 sys.path.append("./Modules/")
+sys.path.append("./Readers/")
 import interp_tools
 import sigmagrid_tools as sig_tools
 import Cgrid_transformation_tools as grd_tools
 import croco_class as Croco
-import input_class as Inp
+import inputs_class as Inp
 #--------------------------------------------------------------------------
 
 
@@ -74,6 +73,7 @@ if multi_files: # Multiple data files. Time is read in ssh file
 else:  # glob all files
     input_file  = sorted(glob.glob(input_dir + input_prefix))
 
+Nzgoodmin=4 # default value to consider a z-level fine to be used
 
 # CROCO path and filename informations
 croco_dir = './' 
@@ -81,7 +81,7 @@ croco_grd = 'croco_grd.nc'
 sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=75) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
 
 # bryfile informations
-bry_filename    = 'croco_bry.nc'
+bry_filename    = 'croco_bry.nc' #output will be put in croco_dir by default
 obc_dict = dict(south=1, west=1, east=1, north=1) # open boundaries (1=open , [S W E N])
 output_file_format="MONTHLY" # How outputs are spit (MONTHLY,YEARLY,FULL)
 cycle_bry=0.
@@ -90,10 +90,6 @@ Yorig=2005 # year origin of time : days since Yorig-01-01
 Ystart,Mstart = '2005', '01'   # Starting month
 Yend,Mend  = '2005','02'       # Ending month 
 
-#  create delaunay weight 
-comp_delaunay=1
-
-Nzgoodmin=4 # default value to consider a z-level fine to be used
 #--- END USER CHANGES -----------------------------------------------------
 
 #--- START MAIN SCRIPT ----------------------------------------------------
@@ -138,55 +134,6 @@ if __name__ == '__main__':
 
     inpdat = Inp.getdata(inputdata,input_file,crocogrd,multi_files,bdy=[obc_dict,cycle_bry])
 
-    # --- Get the 2D interpolation coefficients ---------------------------
-
-    if comp_delaunay==1:
-        for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):
-            if is_open:
-                print('\n--- Processing %sern boundary' % boundary)
-                print('---------------------------------------')
-
-            if 'west' in boundary and is_open:
-                (elemT_west,coefT_west,elemU_west,coefU_west,elemV_west,coefV_west)\
-                =interp_tools.get_delaunay_bry(crocogrd.lon_west,crocogrd.lat_west,inpdat,'W')
-
-            elif 'east' in boundary and is_open:
-                (elemT_east,coefT_east,elemU_east,coefU_east,elemV_east,coefV_east)\
-                =interp_tools.get_delaunay_bry(crocogrd.lon_east,crocogrd.lat_east,inpdat,'E')
-
-            elif 'south' in boundary and is_open:
-                (elemT_south,coefT_south,elemU_south,coefU_south,elemV_south,coefV_south)\
-                =interp_tools.get_delaunay_bry(crocogrd.lon_south,crocogrd.lat_south,inpdat,'S')
-
-            elif 'north' in boundary and is_open:
-                (elemT_north,coefT_north,elemU_north,coefU_north,elemV_north,coefV_north)\
-                =interp_tools.get_delaunay_bry(crocogrd.lon_north,crocogrd.lat_north,inpdat,'N')
-    else:
-    # Load the Delaunay triangulation matrices
-        print('Load Delaunay triangulation...')
-        for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):
-            if 'west' in boundary and is_open:
-                data=np.load('coeffs_bry'+boundary[0].upper()+'.npz')
-                coefT_west = data['coefT']; elemT_west = data['elemT']
-                coefU_west = data['coefU']; elemU_west = data['elemU']
-                coefV_west = data['coefV']; elemV_west = data['elemV']
-            if 'east' in boundary and is_open:
-                data=np.load('coeffs_bry'+boundary[0].upper()+'.npz')
-                coefT_east = data['coefT']; elemT_east = data['elemT']
-                coefU_east = data['coefU']; elemU_east = data['elemU']
-                coefV_east = data['coefV']; elemV_east = data['elemV']
-            if 'south' in boundary and is_open:
-                data=np.load('coeffs_bry'+boundary[0].upper()+'.npz')
-                coefT_south = data['coefT']; elemT_south = data['elemT']
-                coefU_south = data['coefU']; elemU_south = data['elemU']
-                coefV_south = data['coefV']; elemV_south = data['elemV']
-            if 'north' in boundary and is_open:
-                data=np.load('coeffs_bry'+boundary[0].upper()+'.npz')
-                coefT_north = data['coefT']; elemT_north = data['elemT']
-                coefU_north = data['coefU']; elemU_north = data['elemU']
-                coefV_north = data['coefV']; elemV_north = data['elemV']
-
-
     # --- Work on date format for the loop in time ------------------------
 
     startloc=plt.datetime.datetime(int(start_date[:4]),
@@ -224,11 +171,11 @@ if __name__ == '__main__':
         tmp_date = plt.datetime.datetime.strptime(str(startloc), "%Y-%m-%d %H:%M:%S")
             # file name depending on format chosen
         if output_file_format.upper() == "MONTHLY":
-            bdy_filename = bry_filename.replace('.nc', '_%s_Y%sM%02i.nc' %(inputdata,tmp_date.year,tmp_date.month))
+            bdy_filename = croco_dir+bry_filename.replace('.nc', '_%s_Y%sM%02i.nc' %(inputdata,tmp_date.year,tmp_date.month))
         elif output_file_format.upper() == "YEARLY":
-            bdy_filename = bry_filename.replace('.nc', '_%s_Y%s.nc' %(inputdata,tmp_date.year))
+            bdy_filename = croco_dir+bry_filename.replace('.nc', '_%s_Y%s.nc' %(inputdata,tmp_date.year))
         elif output_file_format.upper() == "FULL":
-            bdy_filename = bry_filename.replace('.nc', '_%s.nc' %(inputdata))
+            bdy_filename = croco_dir+bry_filename.replace('.nc', '_%s.nc' %(inputdata))
 
         Croco.CROCO.create_bry_nc(None,bdy_filename,crocogrd,obc_dict,cycle_bry)
         #
@@ -282,14 +229,12 @@ if __name__ == '__main__':
             dtmax=dtmax+1 # create overlap after (in this case it takes the next month)
 
         del next_month_str,next_month_end,ind_next,tmp_str_date,tmp_end_date
-         
-        if prev ^ nxt and np.std(np.gradient(time[dtmin:dtmax+1])) >=5: # Abnormal distribution of days
-            Question = input( "Abnormal distribution of days (standart deviation > 5 days) \
-                    \nThis can be due to the use of different time resolution dataset.\
-                    \n Do you want to proceed?: y,n ")
-            if Question.lower() == ("y") or Question.lower() == ("yes"):
-                continue
-            else:
+        
+        if np.nanvar(np.gradient(time[dtmin:dtmax+1])) >=5: # Abnormal distribution of days
+            Question = input( "Abnormal distribution of days (variance to high) \
+                    \nThis may be due to the use of different temproral resolution dataset.\
+                    \n Do you want to proceed?: y,[n] ") or 'no'
+            if Question.lower() == ("n") or Question.lower() == ("no"):
                 print('Aborting')
                 sys.exit()
          
@@ -322,7 +267,7 @@ if __name__ == '__main__':
         nc.variables['bry_time'].cycle=cycle_bry
         nc.variables['bry_time'][:]=bry_time
         if cycle_bry==0:
-            nc.variables['bry_time'].units='seconds since %s-01-01 00:00:00' %(Yorig)
+            nc.variables['bry_time'].units='days since %s-01-01 00:00:00' %(Yorig)
         # --- Loop on boundaries ------------------------------------------
 
         for boundary, is_open in zip(obc_dict.keys(), obc_dict.values()):
@@ -331,28 +276,23 @@ if __name__ == '__main__':
                     print('\n     Processing *%s* for %sern boundary' %(vars, boundary))
                     print('     ------------------------------------------')
                     if vars == 'ssh': 
-                        (zeta,NzGood) = interp_tools.interp_tracers3D(inpdat,vars,-1,eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper()) 
+                        (zeta,NzGood) = interp_tools.interp_tracers(inpdat,vars,-1,crocogrd,dtmin,dtmax,prev,nxt,boundary[0].upper())
                         z_rho = crocogrd.scoord2z_r(zeta=zeta,bdy="_"+boundary)
                         z_w   = crocogrd.scoord2z_w(zeta=zeta,bdy="_"+boundary)
     
                     elif vars == 'tracers':
                         print('\nIn tracers processing Temp')
-                        temp= interp_tools.interp4d(inpdat,'temp',Nzgoodmin,z_rho,\
-                                                   eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
+                        temp= interp_tools.interp(inpdat,'temp',Nzgoodmin,z_rho,crocogrd,dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
             
                         print('\nIn tracers processing Salt')
-                        salt= interp_tools.interp4d(inpdat,'salt',Nzgoodmin,z_rho,\
-                                                eval(''.join(("coefT_"+boundary))),eval(''.join(("elemT_"+boundary))),dtmin,dtmax,prev,nxt,boundary[0].upper())
+                        salt= interp_tools.interp(inpdat,'salt',Nzgoodmin,z_rho,crocogrd,dtmin,dtmax,prev,nxt,boundary[0].upper())
         
                     elif vars == 'velocity':
 
                         cosa=np.cos(eval(''.join(('crocogrd.angle_',boundary))) )
                         sina=np.sin(eval(''.join(('crocogrd.angle_',boundary))) )
 
-                        [u,v,ubar,vbar]=interp_tools.interp4d_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,\
-                                           eval(''.join(("coefU_"+boundary))),eval(''.join(("elemU_"+boundary))),\
-                                           eval(''.join(("coefV_"+boundary))),eval(''.join(("elemV_"+boundary))),\
-                                           dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
+                        [u,v,ubar,vbar]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
 
                         conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
                         if conserv == 1:

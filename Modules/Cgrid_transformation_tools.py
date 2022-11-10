@@ -289,8 +289,15 @@ def u2rho(var_u):
     Output:
       var_rho      var on rho-grid
     '''
-
-    if np.ndim(var_u)<3:
+    if np.ndim(var_u)==1:
+        [M]=var_u.shape
+        Mp=M+1
+        Mm=M-1
+        var_rho=np.zeros((Mp))
+        var_rho[1:M]=0.5*(var_u[0:Mm]+var_u[1:M])
+        var_rho[0]=var_rho[1]
+        var_rho[Mp-1]=var_rho[M-1]
+    elif np.ndim(var_u)==2:
         var_rho = u2rho_2d(var_u)
     elif np.ndim(var_u)==3:
         var_rho = u2rho_3d(var_u)

@@ -19,20 +19,21 @@ To add a new dataset you just have to go in Modules/topo_readers.py and
 create a dico with name of lon,lat,topo in the dataset.
 At this time it only handle 1D lon/lat 
 
-The script make a grid with mercator projection centred at the equator
+The script makes a grid with mercator projection centred at the equator
 before rotating the sphere to put the middle of the grid in tra_lon/tra_lat
 position.
 
 Then, it reads topo's dataset and apply the desired smoothing
-The mask is generated using the coastline dataset GSHHS
+The mask is generated using a shapefile (.shp. default is gshhs dataset)
 
-The smoothing and mask generation are fortran functions to be faster
+Smoothing use fortran routines for better performance
 '''
 
 #--- Dependencies ---------------------------------------------------------
 import numpy as np
 import sys
 sys.path.append("./Modules/")
+sys.path.append("./Readers/")
 sys.path.append("./Modules/graphicUI_tools/")
 from main_window import *
 import tools_make_grid

@@ -49,7 +49,7 @@ def lookvar(input):
 #               'v': 'v'\
 #         }
     else:
-        sys.exit(print('No \'%s\' dico available in Modules/dico.py. Please add it an run the script' % input))
+        sys.exit(print('No \'%s\' dico available in Modules/inputs_readers.py. Please add it an run the script' % input))
 
     return dico
 

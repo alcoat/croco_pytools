@@ -1,6 +1,5 @@
 #!/bin/bash
 set -e
-source ../../myenv_mypath.sh
 ##########################
 # python
 # ======
@@ -29,7 +28,7 @@ user='XXXXXXXXX'
 password='XXXXXXXXXX'
 ###
 ### motu client ###
-path_to_motu="${OCE}/../../croco_tools" # Use croco's motuclient croco_tools/Forecast_tools
+path_to_motu="../croco_tools" # Use croco's motuclient croco_tools/Forecast_tools
 # if you want to use your own motu, leave empty
 ### 
 YEAR_START=2017
@@ -49,7 +48,7 @@ DT_TIME=   # Value in days. Default value when empty is 1 month.
 kdata="MONTHLY" # DAILY or MONTHLY
 ####################
 READ_GRD=1 # read croco_grid to find lon/lat min-max
-INPUT_GRD="${OCE_FILES_DIR}/croco_grd.nc"
+INPUT_GRD="./croco_grd.nc"
 # In case you don't want to read croco_grd
 # Please use -180/180 -90/90 format
 lon_min="-90"
@@ -138,7 +137,7 @@ for YEAR in `seq ${YEAR_START} ${YEAR_END}`; do
                 ${command_line} --motu ${motu_url_reana} --service-id ${service_id_reana} --product-id ${product_id_reana} --longitude-min ${lon_min} --longitude-max ${lon_max} --latitude-min ${lat_min} --latitude-max ${lat_max} --date-min "${start_date} 12:00:00" --date-max "${end_date} 12:00:00" --depth-min 0.493 --depth-max 5727.918 ${variables} --out-dir ./ --out-name ${OUTNAME} --user ${user} --pwd ${password}
             else
                 for DAY in `seq ${dstart} ${DT_TIME} ${dend}`; do
-						tmpoutname="${OUTDIR}/raw_motu_${PREFIX}_Y${YEAR}M$(printf "%02d" ${MONTH})D${DAY}.nc"
+		    tmpoutname="${OUTDIR}/raw_motu_${PREFIX}_Y${YEAR}M$(printf "%02d" ${MONTH})D${DAY}.nc"
                     start_date=$( printf "%04d-%02d-%02d" $YEAR $MONTH $DAY )
                     end_date=$( printf `date +"%Y-%m-%d" -d "${start_date} +${DT_TIME} day - 1 day"` )
                     tmpsdate=$( echo `date -d ${start_date} +"%Y%m"` )
@@ -155,8 +154,8 @@ for YEAR in `seq ${YEAR_START} ${YEAR_END}`; do
                     ncks -O -F --mk_rec_dmn time ${tmpoutname} ${tmpoutname}
                 done
                 cd ${OUTDIR}
-                ncrcat -O raw_motu_${PREFIX}_Y${YEAR}M${MONTH}D*.nc raw_motu_${PREFIX}_Y${YEAR}M${MONTH}.nc
-                rm -r raw_motu_${PREFIX}_Y${YEAR}M${MONTH}D*.nc
+                ncrcat -O ${OUTDIR}/raw_motu_${PREFIX}_Y${YEAR}M${MONTH}D*.nc ${OUTDIR}/raw_motu_${PREFIX}_Y${YEAR}M${MONTH}.nc
+                rm -r ${OUTDIR}/raw_motu_${PREFIX}_Y${YEAR}M${MONTH}D*.nc
                 cd -
             fi
         fi  

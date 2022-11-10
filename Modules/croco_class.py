@@ -8,7 +8,7 @@ from collections import OrderedDict
 
 class CROCO_grd(object):
 
-    def __init__(self, filename, sigma_params):
+    def __init__(self, filename, sigma_params=None):
         print('Reading CROCO grid: %s' %filename )
         self.grid_file = filename
         nc=netcdf.Dataset(filename,'r')
@@ -28,10 +28,11 @@ class CROCO_grd(object):
         self.umask= grd_tools.rho2u(self.maskr)
         self.vmask= grd_tools.rho2v(self.maskr)
         self.pmask= grd_tools.rho2psi(self.maskr)
-        self.theta_s = np.double(sigma_params['theta_s'])
-        self.theta_b = np.double(sigma_params['theta_b'])
-        self.hc = np.double(sigma_params['hc'])
-        self.N = np.double(sigma_params['N'])
+        if sigma_params is not None:
+            self.theta_s = np.double(sigma_params['theta_s'])
+            self.theta_b = np.double(sigma_params['theta_b'])
+            self.hc = np.double(sigma_params['hc'])
+            self.N = np.double(sigma_params['N'])
         self.sc_r = None
         nc.close
     def mask3d(self):
@@ -627,6 +628,74 @@ class CROCO():
             fid.write('\n# [all coordinates are relative to each parent grid!]')
             fid.write('\n~')
             fid.close()
+
+
+
+    def create_tide_nc(self,filename, grdobj, created_by='make_ini.py',cur=False,pot=False):
+        # Global attributes
+        nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
+        nc.created = datetime.now().isoformat()
+        nc.type  = 'CROCO tide file produced by %s' % created_by
+
+        # Dimensions
+        nc.createDimension('xi_rho', grdobj.lon.shape[1])
+        nc.createDimension('eta_rho', grdobj.lon.shape[0])
+        nc.createDimension('tide_period', None)
+        
+        # Create the variables and write...
+        nc.createVariable('tide_period', 'f8', ('tide_period'))
+        nc.variables['tide_period'].long_name = 'Tide angular period'
+        nc.variables['tide_period'].units = 'Hours'
+
+        nc.createVariable('tide_Ephase', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+        nc.variables['tide_Ephase'].long_name = 'Tidal elevation phase angle'
+        nc.variables['tide_Ephase'].units = 'Degrees' 
+
+        nc.createVariable('tide_Eamp', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+        nc.variables['tide_Eamp'].long_name = 'Tidal elevation amplitude'
+        nc.variables['tide_Eamp'].units = 'Meter'
+
+        if cur:
+
+            nc.createVariable('tide_Cmin', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Cmin'].long_name = 'Tidal current ellipse semi-minor axis'
+            nc.variables['tide_Cmin'].units = 'm.s-1'
+
+            nc.createVariable('tide_Cmax', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Cmax'].long_name = 'Tidal current, ellipse semi-major axis'
+            nc.variables['tide_Cmax'].units = 'm.s-1'
+
+            nc.createVariable('tide_Cangle', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Cangle'].long_name = 'Tidal current inclination angle'
+            nc.variables['tide_Cangle'].units = 'Degrees'
+
+            nc.createVariable('tide_Cphase', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Cphase'].long_name = 'Tidal current phase angle'
+            nc.variables['tide_Cphase'].units = 'Meter'
+
+        if pot:
+
+            nc.createVariable('tide_Pamp', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Pamp'].long_name = 'Tidal potential amplitude'
+            nc.variables['tide_Pamp'].units = 'Meter'
+
+            nc.createVariable('tide_Pphase', 'f8',('tide_period', 'eta_rho', 'xi_rho'))
+            nc.variables['tide_Pphase'].long_name = 'Tidal potential phase angle'
+            nc.variables['tide_Pphase'].units = 'Degrees'
+
+        nc.close()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
