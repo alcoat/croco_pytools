@@ -10,7 +10,7 @@ from scipy.interpolate import griddata
 import regionmask
 import geopandas as gp
 from shapely.geometry import Polygon
-
+import sys
 #
 def topo_periodicity(topo_file, geolim):
     '''
@@ -237,7 +237,7 @@ class GetTopo():
         '''
         return np.argmin(np.abs(array - point))
 
-    def topo(self,outputs, topo_file, smooth=None,hmin=None,hmax=None):
+    def topo(self,outputs, topo_file, smooth=None,hmin=None,hmax=None,sgl_connect=None):
 
         if smooth is not None:
             rd=smooth.smthr
@@ -263,6 +263,12 @@ class GetTopo():
                    if hmin<np.nanmin(topo.ravel()):
                        hmin=np.ceil(np.nanmin(topo.ravel()))
                    outputs.mask_rho[topo<=hmin]=0
+                   if sgl_connect is not None:
+                       if sgl_connect[0]:
+                           if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
+                               print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
+                               sys.exit()
+                           outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T           
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,hmin,hmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             else:
@@ -271,6 +277,12 @@ class GetTopo():
                    if smooth.depthmin<np.nanmin(topo.ravel()):
                        smooth.depthmin=np.ceil(np.nanmin(topo.ravel()))
                    outputs.mask_rho[topo<=smooth.depthmin]=0
+                   if sgl_connect is not None:
+                       if sgl_connect[0]:
+                           if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
+                               print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
+                               sys.exit()
+                           outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,smooth.depthmin,smooth.depthmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             outputs.h=topo

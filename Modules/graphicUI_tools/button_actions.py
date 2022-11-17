@@ -64,7 +64,7 @@ class ComputeSmthThread(Thread):
         self.easy(self.inputs, self.outputs)
         if self.inputs_smth.depthmin>0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
             self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
+        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,sgl_connect=self.single_connect)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
@@ -98,7 +98,7 @@ class ComputeZmThread(Thread):
         if self.inputs_smth.depthmin >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
             self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
 
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth)
+        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,sgl_connect=self.single_connect)
         self.match_topo(self.topo_prt,self.outputs,self.openb)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -138,7 +138,7 @@ class ComputeC2cThread(Thread):
         self.nest(self.topo_prt,self.inputs,self.outputs)
         if np.nanmin(self.topo_prt.h) >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
             self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h))
+        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h),sgl_connect=self.single_connect)
         self.match_topo(self.topo_prt,self.outputs,self.openb) 
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())

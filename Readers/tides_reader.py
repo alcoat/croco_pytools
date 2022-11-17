@@ -31,17 +31,7 @@ def lookvar(input):
                'V_r':'vRe',\
                'V_i':'vIm'\
               }
-    elif input == 'tpxo_prepro':
-        dico={ 'lonr':'lon_r','lonu':'lon_u','lonv':'lon_v',\
-               'latr':'lat_r','latu':'lat_u','latv':'lat_v',\
-               'H_r':'ssh_r',\
-               'H_i':'ssh_i',\
-               'U_r':'u_r',\
-               'U_i':'u_i',\
-               'V_r':'v_r',\
-               'V_i':'v_i'\
-              }
-               
+             
     elif input == 'fes2014':
         dico={ 'lonr':'lon','lonu':'lon','lonv':'lon',\
                'latr':'lat','latu':'lat','latv':'lat',\

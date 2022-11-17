@@ -53,17 +53,17 @@ import tides_class as Inp
 # input informations
 inputdata='tpxo'
 input_dir ='./TPXO9_atlas_v5_nc/'
-input_file =''
-input_type='Re_Im' #Type of the input data 'Amp-phase'or 'Re_Im'
+input_file ='' # Leave empty if you have multiple files
+input_type='Re_Im' #Type of the input data 'Amp_phase'or 'Re_Im'
 
-multi_files  = True 
+multi_files  = True # Set to True if several input files
 if multi_files: 
-    waves_separated=True
-    elev_file = 'h_<tides>_tpxo9_atlas_30_v5.nc'
-    uv_file   = 'u_<tides>_tpxo9_atlas_30_v5.nc'
+    waves_separated=True # Set to True if input files waves are separated
+    elev_file = 'h_<tides>_tpxo9_atlas_30_v5.nc' # elevation file names. if wave_separated put <tides> where wave name is found
+    uv_file   = 'u_<tides>_tpxo9_atlas_30_v5.nc' # currents file names. if wave_separated put <tides> where wave name is found
 
-cur = False
-pot = False
+cur = False # Set to True if you to compute currents
+pot = False # Set to True if you to compute potiential tides
 
 # CROCO path and filename informations
 croco_dir = './CROCO_FILES/'
