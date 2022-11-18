@@ -976,6 +976,11 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
       call get_patch_by_name_double(ncpgrd, prntgrd, 'h',
      &                      iwestpg,jsouthpg, nx,ny,0,0, hp)
 
+      if ( minval(h) <=0 ) then ! To prevent errors from
+          hp=hp-minval(h)+0.1   ! wet and drying, move
+          h=h-minval(h)+0.1     ! topography so it is positive
+      endif                     ! everywhere
+
       call spln2d_double(nx,ny, hp, srX,srY,sXY,sYX)
 
       if (OBC_WEST) then
