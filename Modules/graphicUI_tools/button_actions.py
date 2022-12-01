@@ -32,7 +32,7 @@ class ComputeGridThread(Thread):
         """
         self.easy(self.inputs, self.outputs)
         if self.inputs.zview == 'topo':
-            self.topo(self.outputs, self.topo_file)
+            self.topo(self.outputs, self.topo_file,self.shp_file)
         if self.inputs.zview == 'mask':
             self.mask(self.outputs,self.shp_file)
 
@@ -62,9 +62,7 @@ class ComputeSmthThread(Thread):
         Runs the smoothing computing loop
         """
         self.easy(self.inputs, self.outputs)
-        if self.inputs_smth.depthmin>0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
-            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,sgl_connect=self.single_connect)
+        self.topo(self.outputs, self.topo_file,self.shp_file,smooth=self.inputs_smth)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
         dy = (1 / self.outputs.pn.max(), 1 / self.outputs.pn.min())
@@ -93,12 +91,9 @@ class ComputeZmThread(Thread):
         Runs the easygrid computing loop
         """
  
-#        self.prt_grd=tools_topo.topo_prt(self.croco_file) 
         self.easy(self.inputs, self.outputs)
-        if self.inputs_smth.depthmin >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
-            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
 
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,sgl_connect=self.single_connect)
+        self.topo(self.outputs, self.topo_file,self.shp_file,smooth=self.inputs_smth,sgl_connect=self.single_connect,prt_grd=self.topo_prt)
         self.match_topo(self.topo_prt,self.outputs,self.openb)
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -126,19 +121,9 @@ class ComputeC2cThread(Thread):
         """
         Runs the smoothing computing loop
         """
-#        if (self.inputs.nx-1)%self.inputs.coef != 0 or (self.inputs.ny-1)%self.inputs.coef != 0 :
-#            if (self.inputs.nx-1)%self.inputs.coef!=0 :
-#                self.display('--- Error: nx need to be set as follow: \n')
-#                self.display(' nx = N*refine_coef + 1 --with N an integer \n')
-#            if (self.inputs.ny-1)%self.inputs.coef != 0 :
-#                self.display('--- Error: nx need to be set as follow: \n')
-#                self.display(' ny = N*refine_coef + 1 -- with N an integer \n')
-#        else:
 
         self.nest(self.topo_prt,self.inputs,self.outputs)
-        if np.nanmin(self.topo_prt.h) >0 : # Normal case. Wet_and_drying (hmin<=0) handled in topo
-            self.mask(self.outputs,self.shp_file,sgl_connect=self.single_connect)
-        self.topo(self.outputs, self.topo_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h),sgl_connect=self.single_connect)
+        self.topo(self.outputs, self.topo_file,self.shp_file,smooth=self.inputs_smth,hmin=np.nanmin(self.topo_prt.h),hmax=np.nanmax(self.topo_prt.h),sgl_connect=self.single_connect,prt_grd=self.topo_prt,coef=self.inputs.coef)
         self.match_topo(self.topo_prt,self.outputs,self.openb) 
 
         dx = (1 / self.outputs.pm.max(), 1 / self.outputs.pm.min())
@@ -173,6 +158,4 @@ class SaveGridThread(Thread):
                                   'coef=%i, imin=%i, imax=%i, jmin=%i, ',
                                   'jmax=%i)\n')) % easyparam)
 
-        #self.display('--- saving grid (nx=%i, ny=%i, lon=%i, lat=%i, sx=%i, sy=%i, rot=%i)\n' % easyparam)
-        self.display('Saving to netcdf done')
 

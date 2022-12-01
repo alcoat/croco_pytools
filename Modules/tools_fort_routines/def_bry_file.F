@@ -61,7 +61,9 @@
 ! Time
 
       ierr=nf_def_var (ncid, 'bry_time', nf_double, 1, time_dim, varid)
-      ierr=nf_put_att_text (ncid, varid, 'units', 4, 'days')
+      ierr=nf_put_att_text (ncid, varid, 'long_name', 22,
+     &                             'time since initialization')
+!      ierr=nf_put_att_text (ncid, varid, 'units', 4,'days')
 
 ! Side boundary forcing variables
 

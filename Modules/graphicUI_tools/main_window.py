@@ -402,6 +402,7 @@ class MainWindow(HasTraits):
         self.compute_grid_thread.outputs_file = self.opt_file
         if self.compute_grid_thread.inputs.zview=='topo':
             self.compute_grid_thread.topo_file = self.topo_file
+            self.compute_grid_thread.shp_file = self.shp_file
             self.compute_grid_thread.topo = self.get_topo.topo
         elif self.compute_grid_thread.inputs.zview=='mask':
             self.compute_grid_thread.shp_file = self.shp_file

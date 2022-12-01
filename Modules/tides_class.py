@@ -267,7 +267,7 @@ class getdata():
             if lon[i]<lon[i-1]:        # between 180/-180 in the
                 lon[i]=lon[i]+360      # middle
         ####
-        geolim=[crocogrd.lonmin()-1,crocogrd.lonmax()+1,crocogrd.latmin()-1,crocogrd.latmax()+1]
+        geolim=[crocogrd.lonmin(),crocogrd.lonmax(),crocogrd.latmin(),crocogrd.latmax()]
 
         jmin=self.indx_bound(lat.data, geolim[2])
         jmax=self.indx_bound(lat.data, geolim[-1])

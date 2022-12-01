@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
         print("In interactive mode")
         MainWindow().configure_traits()
-    elif Question.lower() == ("n") or Question.lower() == ("no"):
+    elif Question.lower() == ("n") or Question.lower() == ("no") or Question.lower() == ("") :
    
    # --- Building grid without graphicUI ----------------------------------
 
@@ -113,9 +113,7 @@ if __name__ == "__main__":
         EasyGrid.easygrid(None,inputs,outputs)
         
         # --- Build mask and topo -----------------------------------------
-        if hmin>0:
-            GetMask.mask(None,outputs,shp_file,sgl_connect=sgl_connect)
-        GetTopo.topo(None,outputs,topofile,smooth=inputs_smth)
+        GetTopo.topo(None,outputs,topofile,shp_file,smooth=inputs_smth,sgl_connect=sgl_connect)
 
         # --- Save netcdf -------------------------------------------------
        

@@ -97,6 +97,7 @@ c--#define VERBOSE
 
       integer(kind=8) :: read_clk,  sz_read_acc,
      &                   write_clk, sz_write_acc
+      real(kind=8) :: hmin
 #ifdef PARENT_GRID_SUBREGION
       integer ::  iwestpg, jsouthpg
       integer :: imin,imax,jmin,jmax
@@ -426,8 +427,9 @@ C$OMP END PARALLEL
      &                      iwestpg,jsouthpg, nx,ny,0,0, hp)
 
       if ( minval(h) <=0 ) then ! To prevent errors from
-          hp=hp-minval(h)+0.1   ! wet and drying, move
-          h=h-minval(h)+0.1     ! topography so it is positive
+          hmin=minval(h)
+          hp=hp-minval(h)+0.2   ! wet and drying, move
+          h=h-minval(h)+0.2     ! topography so it is positive
       endif                     ! everywhere
 
 ! Interpolate parent grid topography onto child grid...
@@ -792,6 +794,9 @@ C$OMP END PARALLEL
 
 
 C$OMP PARALLEL SHARED(ncx,ncy, N, hc,Cs_w, h, wrk3,wrmx, wrk1,wrk2)
+      if ( hmin<=0) then
+        h=h+hmin-0.2
+      endif
       call compute_uvbar_thread(ncx,ncy, N, hc,Cs_w, h,  wrk3,wrmx,
      &                                                   wrk1,wrk2)
 C$OMP END PARALLEL

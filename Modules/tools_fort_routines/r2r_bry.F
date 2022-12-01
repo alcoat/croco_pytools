@@ -55,7 +55,8 @@ c--#define VERBOSE
       character(len=160) :: prt_tmp
       character(len=16) :: roms_bry
       character(len=10) :: time_var_name
-      character(len=16) :: VertCoordType,str, vname, trgname, time_units
+      character(len=16) :: VertCoordType, vname, trgname
+      character(len=180) :: time_units, str
       integer :: ntrc,ipt_trc_len
       character(len=4) :: WESN
       character(len=4), dimension(ntrc):: tracer
@@ -129,7 +130,8 @@ c--#define VERBOSE
      &        nccgrd, ncpgrd, ncsrc, nctarg, nrecs,rec, recout, varid,
      &        vtype, ndims, vdimids(4), natts, tvar_in,tvar_out, ierr,
      &        itrc,size,isrc, i,j,k, lstr,lvar,ltgv,lcgrd,lpgrd,lprnt
-
+      real(kind=8) :: hmin
+      character*30 :: orig_date
 #ifdef PARENT_GRID_SUBREGION
       integer :: iwestpg,jsouthpg, imin,imax,jmin,jmax
       integer :: margn
@@ -156,7 +158,7 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
       roms_bry='croco_chd_bry.nc'
       time_var_name='scrum_time'
       ipt_char_len=160;ipt_trc_len=4
-      ihis=1 ; rec=1; recout=0 ; time_units='                  '
+      ihis=1 ; rec=1; recout=0 ; !time_units='                  '
       OBC_WEST=.false. ; OBC_SOUTH=.false.
       OBC_EAST=.false. ; OBC_NORTH=.false.
 
@@ -977,9 +979,10 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
      &                      iwestpg,jsouthpg, nx,ny,0,0, hp)
 
       if ( minval(h) <=0 ) then ! To prevent errors from
-          hp=hp-minval(h)+0.1   ! wet and drying, move
-          h=h-minval(h)+0.1     ! topography so it is positive
-      endif                     ! everywhere
+          hmin=minval(h)        ! wet and drying, move
+          hp=hp-hmin+0.2        ! topography so it is positive
+          h=h-hmin+0.2          ! everywhere
+      endif                     
 
       call spln2d_double(nx,ny, hp, srX,srY,sXY,sYX)
 
@@ -1006,6 +1009,13 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
      &                           hu_west, N,hc,Cs_r, kpu_west)
         call bry_init_vertinterp(ncy-1, hpv_west, Np,hcp,Csp_r,
      &                           hv_west, N,hc,Cs_r, kpv_west)
+
+        if ( hmin <=0 ) then
+          hp_west=hp_west+hmin-0.2
+          hu_west=hp_west+hmin-0.2
+          hv_west=hp_west+hmin-0.2
+        endif
+
       endif
 
       if (OBC_EAST) then
@@ -1032,6 +1042,12 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
      &                           hu_east, N,hc,Cs_r, kpu_east)
         call bry_init_vertinterp(ncy-1, hpv_east, Np,hcp,Csp_r,
      &                           hv_east, N,hc,Cs_r, kpv_east)
+        if ( hmin <=0 ) then
+          hp_east=hp_east+hmin-0.2
+          hu_east=hp_east+hmin-0.2
+          hv_east=hp_east+hmin-0.2
+        endif
+
       endif
 
       if (OBC_SOUTH) then
@@ -1057,6 +1073,12 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
      &                           hu_south, N,hc,Cs_r, kpu_south)
         call bry_init_vertinterp(ncx, hpv_south, Np,hcp,Csp_r,
      &                           hv_south, N,hc,Cs_r, kpv_south)
+
+        if ( hmin <=0 ) then
+          hp_south=hp_south+hmin-0.2
+          hu_south=hp_south+hmin-0.2
+          hv_south=hp_south+hmin-0.2
+        endif       
       endif
 
       if (OBC_NORTH) then
@@ -1082,6 +1104,12 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
      &                           hu_north, N,hc,Cs_r, kpu_north)
         call bry_init_vertinterp(ncx, hpv_north, Np,hcp,Csp_r,
      &                           hv_north, N,hc,Cs_r, kpv_north)
+        if ( hmin <=0 ) then
+          hp_north=hp_north+hmin-0.2
+          hu_north=hp_north+hmin-0.2
+          hv_north=hp_north+hmin-0.2
+        endif
+
       endif
 
       write(*,'(/1x,A)') 'Checking...'
@@ -1137,7 +1165,6 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
 
       ierr=nf_create(roms_bry, nf_64bit_offset, nctarg)
       if (ierr == nf_noerr) then
-        write(*,*) 'hihi',N
         call def_bry_file(roms_bry, nctarg, ncx,ncy,N,
      &         OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,
      &        theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer)
@@ -1145,6 +1172,61 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
         if (ierr /= nf_noerr) then
           write(*,*) '### ERROR 2: nf_inq_varid(. tvar_out .)'
         endif
+  
+! Copy all attributes for time variable while the target file is still
+! in redefinition mode, then switch it into input and copy time itself.
+ 
+        ierr=nf_inq_varid(nctarg, 'bry_time', tvar_out)
+        if (ierr == nf_noerr) then
+          ierr=nf_inq_varid(ncsrc, time_var_name, tvar_in)
+          if (ierr == nf_noerr) then
+            ierr=nf_inq_varnatts(ncsrc, tvar_in, natts)
+            if (ierr == nf_noerr) then
+              do i=1,natts
+                ierr=nf_inq_attname(ncsrc, tvar_in, i, str)
+                if (ierr == nf_noerr) then
+                  call lenstr(str,lstr)
+! If units change 'seconds since...' to 'days since...'
+                  if (str(1:lstr) .eq. 'units') then
+                    ierr=nf_get_att_text(ncsrc,tvar_in, 'units',str)
+                    if (ierr == nf_noerr) then
+                      call lenstr(str,lstr)
+                      write(orig_date,'(2A)') 'days',str(8:lstr)      
+                      call lenstr(orig_date,lstr)
+                      ierr= nf_put_att_text(nctarg, tvar_out,'units',
+     &                                ,lstr,orig_date(1:lstr))
+                    else
+                      write(*,'(/1x,7A/12x,A/)')     '### ERROR: ',
+     &               'Found, but cannot read attribute ''units'' ',
+     &               'for variable in ''',
+     &               prt_tmp(1:lprnt), '''.',
+     &                        nf_strerror(ierr)
+                      stop
+                    endif                  
+                  else
+                    ierr=nf_copy_att(ncsrc, tvar_in, str(1:lstr),
+     &                                         nctarg, tvar_out)
+                  endif
+                  if (ierr == nf_noerr) then
+                    write(*,*) 'copied attribute ''',str(1:lstr),''''
+                  else
+                    write(*,*) '### ERROR 10: copy_att' ; stop
+                  endif
+                else
+                  write(*,*) '### ERROR 9: inq_attname' ; stop
+                endif
+              enddo
+            else
+              write(*,*) '### ERROR 8: inq_varnatts'
+            endif
+          else
+            write(*,*) '### ERROR 7: inq_varid'
+          endif
+        else
+          write(*,*) '### ERROR 6: inq_varid'
+        endif
+        if (ierr /= nf_noerr) stop
+
       else
         write(*,*) '### ERROR 1: nf_create'
       endif

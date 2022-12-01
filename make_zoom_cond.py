@@ -52,7 +52,9 @@ if len(tracers)>0:
     all_tracers = np.zeros((4,len(tracers) ), dtype='c')
     for i in range(len(tracers)):
         all_tracers[0:4,i]=tracers[i]
-    print(all_tracers.shape)
+else:
+    all_tracers=[]
+
 # --- Make ini ------------------------------------------------------------
 if make_ini:
     toolsf.r2r_init(chd_grd,ts,tb,hc,n,prt_grd,prt_his_ini,rec,all_tracers)

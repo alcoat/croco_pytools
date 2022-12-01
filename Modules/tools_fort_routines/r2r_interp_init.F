@@ -167,9 +167,9 @@ C$    jcmin=1+trd*chunk_size ; jcmax=min(jcmin+chunk_size-1,ncy)
             ic=ic-1
           else
             jc=jc+1 ; iinc=-iinc ; if (jc > jcmax) return
-#ifdef VERBOSE
-            write(*,*) 'jc =', jc
-#endif
+!#ifdef VERBOSE
+!            write(*,*) 'jc =', jc
+!#endif
           endif
 
           dx1=x(i+1,j  )-xc(ic,jc) ; dy1=y(i+1,j  )-yc(ic,jc)
@@ -196,9 +196,9 @@ C$    jcmin=1+trd*chunk_size ; jcmax=min(jcmin+chunk_size-1,ncy)
             ic=ic-1
           else
             jc=jc+1 ; iinc=-iinc ; if (jc > jcmax) return
-#ifdef VERBOSE
-            write(*,*) 'jc =', jc
-#endif
+!#ifdef VERBOSE
+!            write(*,*) 'jc =', jc
+!#endif
           endif
         else
           i=inew ; j=jnew       !<-- accept move of source location.

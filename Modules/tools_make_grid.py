@@ -28,7 +28,7 @@ def topo_periodicity(topo_file, geolim):
 #        nc = netcdf.Dataset(topo_file)
         nc = xr.open_dataset(topo_file)
     except:
-        print('Warning: \n', 'Topo file -> ',topo_file ,' does not exist... ')
+        sys.exit(''.join(('ERROR: \n', 'Topo file -> ',topo_file ,' does not exist... ')))
     
     topo_lon = eval(''.join(("nc."+topo_type['lon']+'.values')))
     topo_lat = eval(''.join(("nc."+topo_type['lat']+'.values')))
@@ -237,7 +237,7 @@ class GetTopo():
         '''
         return np.argmin(np.abs(array - point))
 
-    def topo(self,outputs, topo_file, smooth=None,hmin=None,hmax=None,sgl_connect=None):
+    def topo(self,outputs, topo_file,shpfile,smooth=None,hmin=None,hmax=None,sgl_connect=None,prt_grd=None,coef=None):
 
         if smooth is not None:
             rd=smooth.smthr
@@ -257,32 +257,16 @@ class GetTopo():
 
         if smooth is not None:
             outputs.hraw = topo
-            if hmin is not None and hmax is not None: #Means you are in zoom AGRIF
-                if hmin<=0:
-                   outputs.mask_rho=np.ones(topo.shape)
-                   if hmin<np.nanmin(topo.ravel()):
-                       hmin=np.ceil(np.nanmin(topo.ravel()))
-                   outputs.mask_rho[topo<=hmin]=0
-                   if sgl_connect is not None:
-                       if sgl_connect[0]:
-                           if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
-                               print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
-                               sys.exit()
-                           outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T           
+            if hmin is not None and hmax is not None: #Means you are in zoom AGRIF        
+                GetMask.mask(None,outputs,shpfile,hmin=hmin,sgl_connect=sgl_connect,prt_grd=prt_grd,ref_coef=coef)   
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,hmin,hmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             else:
-                if smooth.depthmin<=0:
-                   outputs.mask_rho=np.ones(topo.shape)
-                   if smooth.depthmin<np.nanmin(topo.ravel()):
-                       smooth.depthmin=np.ceil(np.nanmin(topo.ravel()))
-                   outputs.mask_rho[topo<=smooth.depthmin]=0
-                   if sgl_connect is not None:
-                       if sgl_connect[0]:
-                           if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
-                               print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
-                               sys.exit()
-                           outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
+                if prt_grd is not None: #compute approximatively the ref coeff
+                    coef=int(np.nanmean(outputs.pm)/np.nanmean(prt_grd.pm))
+                    print('ratio between prt and chld grid is approx:', coef,np.nanmean(outputs.pm)/np.nanmean(prt_grd.pm))
+           
+                GetMask.mask(None,outputs,shpfile,hmin=smooth.depthmin,sgl_connect=sgl_connect,prt_grd=prt_grd,ref_coef=coef)
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,smooth.depthmin,smooth.depthmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             outputs.h=topo
@@ -303,7 +287,7 @@ class GetTopo():
         return outputs
 
 class GetMask():
-     def outline(lon, lat):
+    def outline(lon, lat):
         '''
         Return lon, lat of perimeter around the grid
         '''
@@ -312,39 +296,75 @@ class GetMask():
                               var[::-1, -1], var[0, ::-1][1:]])
         return func(lon), func(lat)
 
-     def mask(self, outputs,gfile,sgl_connect=None):
-
-         llcrnrlon = outputs.lon_rho.ravel().min()-0.5
-         urcrnrlon = outputs.lon_rho.ravel().max()+0.5
-         llcrnrlat = outputs.lat_rho.ravel().min()-0.5
-         urcrnrlat = outputs.lat_rho.ravel().max()+0.5
+    def mask(self, outputs,gfile,hmin=None,sgl_connect=None,prt_grd=None,ref_coef=None):
+        # handle basic mask
+        if hmin is None or hmin>0: # Case hmin >0
+            llcrnrlon = outputs.lon_rho.ravel().min()-0.5
+            urcrnrlon = outputs.lon_rho.ravel().max()+0.5
+            llcrnrlat = outputs.lat_rho.ravel().min()-0.5
+            urcrnrlat = outputs.lat_rho.ravel().max()+0.5
     
-         lon_point=[llcrnrlon,llcrnrlon,urcrnrlon,urcrnrlon,llcrnrlon]
-         lat_point=[llcrnrlat,urcrnrlat,urcrnrlat,llcrnrlat,llcrnrlat]
-         polygon_geom = Polygon(zip(lon_point, lat_point))
+            lon_point=[llcrnrlon,llcrnrlon,urcrnrlon,urcrnrlon,llcrnrlon]
+            lat_point=[llcrnrlat,urcrnrlat,urcrnrlat,llcrnrlat,llcrnrlat]
+            polygon_geom = Polygon(zip(lon_point, lat_point))
 
-         geoshp=gp.read_file(gfile,mask=polygon_geom)        
+            geoshp=gp.read_file(gfile,mask=polygon_geom)        
          
-         print('Building mask from ', gfile)
-         rmask = regionmask.mask_geopandas(geoshp.geometry,outputs.lon_rho, outputs.lat_rho,method='shapely').values
-         outputs.mask_rho=np.zeros(rmask.shape)
-         outputs.mask_rho[np.isnan(rmask)]=1
+            print('Building mask from ', gfile)
+            rmask = regionmask.mask_geopandas(geoshp.geometry,outputs.lon_rho, outputs.lat_rho,method='shapely').values
+            outputs.mask_rho=np.zeros(rmask.shape)
+            outputs.mask_rho[np.isnan(rmask)]=1
+        else: # case hmin<=0
+            outputs.mask_rho=np.ones(outputs.hraw.shape)
+            if hmin<np.nanmin(outputs.hraw.ravel()):
+                hmin=np.ceil(np.nanmin(outputs.hraw.ravel()))
+            outputs.mask_rho[outputs.hraw<=hmin]=0       
 
-         if sgl_connect is not None:
-             if sgl_connect[0]:
-                 if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
+#        ##
+        if prt_grd is not None: # Means we are in a zoom and we use prt grid mask at boundaries
+            print('Matching Parent and Child mask close to boundary')
+            spline = itp.NearestNDInterpolator((prt_grd.lon_rho.ravel(),prt_grd.lat_rho.ravel()),prt_grd.mask_rho.ravel())
+            maskr_coarse = spline((outputs.lon_rho,outputs.lat_rho)) # prt mask on chd grid
+
+            outputs.mask_rho[0,:]  = maskr_coarse[0,:]
+            outputs.mask_rho[-1,:] = maskr_coarse[-1,:]
+            outputs.mask_rho[:,0]  = maskr_coarse[:,0]
+            outputs.mask_rho[:,-1] = maskr_coarse[:,-1]
+
+            if ref_coef is not None:# check whether there is a coef
+                [M,L]=outputs.mask_rho.shape
+                [imat,jmat]=np.meshgrid(np.arange(L),np.arange(M))
+                dist=0*outputs.mask_rho+np.inf
+                for j in range(M):
+                    if outputs.mask_rho[j,0]==1:
+                        dist=np.minimum(dist,np.sqrt((imat)**2+(jmat-j)**2))
+                    if outputs.mask_rho[j,-1]==1:
+                        dist=np.minimum(dist,np.sqrt((imat-L+1)**2+(jmat-j)**2))
+                for i in range(L):
+                    if outputs.mask_rho[0,i]==1:
+                        dist=np.minimum(dist,np.sqrt((imat-i)**2+(jmat)**2))
+                    if outputs.mask_rho[-1,i]==1:
+                        dist=np.minimum(dist,np.sqrt((imat-i)**2+(jmat-M+1)**2))
+
+#                # Put the parent mask close to the boundaries
+                nmsk=1+2*ref_coef
+                outputs.mask_rho[dist<=nmsk]=maskr_coarse[dist<=nmsk]
+   
+        if sgl_connect is not None:
+            if sgl_connect[0]:
+                if outputs.mask_rho[sgl_connect[1],sgl_connect[2]]<0.5 :
                     print('ERROR: selected point i =', sgl_connect[1], 'j =', sgl_connect[2], 'is on land. Try another point.')
                     exit()
-                 outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
-         return outputs
-
+                outputs.mask_rho=toolsf.single_connect(sgl_connect[1],sgl_connect[2],outputs.mask_rho.T).T
+        return outputs
 
 class EasyGrid():
     """
     EasyGrid object. Implements both the easygrid computation, and
     the picture acquisition.
     """
-    '''def easygrid(self, inputs, outputs):
+    '''
+    def easygrid(self, inputs, outputs):
     
         lon_rho = np.linspace(inputs.tra_lon-size_x/111.,
                               inputs.tra_lon+size_x/111.,inputs.nx)
@@ -356,10 +376,9 @@ class EasyGrid():
         outputs.lon_rho = lon_rho
         outputs.lat_rho = lat_rho
         
-        return outputs'''
-
-
-    
+        return outputs
+    '''
+   
     def easygrid(self, inputs, outputs):
         """
         Easy grid makes a rectangular, orthogonal grid with minimal gridsize variation
