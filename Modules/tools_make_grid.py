@@ -892,4 +892,6 @@ class topo_prt():
        self.lat_v    = nc.variables['lat_v'][:]
        self.mask_rho = nc.variables['mask_rho'][:]
        self.h        = nc.variables['h'][:]
+       self.pm       = nc.variables['pm'][:]
+       self.pn       = nc.variables['pn'][:]
        nc.close()
