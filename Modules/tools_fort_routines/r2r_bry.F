@@ -1194,7 +1194,7 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
                       write(orig_date,'(2A)') 'days',str(8:lstr)      
                       call lenstr(orig_date,lstr)
                       ierr= nf_put_att_text(nctarg, tvar_out,'units',
-     &                                ,lstr,orig_date(1:lstr))
+     &                                lstr,orig_date(1:lstr))
                     else
                       write(*,'(/1x,7A/12x,A/)')     '### ERROR: ',
      &               'Found, but cannot read attribute ''units'' ',
