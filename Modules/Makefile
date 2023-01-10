@@ -3,7 +3,7 @@ include ../Makedefs
 
 # compile flags
 CPPFLAGS = -I$(NETCDFINC)
-FCFLAGS = -c -I$(NETCDFINC) -I$(PWD)/tools_fort_routines/  --f90flags="-g -check all -CA -CB -CS -fopenmp" -lgomp
+FCFLAGS = -c -I$(NETCDFINC) -I$(PWD)/tools_fort_routines/ --f77flags="-std=legacy" --f90flags="-g -check all -CA -CB -CS -fopenmp" -lgomp
 
 # lib flags
 LDFC = $(NETCDFLIB)

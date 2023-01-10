@@ -28,7 +28,7 @@ The script works as follow:
     - reads input data and restricts the area of spatial coverage
     - creates croco_bry.nc
     - Loop on open boundaries with:
-          check if data for before or after for continuity, if not duplicate first or last
+          check if there is data before or after for continuity, if not duplicate first or last
           loop on var with:
               * horizontal interpolation
               * vertical interpolation

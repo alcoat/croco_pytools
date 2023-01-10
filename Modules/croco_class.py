@@ -25,9 +25,9 @@ class CROCO_grd(object):
         self.h = nc_tools.read_nc(filename,'h')
         self.hraw = nc_tools.read_nc(filename,'hraw')
         self.f = nc_tools.read_nc(filename,'f')
-        self.umask= grd_tools.rho2u(self.maskr)
-        self.vmask= grd_tools.rho2v(self.maskr)
-        self.pmask= grd_tools.rho2psi(self.maskr)
+        self.umask= self.maskr[:,0:-1]*self.maskr[:,1:]
+        self.vmask= self.maskr[0:-1,:]*self.maskr[1:,:]
+        self.pmask= self.umask[0:-1,:]*self.umask[1:,:]
         if sigma_params is not None:
             self.theta_s = np.double(sigma_params['theta_s'])
             self.theta_b = np.double(sigma_params['theta_b'])
@@ -686,10 +686,47 @@ class CROCO():
         nc.close()
 
 
+    def create_river_nc(self,filename, grdobj,Nsrc,TS,created_by='make_river.py'):
 
+        nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
+        nc.created = datetime.now().isoformat()
+        nc.type  = 'CROCO river file produced by %s' % created_by
+        nc.grd_file = grdobj.grid_file
+        
+        # Dimensions
+        nc.createDimension('qbar_time',0)
+        nc.createDimension('n_qbar',Nsrc)
 
+        # Create the variables and write...
+        nc.createVariable('runoff_name','S30', ('n_qbar',))
+        nc.variables['runoff_name'].long_name = 'River Name'
 
+        nc.createVariable('qbar_time',np.float64, ('qbar_time',))
+        nc.variables['qbar_time'].long_name = 'river discharge time'
 
+        nc.createVariable('Qbar',np.float64, ('n_qbar','qbar_time',))
+        nc['Qbar'].long_name = 'river discharge'
+        nc['Qbar'].units = 'm3 s-1'
+   
+        if TS:
+            nc.createDimension('temp_time',0)
+            nc.createDimension('salt_time',0)
+
+            nc.createVariable('temp_src_time',np.float64, ('temp_time',))
+            nc.variables['temp_src_time'].long_name = 'river temperature time'
+
+            nc.createVariable('salt_src_time',np.float64, ('salt_time',))
+            nc.variables['salt_src_time'].long_name = 'river salinity time'
+    
+            nc.createVariable('temp_src',np.float64, ('n_qbar','temp_time',))
+            nc['temp_src'].long_name = 'river temperature'
+            nc['temp_src'].units = 'Celsius'
+
+            nc.createVariable('salt_src',np.float64, ('n_qbar','salt_time',))
+            nc['salt_src'].long_name = 'river salinity'
+            nc['salt_src'].units = '1'
+
+        nc.close()
 
 
 

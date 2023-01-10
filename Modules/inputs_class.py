@@ -17,22 +17,22 @@ class getdata():
                 dataxr=xr.open_dataset(inputfile)
                 self.depth=eval(''.join(("dataxr."+self.var['depth'])))
   
-                self.ncglo   = { 'ssh'  : eval(''.join(("dataxr."+self.var['ssh']))),\
-                                 'temp' : eval(''.join(("dataxr."+self.var['temp']))),\
-                                 'salt' : eval(''.join(("dataxr."+self.var['salt']))),\
-                                 'u'    : eval(''.join(("dataxr."+self.var['u']))),\
-                                 'v'    : eval(''.join(("dataxr."+self.var['v'])))\
+                self.ncglo   = { 'ssh'  : dataxr,\
+                                 'temp' : dataxr,\
+                                 'salt' : dataxr,\
+                                 'u'    : dataxr,\
+                                 'v'    : dataxr\
                                }
         
             else:
-                dataxr=xr.open_dataset(inputfile)
+                dataxr=xr.open_dataset(inputfile['temp'])
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
             
-                self.ncglo   = { 'ssh'  : eval(''.join(("xr.open_dataset(inputfile['ssh'])."+self.var['ssh'])) ),\
-                                 'temp' : eval(''.join(("xr.open_dataset(inputfile['temp'])."+self.var['temp'])) ),\
-                                 'salt' : eval(''.join(("xr.open_dataset(inputfile['salt'])."+self.var['salt'])) ),\
-                                 'u'    : eval(''.join(("xr.open_dataset(inputfile['u'])."+self.var['u'])) ),\
-                                 'v'    : eval(''.join(("xr.open_dataset(inputfile['v'])."+self.var['v'])) )\
+                self.ncglo   = { 'ssh'  : xr.open_dataset(inputfile['ssh']),\
+                                 'temp' : xr.open_dataset(inputfile['temp']),\
+                                 'salt' : xr.open_dataset(inputfile['salt']),\
+                                 'u'    : xr.open_dataset(inputfile['u']),\
+                                 'v'    : xr.open_dataset(inputfile['v'])\
                                }
 
             [self.lonT ,self.latT ,self.idmin  ,self.idmax  ,self.jdmin  ,self.jdmax  ,self.period  ]  = self.handle_periodicity(crocogrd,'r')
@@ -43,12 +43,12 @@ class getdata():
                 dataxr=xr.open_mfdataset(inputfile)
                 self.depth=eval(''.join(("dataxr."+self.var['depth'])))
                 dataxr=xr.open_mfdataset(inputfile,chunks={self.var['depth']:len(self.depth)})
-                self.ncglo   = { 'ssh'  : eval(''.join(("dataxr."+self.var['ssh']))),\
-                                 'temp' : eval(''.join(("dataxr."+self.var['temp']))),\
-                                 'salt' : eval(''.join(("dataxr."+self.var['salt']))),\
-                                 'u'    : eval(''.join(("dataxr."+self.var['u']))),\
-                                 'v'    : eval(''.join(("dataxr."+self.var['v']))),\
-                                 'time' : eval(''.join(("dataxr."+self.var['time'])))
+                self.ncglo   = { 'ssh'  : dataxr,\
+                                 'temp' : dataxr,\
+                                 'salt' : dataxr,\
+                                 'u'    : dataxr,\
+                                 'v'    : dataxr,\
+                                 'time' : dataxr
                                }
 
 
@@ -56,15 +56,14 @@ class getdata():
                 dataxr=xr.open_mfdataset(inputfile['temp'])
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
                 
-                self.ncglo   = { 'ssh'  : eval(''.join(("xr.open_mfdataset(inputfile['ssh'])."+self.var['ssh'])) ),\
-                                 'temp' : eval(''.join(("xr.open_mfdataset(inputfile['temp'])."+self.var['temp'])) ),\
-                                 'salt' : eval(''.join(("xr.open_mfdataset(inputfile['salt'])."+self.var['salt'])) ),\
-                                 'u'    : eval(''.join(("xr.open_mfdataset(inputfile['u'])."+self.var['u'])) ),\
-                                 'v'    : eval(''.join(("xr.open_mfdataset(inputfile['v'])."+self.var['v'])) ),\
-                                 'time' : eval(''.join(("xr.open_mfdataset(inputfile['ssh'])."+self.var['time'])))
+                self.ncglo   = { 'ssh'  : xr.open_mfdataset(inputfile['ssh']) ,\
+                                 'temp' : xr.open_mfdataset(inputfile['temp']),\
+                                 'salt' : xr.open_mfdataset(inputfile['salt']),\
+                                 'u'    : xr.open_mfdataset(inputfile['u']),\
+                                 'v'    : xr.open_mfdataset(inputfile['v']),\
+                                 'time' : xr.open_mfdataset(inputfile['ssh'])
                                }
    
-
             for boundary, is_open in zip(bdy[0].keys(), bdy[0].values()):
 
                 if 'west' in boundary and is_open:
@@ -91,7 +90,9 @@ class getdata():
                     [self.lonTN ,self.latTN ,self.idminN ,self.idmaxN ,self.jdminN ,self.jdmaxN ,self.periodN  ]  = self.handle_periodicity(crocogrd,'r',bdy='north')
                     [self.lonUN ,self.latUN ,self.idminUN ,self.idmaxUN ,self.jdminUN ,self.jdmaxUN ,self.periodUN ]  = self.handle_periodicity(crocogrd,'u',bdy='north')
                     [self.lonVN ,self.latVN ,self.idminVN ,self.idmaxVN ,self.jdminVN ,self.jdmaxVN ,self.periodVN ]  = self.handle_periodicity(crocogrd,'v',bdy='north')
- 
+        
+        for ll in self.ncglo.keys():
+            self.ncglo[ll]=eval(''.join(("self.ncglo[ll]."+self.var[ll])))
     #####################################
     def indx_bound(self,x, x0):
         """
