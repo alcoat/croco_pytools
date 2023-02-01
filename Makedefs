@@ -1,12 +1,17 @@
 # compiler
-     FC = f2py
-    CXX = cpp
-    F90 = gfortran
-     CC = gcc
+FC = f2py
+CXX = cpp
+F90 = gfortran
+CC = gcc
 
-#
-    NETCDFINC = $(shell nf-config --includedir)
-    NETCDFLIB = $(shell nf-config --flibs) 
-
+NETCDFINC = $(shell nf-config --includedir)
 # Example
-# NETCDFLIB= -L/usr/lib -lnetcdff -lnetcdf
+# NETCDFINC = /usr/include
+
+NETCDFLIB = $(shell nf-config --flibs)
+# On ubuntu 20.04 and > you need to put execute nf-config --flibs
+# Typical output is :
+# -L/usr/lib/x86_64-linux-gnu -lnetcdff -Wl,-Bsymbolic-functions -flto=auto -ffat-lto-objects -flto=auto -Wl,-z,relro -Wl,-z,now -lnetcdf -lnetcdf -lm
+# Remove strange parameter like this two example :
+# NETCDFLIB = -L/usr/lib/x86_64-linux-gnu -lnetcdff -lnetcdf -lm
+# NETCDFLIB = -L/usr/lib -lnetcdff -lnetcdf
