@@ -2,22 +2,22 @@ import numpy as np
 import matplotlib
 # We want matplotlib to use a wxPython backend
 matplotlib.use('WXAgg')
-from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+# from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+# from matplotlib.figure import Figure
+# from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 
 from threading import Thread
-from time import sleep
-import wx
+# from time import sleep
+# import wx
 
-from traits.api import *
-from traitsui.api import View, Item, Group, HSplit, Handler, EnumEditor, FileEditor,DirectoryEditor
-from traitsui.menu import NoButtons
-from traitsui.wx.editor import Editor
-from traitsui.basic_editor_factory import BasicEditorFactory
+# from traits.api import *
+# from traitsui.api import View, Item, Group, HSplit, Handler, EnumEditor, FileEditor, DirectoryEditor
+# from traitsui.menu import NoButtons
+# from traitsui.wx.editor import Editor
+# from traitsui.basic_editor_factory import BasicEditorFactory
 
-import matplotlib.pyplot as plt
-import tools_make_grid
+# import matplotlib.pyplot as plt
+# import Modules.tools_make_grid
 
 class ComputeGridThread(Thread):
     """

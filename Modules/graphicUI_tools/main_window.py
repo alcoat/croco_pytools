@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import matplotlib.pyplot
 # We want matplotlib to use a wxPython backend
 matplotlib.use('WXAgg')
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
@@ -7,21 +8,24 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 from cartopy import crs as ccrs, feature as cfeature
 import cartopy.io.shapereader as shpreader
-from threading import Thread
+# from threading import Thread
 from time import sleep
 import wx
 
 from traits.api import *
-from traitsui.api import View, Item,HGroup, Group, HSplit, Handler, EnumEditor, FileEditor,DirectoryEditor,CheckListEditor
+from traitsui.api import View, Item,HGroup, Group, HSplit, Handler, FileEditor,DirectoryEditor,CheckListEditor
 from traitsui.menu import NoButtons
 from traitsui.wx.editor import Editor
 #from traitsui.wx.basic_editor_factory import BasicEditorFactory
 from traitsui.basic_editor_factory import BasicEditorFactory
 
-from button_actions import *
-import tools_make_grid
-from tools_make_grid import EasyGrid,GetTopo,GetMask
-from croco_class import CROCO
+from Modules.graphicUI_tools.button_actions import *
+from Modules.tools_make_grid import EasyGrid, GetTopo, GetMask, topo_prt
+
+from Modules.croco_class import CROCO
+
+from Modules.graphicUI_tools.outputs import Outputs
+
 #################################
 #### FOR FIGURE #################
 class _MPLFigureEditor(Editor):
@@ -192,26 +196,6 @@ class Inputs_c2c(HasTraits):
     jmax = CInt(28,
         desc="Parent jmax",
         label="jmax", )
-
-    
-class Outputs(HasTraits):
-    """
-    Outputs object
-    """
-    lon_rho = CArray()
-    lat_rho = CArray()
-    lon_u = CArray()
-    lat_u = CArray()
-    lon_v = CArray()
-    lat_v = CArray()
-    h = CArray()
-    hraw = CArray()
-    pm = CArray()
-    pn = CArray()
-    angle = CArray()
-    f = CArray()
-    mask_rho = CArray()
-
 #############################
 
 class MainWindowHandler(Handler):
@@ -447,8 +431,8 @@ class MainWindow(HasTraits):
         self.compute_zm_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_zm_thread.grid_show_zm = self.grid_show_zm
         self.compute_zm_thread.display = self.add_line
-        self.compute_zm_thread.topo_prt =tools_make_grid.topo_prt(self.croco_file)
-        prt_grd=tools_make_grid.topo_prt(self.croco_file)
+        self.compute_zm_thread.topo_prt = topo_prt(self.croco_file)
+        prt_grd = topo_prt(self.croco_file)
         self.compute_zm_thread.start()
         self.compute_zm_thread.join()
         self.compute_zm_thread.grid_show_zm(prt_grd)
@@ -466,8 +450,8 @@ class MainWindow(HasTraits):
         self.compute_c2c_thread.openb  = [self.checklist,self.merge]
         self.compute_c2c_thread.single_connect = [self.single_connect,self.sglc_i,self.sglc_j]
         self.compute_c2c_thread.nest = self.easy.AGRIFgrid
-        self.compute_c2c_thread.topo_prt =tools_make_grid.topo_prt(self.croco_file)
-        prt_grd=tools_make_grid.topo_prt(self.croco_file)
+        self.compute_c2c_thread.topo_prt = topo_prt(self.croco_file)
+        prt_grd = topo_prt(self.croco_file)
         self.compute_c2c_thread.grid_show = self.grid_show_zm
         self.compute_c2c_thread.display = self.add_line
         self.compute_c2c_thread.start()

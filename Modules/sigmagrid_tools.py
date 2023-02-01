@@ -1,6 +1,7 @@
-from progressbar import progressbar
+from Modules.progressbar import progressbar
 import numpy as np
-import toolsf
+import Modules.toolsf as toolsf
+import sys
 
 def scoord2z(point_type, zeta, topo,theta_s, theta_b,N,hc,scoord='new2008'):
     '''
