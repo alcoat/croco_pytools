@@ -285,7 +285,8 @@ class CROCO():
             elif 'rho2d' in value[0]:
                 dims = ('time', 'eta_rho', 'xi_rho')
 
-            else: error
+            else: 
+                raise Exception("Error")
 
             nc.createVariable(varname, 'f8', dims, zlib=True)#fill_value=fillval
             nc.variables[varname].long_name = value[1]
@@ -421,7 +422,8 @@ class CROCO():
                             dims = ('bry_time', 'eta_rho')
                         elif boundary=='south' or boundary=='north':
                             dims = ('bry_time', 'xi_rho')
-                    else: error
+                    else: 
+                        raise Exception("Error")
 
                     varname  = ''.join((key, '%s' % boundary))
                     nc.createVariable(varname, 'f8', dims, zlib=True)
