@@ -1,0 +1,4 @@
+Modules/**/*.f
+Modules/**/*.o
+Modules/**/*.mod
+Modules/**/*.so
