@@ -1,4 +1,4 @@
-name: envtest
+name: envcroco
 channels:
   - conda-forge
   - defaults
