@@ -39,9 +39,7 @@ def plot_outline(outputs, figure):
     return ax
 
 
-def plot_grid(outputs, figure, zview = 'grid outline', shp_file = param.shp_file):
-    # plot outline
-    ax = plot_outline(outputs, figure)
+def plot_grid(outputs, figure, ax, zview='grid outline', shp_file=param.shp_file, plot_shape=True):
     x_rho, y_rho = outputs.lon_rho, outputs.lat_rho
     x_psi, y_psi = outputs.lon_psi, outputs.lat_psi
 
@@ -52,7 +50,7 @@ def plot_grid(outputs, figure, zview = 'grid outline', shp_file = param.shp_file
     cax_width = axpos.width
     cax_height = 0.04
     # pos_cax = figure.add_axes([pos_x,pos_y,cax_width,cax_height])
-    
+
     if 'grid points' in zview:
         figure.suptitle('Grid points: rho=green, psi=blue')
         ax.scatter(x_rho, y_rho, s=5, c='g', edgecolor='g', zorder=3)
@@ -87,25 +85,22 @@ def plot_grid(outputs, figure, zview = 'grid outline', shp_file = param.shp_file
     #M.scatter(x_rho, y_rho, s=2, c='k', edgecolor='k', ax=figure.gca(), zorder=3)
 
     if not 'mask' in zview:
-        path_shp = shp_file
-        tch = shpreader.Reader(path_shp)
-        # here ccrs define the projection of the data (coastline)
-        shape_feature = cfeature.ShapelyFeature(
-            tch.geometries(), ccrs.PlateCarree())
-        ax.add_feature(shape_feature, facecolor='#929591',
-                       edgecolor='Gainsboro', zorder=4)
+        if plot_shape:
+            tch = shpreader.Reader(shp_file)
+            # here ccrs define the projection of the data (coastline)
+            shape_feature = cfeature.ShapelyFeature(
+                tch.geometries(), ccrs.PlateCarree())
+            ax.add_feature(shape_feature, facecolor='#929591',
+                           edgecolor='Gainsboro', zorder=4)
         gl = ax.gridlines(draw_labels=True, linewidth=2,
                           color='gray', alpha=0.5, linestyle='--')
         gl.top_labels = False
         gl.right_labels = False
-        
+
     return ax
 
 
-def plot_topo(outputs, figure):
-    # plot outline
-    ax = plot_outline(outputs, figure)
-
+def plot_topo(outputs, figure, ax):
     x_rho, y_rho = outputs.lon_rho, outputs.lat_rho
 
     # Colorbar position
@@ -126,5 +121,5 @@ def plot_topo(outputs, figure):
                       color='gray', alpha=0.5, linestyle='--')
     gl.top_labels = False
     gl.right_labels = False
-    
+
     return ax

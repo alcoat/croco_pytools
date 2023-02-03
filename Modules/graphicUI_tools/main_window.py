@@ -27,7 +27,7 @@ from Modules.croco_class import CROCO
 from Modules.graphicUI_tools.outputs_ui import OutputsUi
 import make_grid_param as param
 
-from Modules.map_tools.map_tools import plot_grid, plot_topo
+from Modules.map_tools.map_tools import plot_outline, plot_grid, plot_topo
         
 #################################
 #### FOR FIGURE #################
@@ -510,8 +510,10 @@ class MainWindow(HasTraits):
     def grid_show(self,smooth=None):
         self.figure.clf()
         if smooth is None:
-            plot_grid(self.outputs, self.figure, self.inputs.zview, self.shp_file)
+            ax = plot_outline(self.outputs, self.figure)
+            plot_grid(self.outputs, self.figure, ax, self.inputs.zview, self.shp_file)
         else:
+            ax = plot_outline(self.outputs, self.figure)
             plot_topo(self.outputs, self.figure)
         
         wx.CallAfter(self.figure.canvas.draw)
