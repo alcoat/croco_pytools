@@ -53,11 +53,11 @@ if __name__ == "__main__":
         print("In normal mode")
 
         import make_grid_param as param
-        from Modules.tools_make_grid import inputs, inputs_smth, EasyGrid, GetTopo
+        from Modules.tools_make_grid import inputs as inputs_init, inputs_smth as inputs_smth_init, EasyGrid, GetTopo
         # --- Create inputs -----------------------------
-        inputs = inputs(param.tra_lon, param.tra_lat, param.size_x,
+        inputs = inputs_init(param.tra_lon, param.tra_lat, param.size_x,
                         param.size_y, param.nx, param.ny, param.rot)
-        inputs_smth = inputs_smth(
+        inputs_smth = inputs_smth_init(
             param.hmin, param.hmax, param.smth_rad, param.rfact, param.smooth_meth)
 
         # --- Create lon/lat grid -----------------------------------------
