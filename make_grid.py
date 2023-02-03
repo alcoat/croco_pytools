@@ -66,11 +66,6 @@ output_file = "./croco_grd.nc"
 
 # --- END USER CHANGES -----------------------------------------------------
 
-
-# CST
-r_earth = 6371315  # Mean earth radius in meter
-
-
 if __name__ == "__main__":
 
     Question = input("Do you want to use interactive grid maker ? \
