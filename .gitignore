@@ -4,3 +4,5 @@ Modules/**/*.mod
 Modules/**/*.so
 
 .vscode/
+
+data/output
