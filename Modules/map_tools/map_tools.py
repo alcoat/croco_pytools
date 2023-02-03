@@ -113,13 +113,17 @@ def plot_topo(outputs, figure, ax):
     ax.pcolormesh(x_rho, y_rho, np.ma.masked_where(outputs.mask_rho > 0, outputs.mask_rho),
                   vmin=0, vmax=1, zorder=2, cmap=matplotlib.pyplot.cm.copper_r)
 
-    cb = ax.pcolormesh(x_rho, y_rho, np.ma.masked_where(
+    plotTopo = ax.pcolormesh(x_rho, y_rho, np.ma.masked_where(
         outputs.mask_rho < 1, outputs.h), zorder=2)
+    
+    
     pos_cax = figure.add_axes([pos_x, pos_y, cax_width, cax_height])
-    figure.colorbar(cb, cax=pos_cax, orientation='horizontal')
+    
+    cb = figure.colorbar(plotTopo, cax=pos_cax, orientation='horizontal')
+    
     gl = ax.gridlines(draw_labels=True, linewidth=2,
                       color='gray', alpha=0.5, linestyle='--')
     gl.top_labels = False
     gl.right_labels = False
 
-    return ax
+    return ax, cb
