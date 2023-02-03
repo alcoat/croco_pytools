@@ -40,6 +40,11 @@ if __name__ == "__main__":
        # --- Building grid with graphicUI -------------------------------------
 
         print("In interactive mode")
+
+        # Auto set ETS_TOOLKIT environnement var
+        import os
+        os.environ["ETS_TOOLKIT"] = "wx"
+
         from Modules.graphicUI_tools.main_window import MainWindow
         MainWindow().configure_traits()
 
