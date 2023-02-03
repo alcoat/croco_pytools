@@ -24,7 +24,7 @@ from Modules.tools_make_grid import EasyGrid, GetTopo, GetMask, topo_prt
 
 from Modules.croco_class import CROCO
 
-from Modules.graphicUI_tools.outputs import Outputs
+from Modules.graphicUI_tools.outputs_ui import OutputsUi
 import make_grid_param as param
         
 #################################
@@ -224,7 +224,7 @@ class MainWindow(HasTraits):
     inputs_c2c = Instance(Inputs_c2c, ())
     inputs_smth_c2c = Instance(Inputs_smth_c2c, ())
 
-    outputs = Instance(Outputs, ())
+    outputs = Instance(OutputsUi, ())
     opt_file = File(value=param.output_file,
                      label='Output file',
                      desc='Output path')

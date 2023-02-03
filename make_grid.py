@@ -1,7 +1,7 @@
 __author__ = 'Mathieu Le Corre'
-__email__  = 'mathieu.le.corre@shom.fr'
-__date__   = '2022-09'
-__license__='GPL3'
+__email__ = 'mathieu.le.corre@shom.fr'
+__date__ = '2022-09'
+__license__ = 'GPL3'
 '''
 ===========================================================================
 Further Information:  
@@ -37,8 +37,7 @@ if __name__ == "__main__":
 
     if Question.lower() == ("y") or Question.lower() == ("yes"):
 
-       # --- Building grid with graphicUI -------------------------------------
-
+        # --- Building grid with graphicUI -------------------------------------
         print("In interactive mode")
 
         # Auto set ETS_TOOLKIT environnement var
@@ -50,31 +49,25 @@ if __name__ == "__main__":
 
     elif Question.lower() == ("n") or Question.lower() == ("no") or Question.lower() == (""):
 
-       # --- Building grid without graphicUI ----------------------------------
-
+        # --- Building grid without graphicUI ----------------------------------
         print("In normal mode")
 
         import make_grid_param as param
-        
         from Modules.tools_make_grid import inputs, inputs_smth, EasyGrid, GetTopo
-        from Modules.croco_class import CROCO
-        from Modules.graphicUI_tools.outputs import Outputs
-
-        # --- Create inputs and outputs class -----------------------------
-
-        inputs = inputs(param.tra_lon, param.tra_lat, param.size_x, param.size_y, param.nx, param.ny, param.rot)
-        inputs_smth = inputs_smth(param.hmin, param.hmax, param.smth_rad, param.rfact, param.smooth_meth)
-        outputs = Outputs()
+        # --- Create inputs -----------------------------
+        inputs = inputs(param.tra_lon, param.tra_lat, param.size_x,
+                        param.size_y, param.nx, param.ny, param.rot)
+        inputs_smth = inputs_smth(
+            param.hmin, param.hmax, param.smth_rad, param.rfact, param.smooth_meth)
 
         # --- Create lon/lat grid -----------------------------------------
-
-        EasyGrid.easygrid(None, inputs, outputs)
+        outputs = EasyGrid.easygrid(None, inputs)
 
         # --- Build mask and topo -----------------------------------------
         GetTopo.topo(None, outputs, param.topofile, param.shp_file,
                      smooth=inputs_smth, sgl_connect=param.sgl_connect)
 
         # --- Save netcdf -------------------------------------------------
-
         print('Writing Topography')
+        from Modules.croco_class import CROCO
         CROCO.create_grid_nc(None, param.output_file, inputs, outputs)

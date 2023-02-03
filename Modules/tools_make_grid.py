@@ -1,6 +1,7 @@
 import numpy as np
 import netCDF4 as netcdf
 import xarray as xr
+from Modules.graphicUI_tools.outputs import Outputs
 import Readers.topo_reader as topo_reader
 import Modules.toolsf as toolsf
 import netCDF4 as netcdf
@@ -238,7 +239,7 @@ class GetTopo():
         '''
         return np.argmin(np.abs(array - point))
 
-    def topo(self,outputs, topo_file,shpfile,smooth=None,hmin=None,hmax=None,sgl_connect=None,prt_grd=None,coef=None):
+    def topo(self, outputs, topo_file,shpfile, smooth=None, hmin=None, hmax=None, sgl_connect=None, prt_grd=None, coef=None):
 
         if smooth is not None:
             rd=smooth.smthr
@@ -380,7 +381,7 @@ class EasyGrid():
         return outputs
     '''
    
-    def easygrid(self, inputs, outputs):
+    def easygrid(self, inputs, outputs = Outputs()):
         """
         Easy grid makes a rectangular, orthogonal grid with minimal gridsize variation
         It uses a Mercator projection around the equator and then rotates the sphere around its three axes to position the grid wherever it is desired.

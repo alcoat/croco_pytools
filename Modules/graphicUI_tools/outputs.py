@@ -1,19 +1,17 @@
-from traits.api import CArray, HasTraits
-
-class Outputs(HasTraits):
+class Outputs():
     """
     Outputs object
     """
-    lon_rho = CArray()
-    lat_rho = CArray()
-    lon_u = CArray()
-    lat_u = CArray()
-    lon_v = CArray()
-    lat_v = CArray()
-    h = CArray()
-    hraw = CArray()
-    pm = CArray()
-    pn = CArray()
-    angle = CArray()
-    f = CArray()
-    mask_rho = CArray()
+    lon_rho = []
+    lat_rho = []
+    lon_u = []
+    lat_u = []
+    lon_v = []
+    lat_v = []
+    h = []
+    hraw = []
+    pm = []
+    pn = []
+    angle = []
+    f = []
+    mask_rho = []
