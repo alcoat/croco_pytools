@@ -25,7 +25,8 @@ from Modules.tools_make_grid import EasyGrid, GetTopo, GetMask, topo_prt
 from Modules.croco_class import CROCO
 
 from Modules.graphicUI_tools.outputs import Outputs
-
+import make_grid_param as param
+        
 #################################
 #### FOR FIGURE #################
 class _MPLFigureEditor(Editor):
@@ -70,31 +71,31 @@ class Inputs(HasTraits):
         desc="the data to view",
         label="View", )
 
-    tra_lon = CFloat(15,
+    tra_lon = CFloat(param.tra_lon,
         desc="a central longitude",
         label="longitude", )
 
-    tra_lat = CFloat(-32,
+    tra_lat = CFloat(param.tra_lat,
         desc="a central latitude",
         label="latitude", )
 
-    size_x = CFloat(1556,
+    size_x = CFloat(param.size_x,
         desc="the mean distance along xi",
         label="x size [km]", )
 
-    size_y = CFloat(1334,
+    size_y = CFloat(param.size_y,
         desc="the mean distance along eta",
         label="y size [km]", )
 
-    rot = CFloat(0,
+    rot = CFloat(param.rot,
         desc="rotation about longitude, latitude",
         label="rotation [deg]", )
 
-    nx = CInt(43,
+    nx = CInt(param.nx,
         desc="the number of points along xi",
         label="nx", )
 
-    ny = CInt(44,
+    ny = CInt(param.ny,
         desc="the number of points along eta",
         label="ny", )
 
@@ -102,19 +103,19 @@ class Inputs_smth(HasTraits):
     """
     Inputs object for smoothing
     """
-    depthmin=CFloat( 50,
+    depthmin=CFloat(param.hmin,
             desc="minimum depth",
             label="Minimum depth [m]",)
 
-    depthmax=CFloat( 6000,
+    depthmax=CFloat(param.hmax,
             desc="maximum depth",
             label="Maximum depth [m]",)
 
-    smthr=CFloat( 2,
+    smthr=CFloat(param.smth_rad,
             desc="smoothing radius",
             label="Smth radius [nb points]",)
 
-    rfact=CFloat( 0.2,
+    rfact=CFloat(param.rfact,
             desc="maximum r-factor",
             label="r-factor",)
 
@@ -126,11 +127,11 @@ class Inputs_smth_c2c(HasTraits):
     """
     Inputs object for smoothing
     """
-    smthr=CFloat( 2,
+    smthr=CFloat(param.smth_rad,
             desc="smoothing radius",
             label="Smth radius [nb points]",)
 
-    rfact=CFloat( 0.2,
+    rfact=CFloat(param.rfact,
             desc="maximum r-factor",
             label="r-factor",)
 
@@ -144,31 +145,31 @@ class Inputs_zm(HasTraits):
     """
     Inputs object
     """
-    tra_lon = CFloat(18,
+    tra_lon = CFloat(param.zoom_tra_lon,
         desc="a central longitude",
         label="longitude", )
 
-    tra_lat = CFloat(-33,
+    tra_lat = CFloat(param.zoom_tra_lat,
         desc="a central latitude",
         label="latitude", )
 
-    size_x = CFloat(550,
+    size_x = CFloat(param.zoom_size_x,
         desc="the mean distance along xi",
         label="x size [km]", )
 
-    size_y = CFloat(550,
+    size_y = CFloat(param.zoom_size_y,
         desc="the mean distance along eta",
         label="y size [km]", )
 
-    rot = CFloat(0,
+    rot = CFloat(param.zoom_rot,
         desc="rotation about longitude, latitude",
         label="rotation [deg]", )
 
-    nx = CInt(55,
+    nx = CInt(param.zoom_nx,
         desc="the number of points along xi",
         label="nx", )
 
-    ny = CInt(55,
+    ny = CInt(param.zoom_ny,
         desc="the number of points along eta",
         label="ny", )
 
@@ -177,23 +178,23 @@ class Inputs_c2c(HasTraits):
     """
     Inputs object
     """
-    coef = CInt(3,
+    coef = CInt(param.c2c_coef,
         desc="Refinement coefficient",
         label="Refinement coef")
 
-    imin = CInt(35,
+    imin = CInt(param.c2c_imin,
         desc="Parent imin",
         label="imin", )
 
-    imax = CInt(55,
+    imax = CInt(param.c2c_imax,
         desc="Parent imax",
         label="imax", )
 
-    jmin = CInt(8,
+    jmin = CInt(param.c2c_jmin,
         desc="Parent jmin",
         label="jmin", )
 
-    jmax = CInt(28,
+    jmax = CInt(param.c2c_jmax,
         desc="Parent jmax",
         label="jmax", )
 #############################
@@ -224,13 +225,13 @@ class MainWindow(HasTraits):
     inputs_smth_c2c = Instance(Inputs_smth_c2c, ())
 
     outputs = Instance(Outputs, ())
-    opt_file = File(value='./croco_grd.nc',
+    opt_file = File(value=param.output_file,
                      label='Output file',
                      desc='Output path')
-    opt_file_zm = File(value='./croco_chd_grd.nc',
+    opt_file_zm = File(value=param.zoom_output_file,
                      label='Output file',
                      desc='Output path')
-    opt_dir = File(value='./',
+    opt_dir = File(value=param.output_dir,
                      label='Output dir',
                      desc='Output path')
 
@@ -260,15 +261,15 @@ class MainWindow(HasTraits):
 
 
     # Get file #
-    croco_file = File(value='./croco_grd.nc',
+    croco_file = File(value=param.output_file,
                      label='Parent grid file',
                      desc='Parent path and filename')
 
-    shp_file=File(value='./Modules/gshhs/GSHHS_shp/f/GSHHS_f_L1.shp',
+    shp_file=File(value=param.shp_file,
                      label='Coastline file',
                      desc='costline path')
     
-    topo_file = File(value='./etopo5.nc',
+    topo_file = File(value=param.topofile,
                      label='Topography file',
                      desc='path and topography filename')
 
@@ -279,10 +280,10 @@ class MainWindow(HasTraits):
     save2netcdf = Instance(CROCO, ())
 
     single_connect = Bool(value=True,label='Single connect')
-    sglc_i = CInt(20,label='i0')
-    sglc_j = CInt(25,label='j0')
+    sglc_i = CInt(param.sgl_connect[1],label='i0')
+    sglc_j = CInt(param.sgl_connect[2],label='j0')
 
-    merge= CInt(5, label='Merging area (nb points)')
+    merge= CInt(param.zoom_merge, label='Merging area (nb points)')
     checklist = List(editor=CheckListEditor(values=['South','West', 'East', 'North'], cols=4 ))
 
     ##########################

@@ -29,42 +29,6 @@ The mask is generated using a shapefile (.shp. default is gshhs dataset)
 Smoothing use fortran routines for better performance
 '''
 
-# --- USER CHANGES ---------------------------------------------------------
-
-tra_lon =  15 # Longitude of the grid center
-tra_lat = -32 # Latitude of the grid center
-
-# Grid resolution [km]
-size_x = 1556
-size_y = 1334
-nx     = 43
-ny     = 44
-
-# Rotation [degree]
-rot = 0
-
-# Smoothing params
-hmin        = 20         # Minimum depth [m]
-hmax        = 6000       # Maximum depth [m]
-smth_rad    = 4          # Smoothing radius [nb points] (usually between 2 and 8)
-rfact       = 0.2        # Maximum r-fact to reach (the lower it is, the smoother it will be)
-smooth_meth = 'smooth'   # Smoothing method ('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo')
-# See README.topo for more intel
-
-# Topo file
-topofile = './etopo2.nc'
-
-# Coastline file (for the mask)
-shp_file = './Modules/gshhs/GSHHS_shp/f/GSHHS_f_L1.shp'
-
-# Single Connect [Mask water not connected to the main domain]
-# Precise True or false and a point index inside the main domain
-sgl_connect = [False, 20, 20]
-
-# Output dir
-output_file = "./croco_grd.nc"
-
-# --- END USER CHANGES -----------------------------------------------------
 
 if __name__ == "__main__":
 
@@ -85,14 +49,16 @@ if __name__ == "__main__":
 
         print("In normal mode")
 
+        import make_grid_param as param
+        
         from Modules.tools_make_grid import inputs, inputs_smth, EasyGrid, GetTopo
         from Modules.croco_class import CROCO
         from Modules.graphicUI_tools.outputs import Outputs
 
         # --- Create inputs and outputs class -----------------------------
 
-        inputs = inputs(tra_lon, tra_lat, size_x, size_y, nx, ny, rot)
-        inputs_smth = inputs_smth(hmin, hmax, smth_rad, rfact, smooth_meth)
+        inputs = inputs(param.tra_lon, param.tra_lat, param.size_x, param.size_y, param.nx, param.ny, param.rot)
+        inputs_smth = inputs_smth(param.hmin, param.hmax, param.smth_rad, param.rfact, param.smooth_meth)
         outputs = Outputs()
 
         # --- Create lon/lat grid -----------------------------------------
@@ -100,10 +66,10 @@ if __name__ == "__main__":
         EasyGrid.easygrid(None, inputs, outputs)
 
         # --- Build mask and topo -----------------------------------------
-        GetTopo.topo(None, outputs, topofile, shp_file,
-                     smooth=inputs_smth, sgl_connect=sgl_connect)
+        GetTopo.topo(None, outputs, param.topofile, param.shp_file,
+                     smooth=inputs_smth, sgl_connect=param.sgl_connect)
 
         # --- Save netcdf -------------------------------------------------
 
         print('Writing Topography')
-        CROCO.create_grid_nc(None, output_file, inputs, outputs)
+        CROCO.create_grid_nc(None, param.output_file, inputs, outputs)
