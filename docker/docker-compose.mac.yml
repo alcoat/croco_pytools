@@ -1,0 +1,33 @@
+version: '3.7'
+services:
+  croco_python_tools:
+    command: bash
+    build:
+      context: . # Path to docker file
+    image: croco_python_tools
+    stdin_open: true # docker run -i
+    tty: true        # docker run -t
+    volumes:
+        # localPath:ContainerPath
+        # GUI stuff
+        - '/tmp/.X11-unix:/tmp/.X11-unix:ro'
+        - '$HOME/.Xauthority:/root/.Xauthority'
+
+        # For see/edit files that are inside the docker (exemple make_grid.py) from your OS
+        - python_tools:/root/Python_tools
+
+        # Data folder
+        - ./data:/root/data
+    environment:
+        # GUI stuff
+        - DISPLAY=$IP:0
+
+# HACKY WAY
+# We used a named volume to expose Python_files from the docker container to the host.
+volumes:
+  python_tools:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: $PWD/Python_tools

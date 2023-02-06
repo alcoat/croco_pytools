@@ -6,3 +6,4 @@ Modules/**/*.so
 .vscode/
 
 data/output
+working/

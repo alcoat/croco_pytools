@@ -1,0 +1,32 @@
+**/.git
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+# Local History for Visual Studio Code
+.history/
+ 
+# Mac/OSX
+.DS_Store
+
+*.log
+
+# C and fortran file
+**/*.f 
+**/*.o
+**/*.mod
+**/*.so
+
+# Python
+__pycache__
+.ipynb_checkpoints
+*.pyc
+*.pyo
+*.pyd
+
+# Output
+data/output

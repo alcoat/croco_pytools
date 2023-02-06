@@ -1,18 +1,20 @@
 name: envcroco
+
 channels:
   - conda-forge
   - defaults
+
 dependencies:
-  - python=3.9
-  - numpy
-  - matplotlib-base
-  - scipy
   - cartopy
-  - wxpython
+  - dask
+  - geopandas
+  - matplotlib-base
+  - netcdf4
+  - numpy
+  - python=3.9
+  - regionmask
+  - scipy
   - traits
   - traitsui
-  - netcdf4
-  - dask
+  - wxpython
   - xarray
-  - geopandas
-  - regionmask
