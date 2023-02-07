@@ -48,16 +48,16 @@ tra_lat = -32 # Latitude of the grid center
 # Grid resolution [km]
 size_x = 1556
 size_y = 1334
-nx     = 43
-ny     = 44
+nx     = 41
+ny     = 42
 
 # Rotation [degree]
 rot=0
 
 # Smoothing params
-hmin        = 20    # Minimum depth [m]
+hmin        = 50    # Minimum depth [m]
 hmax        = 6000  # Maximum depth [m]
-smth_rad    = 4     # Smoothing radius [nb points] (usually between 2 and 8)
+smth_rad    = 2     # Smoothing radius [nb points] (usually between 2 and 8)
 rfact       = 0.2   # Maximum r-fact to reach (the lower it is, the smoother it will be)    
 smooth_meth = 'smooth' # Smoothing method ('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo') 
                     # See README.topo for more intel

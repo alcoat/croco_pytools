@@ -251,7 +251,7 @@ class GetTopo():
         else:          
             lonmin,lonmax,latmin,latmax=toolsf.roms_grid_geo_bounds(outputs.lon_rho,outputs.lat_rho,rd)
             topo_lon,topo_lat,topo=topo_periodicity(topo_file,[lonmin,lonmax,latmin,latmax])
-            print('Interpolating topography to ROMS grid')
+            print('Interpolating topography to CROCO grid')
             topo=toolsf.compute_hraw(topo_lon,topo_lat,topo.T,outputs.lon_rho,outputs.lat_rho,outputs.pm,outputs.pn,rd)
             print('Finished interpolating')
 

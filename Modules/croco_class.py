@@ -449,7 +449,7 @@ class CROCO():
 
         # create global variables
         nc.created = datetime.now().isoformat()
-        nc.type = 'ROMS grid file produced by easygrid_python.py'
+        nc.type = 'CROCO grid file produced by easygrid_python.py'
         nc.VertCoordType = 'NEW';
 
         nc.createDimension('one', 1)

@@ -86,11 +86,11 @@ class Inputs(HasTraits):
         desc="rotation about longitude, latitude",
         label="rotation [deg]", )
 
-    nx = CInt(43,
+    nx = CInt(41,
         desc="the number of points along xi",
         label="nx", )
 
-    ny = CInt(44,
+    ny = CInt(42,
         desc="the number of points along eta",
         label="ny", )
 
