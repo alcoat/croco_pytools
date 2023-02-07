@@ -71,8 +71,9 @@ def open_files(model, gridname, filenames,
     model.ds = adjust_grid(model, ds)
     
     # add the grid and the xgcm grid to the dataset
-    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
-    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
+                       xperiodic=xperiodic, yperiodic=yperiodic)
+    # ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
@@ -80,6 +81,8 @@ def open_catalog(model, gridname, catalog, source=None,
                  grid_metrics=1,
                  chunks={},
                  suffix='',
+                 xperiodic=False,
+                 yperiodic=False,
                  verbose=False,
                 ):
     """
@@ -128,8 +131,9 @@ def open_catalog(model, gridname, catalog, source=None,
     model.ds = adjust_grid(model, ds)
     
     # add the grid and the xgcm grid to the dataset
-    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
-    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
+                        xperiodic=xperiodix, yperiodic=yperiodic)
+    # ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
@@ -225,7 +229,7 @@ def get_cs(model, ds, gd, vgrid):
                *(np.tanh((sc+0.5)*theta_s)/np.tanh(0.5*theta_s)-1.)
     return cs
 
-def add_grid(model, gridname, grid_metrics=1, suffix=''):
+def add_grid(model, gridname, grid_metrics=1, suffix='', xperiodic=False, yperiodic=False):
         
     # open grid file
     try : 
@@ -285,10 +289,14 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
         ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
     else:
         ds = ds.set_coords(['t', 'lat', 'lon'])
-    model.ds = ds
         
+    # remove ghost points
+    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+    model.ds = ds
+    
     # On crée la grille xgcm
-    ds, grid = xgcm_grid(model, grid_metrics=grid_metrics)
+    ds, grid = xgcm_grid(model, grid_metrics=grid_metrics, 
+                         xperiodic=xperiodic, yperiodic=yperiodic)
     
     return ds, grid
 
@@ -303,11 +311,17 @@ def remove_ghost_points(model, ds, xperiodic=False, yperiodic=False):
         ds = ds.isel(y_v=slice(0,-1))
     return ds
 
-def xgcm_grid(model,grid_metrics=1):
+def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         
         # Create xgcm grid without metrics
-        coords={'x': {'center':'x', 'inner':'x_u'}, 
-                'y': {'center':'y', 'inner':'y_v'}} 
+        if xperiodic:
+            coords={'x': {'center':'x', 'left':'x_u'}}
+        else:
+            coords={'x': {'center':'x', 'outer':'x_u'}}
+        if yperiodic:
+            coords.update({'y': {'center':'y', 'left':'y_v'}} )
+        else:
+            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
         if 's' in model.ds.dims:
             coords.update({'z': {'center':'s', 'outer':'s_w'}})
         grid = Grid(model.ds, 
