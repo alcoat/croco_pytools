@@ -15,6 +15,8 @@ def open_files(model, gridname, filenames,
                grid_metrics=1,
                drop_variables=[], chunks={'t':1},
                suffix='',
+               xperiodic=False,
+               yperiodic=False,
                verbose=False
               ):
     """
@@ -70,8 +72,9 @@ def open_files(model, gridname, filenames,
     
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
+    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
-    return model.ds, grid
+    return model.ds.squeeze(), grid
 
 def open_catalog(model, gridname, catalog, source=None,
                  grid_metrics=1,
@@ -126,8 +129,9 @@ def open_catalog(model, gridname, catalog, source=None,
     
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix)
+    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
-    return model.ds, grid
+    return model.ds.squeeze(), grid
 
 def del_name_suffix(ds,suffix):
     """ remove a suffix from dimensions, coordinates and variables in the dataset """
@@ -287,6 +291,17 @@ def add_grid(model, gridname, grid_metrics=1, suffix=''):
     ds, grid = xgcm_grid(model, grid_metrics=grid_metrics)
     
     return ds, grid
+
+def remove_ghost_points(model, ds, xperiodic=False, yperiodic=False):
+    """
+    remove ghost points
+    """
+    ds = ds.isel(x=slice(1,-1),y=slice(1,-1))
+    if xperiodic:
+        ds = ds.isel(x_u=slice(0,-1))
+    if yperiodic:
+        ds = ds.isel(y_v=slice(0,-1))
+    return ds
 
 def xgcm_grid(model,grid_metrics=1):
         
@@ -894,14 +909,18 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     if not isinstance(ds, (xr.Dataset,xr.DataArray)):
         print('argument must be a xarray.DataArray or xarray.Dataset')
         return
-    if keep_complete_dim and keep_complete_dim != 'x' \
-                         and keep_complete_dim != 'y' \
-                         and keep_complete_dim != 's':
+    keep_complete_dim = list(keep_complete_dim) if not isinstance(keep_complete_dim,list) else keep_complete_dim
+    if not all(item in ['s','y','x'] for item in keep_complete_dim):
+    # if keep_complete_dim and keep_complete_dim != 'x' \
+    #                      and keep_complete_dim != 'y' \
+    #                      and keep_complete_dim != 's':
         print('keep_complete_dim must equal x or y or s')
         return
 
     # get horizontal dimensions names of the Dataset/DataArray
     dname = get_spatial_dims(ds)
+    # remove None values
+    dname = {k: v for k, v in dname.items() if v is not None}
     chunks_name = dname.copy()
     
     # get horizontal dimensions sizes of the Dataset/DataArray
@@ -914,7 +933,7 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
         
     if keep_complete_dim:
         # remove keep_complete_dim from the dimensions of the Dataset/DatAarray
-        del chunks_name[keep_complete_dim]
+        for d in keep_complete_dim: del chunks_name[d]
         
         # reduce chunks size  beginning by 's' then 'y' then 'x' if necessary
         for k in chunks_name.keys():
