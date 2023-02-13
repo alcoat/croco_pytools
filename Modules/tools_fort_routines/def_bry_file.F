@@ -1,6 +1,6 @@
       subroutine def_bry_file(fname, ncid, xi_rho,eta_rho,N,
      &                OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,
-     &                theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer)
+     &                theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer,ncsrc)
       implicit none
       character(len=*) fname
       integer  ncid, xi_rho,eta_rho,N
@@ -10,12 +10,12 @@
      &        r2d_NS(2), v2d_NS(2), r3d_NS(3), v3d_NS(3),
      &        vert_dim, time_dim, varid, ierr,
      &        old_fill_mode,lfname,itrc
-      integer :: ntrc,ipt_trc_len
-      character(len=4), dimension(ntrc) :: tracer
-
+      integer :: ntrc,ipt_trc_len,ncsrc,trc_in ,natts,lstr,i
+      character(len=20), dimension(ntrc) ::  tracer
+      character(len=16) :: str
       include "spval.h"
       include "netcdf.inc"
-      ipt_trc_len=4
+      ipt_trc_len=20
       call lenstr(fname,lfname)
       write(*,'(1x,3A)',advance='no') 'def_bry_file :: creating ''',
      &                            fname(1:lfname),  ''' ...'
@@ -93,24 +93,28 @@
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
         do itrc=1,ntrc/ipt_trc_len
-          if (trim(tracer(itrc)) == 'temp') then
-            ierr=nf_def_var(ncid, 'temp_west',nf_real, 3,r3d_NS,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                       FillValue)
-          elseif (trim(tracer(itrc)) == 'salt') then
-            ierr=nf_def_var(ncid, 'salt_west',nf_real, 3,r3d_NS,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                      FillValue)
-          else 
-           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit', 
-     &               '  def_bry_file and recompile.' 
-           stop 
+          ! Create tracer var          
+          ierr=nf_def_var(ncid, trim(tracer(itrc))/ /'_west',nf_real, 3,
+     &                    r3d_NS ,varid)
+          ! Check if data exists in prt
+          ierr=nf_inq_varid(ncsrc, trim(tracer(itrc)), trc_in)
+          if (ierr == nf_noerr) then
+            ierr=nf_inq_varnatts(ncsrc, trc_in, natts)
+            if (ierr == nf_noerr) then
+              do i=1,natts
+                ierr=nf_inq_attname(ncsrc, trc_in, i, str)
+                if (ierr == nf_noerr) then
+                  call lenstr(str,lstr)
+                  ierr=nf_copy_att(ncsrc, trc_in, str(1:lstr),
+     &                                     ncid, varid)
+                endif
+              enddo
+            endif
           endif
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
         enddo       
       endif
-          
 
       if (OBC_EAST) then
         ierr=nf_def_var(ncid, 'zeta_east',nf_real, 2,r2d_NS,varid)
@@ -138,21 +142,26 @@
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                   FillValue)
         do itrc=1,ntrc/ipt_trc_len
-          if ( trim(tracer(itrc)) == 'temp' ) then
-            ierr=nf_def_var(ncid, 'temp_east',nf_real, 3,r3d_NS,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                     FillValue)
-          elseif ( trim(tracer(itrc)) == 'salt' ) then 
-            ierr=nf_def_var(ncid, 'salt_east',nf_real, 3,r3d_NS,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                    FillValue)
-          else
-           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit', 
-     &                  ' def_bry_file and recompile.'
-            stop
+          ! Create tracer var          
+          ierr=nf_def_var(ncid, trim(tracer(itrc))/ /'_east', 
+     &                    nf_real,3,r3d_NS ,varid)
+          ! Check if data exists in prt
+          ierr=nf_inq_varid(ncsrc, trim(tracer(itrc)), trc_in)
+          if (ierr == nf_noerr) then
+            ierr=nf_inq_varnatts(ncsrc, trc_in, natts)
+            if (ierr == nf_noerr) then
+              do i=1,natts
+                ierr=nf_inq_attname(ncsrc, trc_in, i, str)
+                if (ierr == nf_noerr) then
+                  call lenstr(str,lstr)
+                  ierr=nf_copy_att(ncsrc, trc_in, str(1:lstr),
+     &                                     ncid, varid)
+                endif
+              enddo
+            endif
           endif
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
         enddo 
       endif
 
@@ -182,21 +191,26 @@
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
         do itrc=1,ntrc/ipt_trc_len
-          if ( trim(tracer(itrc)) == 'temp' ) then
-            ierr=nf_def_var(ncid, 'temp_south',nf_real,3,r3d_EW,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                      FillValue)
-          elseif ( trim(tracer(itrc)) == 'salt' ) then
-            ierr=nf_def_var(ncid, 'salt_south',nf_real,3,r3d_EW,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                      FillValue)
-          else
-           write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit',
-     &                  ' def_bry_file and recompile.'
-            stop
+          ! Create tracer var
+          ierr=nf_def_var(ncid, trim(tracer(itrc))/ /'_south', nf_real,
+     &                    3,r3d_EW ,varid)
+          ! Check if data exists in prt
+          ierr=nf_inq_varid(ncsrc, trim(tracer(itrc)), trc_in)
+          if (ierr == nf_noerr) then
+            ierr=nf_inq_varnatts(ncsrc, trc_in, natts)
+            if (ierr == nf_noerr) then
+              do i=1,natts
+                ierr=nf_inq_attname(ncsrc, trc_in, i, str)
+                if (ierr == nf_noerr) then
+                  call lenstr(str,lstr)
+                  ierr=nf_copy_att(ncsrc, trc_in, str(1:lstr),
+     &                                     ncid, varid)
+                endif
+              enddo
+            endif
           endif
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
         enddo
       endif
 
@@ -226,21 +240,26 @@
         ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
      &                                                    FillValue)
         do itrc=1,ntrc/ipt_trc_len
-          if ( trim(tracer(itrc)) == 'temp' ) then
-            ierr=nf_def_var(ncid, 'temp_north',nf_real,3,r3d_EW,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 7, 'Celsius')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                      FillValue)
-          elseif ( trim(tracer(itrc)) == 'salt' ) then
-            ierr=nf_def_var(ncid, 'salt_north',nf_real,3,r3d_EW,varid)
-            ierr=nf_put_att_text(ncid, varid, 'units', 3, 'PSU')
-            ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real, 1,
-     &                                                      FillValue)
-          else
-            write(*,*) 'No ',trim(tracer(itrc)),' defined. Please edit',
-     &                 ' def_bry_file and recompile.'
-            stop
+          ! Create tracer var
+          ierr=nf_def_var(ncid, trim(tracer(itrc))/ /'_north', nf_real,
+     &                    3,r3d_EW ,varid)
+          ! Check if data exists in prt
+          ierr=nf_inq_varid(ncsrc, trim(tracer(itrc)), trc_in)
+          if (ierr == nf_noerr) then
+            ierr=nf_inq_varnatts(ncsrc, trc_in, natts)
+            if (ierr == nf_noerr) then
+              do i=1,natts
+                ierr=nf_inq_attname(ncsrc, trc_in, i, str)
+                if (ierr == nf_noerr) then
+                  call lenstr(str,lstr)
+                  ierr=nf_copy_att(ncsrc, trc_in, str(1:lstr),
+     &                                     ncid, varid)
+                endif
+              enddo
+            endif
           endif
+          ierr=nf_put_att_real(ncid, varid, '_FillValue', nf_real,
+     &                                                  1, FillValue)
         enddo
       endif
       write(*,*) '...done.'

@@ -49,9 +49,13 @@ obc_cond='SWEN' #SWEN First letters of the boundaries that are opened.
 #--- END USER CHANGES -----------------------------------------------------
 
 if len(tracers)>0:
-    all_tracers = np.zeros((4,len(tracers) ), dtype='c')
+    all_tracers = np.zeros((20,len(tracers) ), dtype='c')
     for i in range(len(tracers)):
-        all_tracers[0:4,i]=tracers[i]
+        len_trac=len(tracers[i])
+        if len_trac>20:
+            print('Tracer character string must be smaller than 20.\nError with %s' %tracers[i])
+        all_tracers[0:len_trac,i]=tracers[i]
+        all_tracers[len_trac:,i]=' '
 else:
     all_tracers=[]
 

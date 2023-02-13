@@ -77,7 +77,7 @@ c--#define VERBOSE
       character(len=16) :: roms_init
       character(len=10) :: time_var_name
       integer :: ntrc,ipt_char_len
-      character(len=4), dimension(ntrc) :: tracer
+      character(len=20), dimension(ntrc) :: tracer
       real(kind=8) :: theta_s,theta_b,hc,hcp, xcmin,xcmax, cff,cff1,cff2
       real(kind=8), allocatable, dimension(:) :: Cs_w,Cs_r,Csp_w,Csp_r,
      &                                           srX,srY,sXY,sYX, kprnt
@@ -125,7 +125,7 @@ Cf2py intent(in) ntrc,chldgrd,theta_s,theta_b,hc,N,prntgrd,prnt_data,rec,tracer
 #endif
       roms_init='croco_chd_ini.nc';time_var_name='scrum_time'
       margn=8
-      ipt_char_len=4 ! nb of tracers char
+      ipt_char_len=20 ! nb of tracers char
       btm_slp=-1 ; btm_trc=+1
  
       call lenstr(chldgrd,lcgrd)
@@ -607,7 +607,7 @@ c**      stop !<-- to test initialization
       ierr=nf_create(roms_init, nf_64bit_offset, nctarg)
       if (ierr == nf_noerr) then
         call def_roms_file(ntrc,nctarg, roms_init, ncx,ncy,N,
-     &                     theta_s,theta_b, hc, Cs_w,Cs_r,tracer)
+     &            theta_s,theta_b, hc, Cs_w,Cs_r,tracer,ncsrc)
         ierr=nf_put_att_text(nctarg, nf_global, 'memo', 19,
      &                              'created by r2r_init')
         if (ierr == nf_noerr) then

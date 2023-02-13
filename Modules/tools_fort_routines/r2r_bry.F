@@ -59,7 +59,7 @@ c--#define VERBOSE
       character(len=180) :: time_units, str
       integer :: ntrc,ipt_trc_len
       character(len=4) :: WESN
-      character(len=4), dimension(ntrc):: tracer
+      character(len=20), dimension(ntrc):: tracer
       integer :: btm_slp ! no-slip=-1; +1 free; 0 natural
      &         , btm_trc ! +1 Neumann; 0 natural;
       logical :: OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH
@@ -157,7 +157,7 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
       btm_slp=-1 ; btm_trc=+1;margn=8 ! parameters
       roms_bry='croco_chd_bry.nc'
       time_var_name='scrum_time'
-      ipt_char_len=160;ipt_trc_len=4
+      ipt_char_len=160;ipt_trc_len=20
       ihis=1 ; rec=1; recout=0 ; !time_units='                  '
       OBC_WEST=.false. ; OBC_SOUTH=.false.
       OBC_EAST=.false. ; OBC_NORTH=.false.
@@ -1167,7 +1167,7 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
       if (ierr == nf_noerr) then
         call def_bry_file(roms_bry, nctarg, ncx,ncy,N,
      &         OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,
-     &        theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer)
+     &        theta_s, theta_b, hc, Cs_w,Cs_r,ntrc,tracer,ncsrc)
         ierr=nf_inq_varid(nctarg, 'bry_time', tvar_out)
         if (ierr /= nf_noerr) then
           write(*,*) '### ERROR 2: nf_inq_varid(. tvar_out .)'
