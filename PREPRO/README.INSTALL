@@ -1,0 +1,70 @@
+
+# Here we show the procedure to follow to run CROCO pre-processing tools in python.
+# In the make_grid tools there is a possibility to use a graphic interface (wxPython).
+# To  facilitate the installation of this package on any device we advice to use a conda
+#environement (what is describe in the following). Else you can check on the page how to 
+#install wxPython: https://wxpython.org/pages/downloads/
+
+# This conda env will use python3.9 version. Small updates should be needed for other versions.
+# The following instructions should allow scripts to run properly.
+
+#---------------------------------------------
+# Downloading conda and create an environement
+#---------------------------------------------
+#
+# To download conda you go here: https://www.anaconda.com/products/distribution
+#and execute the script to install conda. Once done you can create your own environement
+
+bash
+
+# Go in python_tools repository and install a new virtual env 
+conda env create -f requirements.yaml #It will create a conda env with python 3.9 version
+conda activate envcroco # By doing it you enter your environement
+
+#------------------------
+# Compiling fortran tools
+#------------------------
+#
+# Some python script are using fortran subroutines. Then to use those routines you will need
+# to compile them. Before compiling make sure that you ha the following
+#    (i)   Open MP-capable Fortran compiler, Ifort or Gfortran, may be others;
+#    (ii)  netCDF library capable of handling netCDF-4/hdf5 format;
+#    (iii) working "ncview" (optional, but very useful);
+
+# Main change should be done in Makedefs. 
+# You need to specify:
+#    (i)  F90 compiler (gfortran, ifort,...)
+#    (ii) netCDF include directory - NETCDFINC (usually given by nf-config --includedir)
+#    (iii) netCDF lib dir - NETCDFLIB (usually given by nf-config --flibs)
+#
+
+
+make
+
+# If compilation was sucessfull you can use python script.
+# Else refer to common errors part
+
+
+#--------------------
+# Common errors
+#--------------------
+#  Python
+#  ------
+#    - RuntimeError: Importing from wx backend after selecting qt4 backend!  -> in .bashrc export ETS_TOOLKIT="wx"
+#    - AttributeError: 'GeoAxes' object has no attribute '_autoscaleXon' -> use cartopy 0.21 or downgrade matplotlib 3.5.2
+#    - ModuleNotFoundError: No module named 'importlib.metadata' -> install importlib-metadata
+#    - ModuleNotFoundError: No module named 'importlib_resources' -> install importlib_resources
+#    - ImportError: ./Modules/tools_fort.cpython-36m-x86_64-linux-gnu.so: undefined symbol: **** \
+#      it fortran related error. Check next section
+#      
+#  Fortran
+#  -------
+#    - Using ifort you error can raise while compiling. In Module/Makefile try to add "--fcompiler=intelem" in FCFLAGS
+#    - ImportError means you have missing librairies. In your terminal do nf-config --flibs and check that you have
+#      -lnetcdff -lnetcdf -lhdf5 -lhdf5_fortran (eventually -lz for zlib).
+#    - Be sure of not having "-Wl,-Bsymbolic-functions -Wl" in your nf-config --flibs. It will creates error while compiling
+#    - If you manage to compile fortran tools but, when launching make_grid you have 
+#    	ImportError: undefined symbol: omp_get_thread_num_
+#    	Add, in Modules/Makefile:
+#    		FCFLAGS= --f90flags="-g -check all -CA -CB -CS -fopenmp" -lgomp
+######################################################################
