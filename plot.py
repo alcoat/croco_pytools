@@ -71,7 +71,8 @@ def array2cmap(X):
 
 
 def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False, 
-                cmap=None, figsize=(10,8), dpi=150, **kwargs):
+            coastline=True, plot_contour=False, levels=10,
+            cmap=None, figsize=(10,8), dpi=150, **kwargs):
     '''
     Plot an 2d xarray DataArray
     '''
@@ -102,19 +103,25 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
         # horizontal section
         coordx = coords['lon']
         coordy = coords['lat']
-        # prepare the plot
-        # First the Map Projection
-        projection = ccrs.Mercator()
-        # Specify the CRS (coordinate reference system)
-        crs = ccrs.PlateCarree()
         fig = plt.figure(figsize=figsize)
-        ax = plt.axes(projection = projection)
-        gl = ax.gridlines(crs=crs, draw_labels=True, linewidth=.6,
-                          color='gray', alpha=0.5, linestyle='dashed')
-        gl.top_labels = False
-        gl.right_labels = False 
-        ax.coastlines() 
-        da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, transform=crs, **kwargs) 
+        if coastline:
+            # prepare the plot
+            # First the Map Projection
+            projection = ccrs.Mercator()
+            # Specify the CRS (coordinate reference system)
+            crs = ccrs.PlateCarree()
+            ax = plt.axes(projection = projection)
+            gl = ax.gridlines(crs=crs, draw_labels=True, linewidth=.6,
+                              color='gray', alpha=0.5, linestyle='dashed')
+            gl.top_labels = False
+            gl.right_labels = False 
+            ax.coastlines() 
+            da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, transform=crs, **kwargs) 
+        else:
+            ax=plt.axes()
+            da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, **kwargs)
+            if plot_contour: da.plot.contour(x=coordx, y=coordy, ax=ax, levels=levels,
+                                             colors='grey')
     else:
         # vertical section
         if 'x' in dims.keys(): coordx = coords['lon']
@@ -122,6 +129,8 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
         coordy = coords['z']
         fig, ax = plt.subplots(figsize=figsize)
         da.plot(x=coordx, y=coordy, ax=ax, cmap=cmap, **kwargs) 
+        if plot_contour: da.plot.contour(x=coordx, y=coordy, ax=ax, 
+                                         levels=levels, colors='grey')
         ax.grid(color='gray', alpha=0.5, linestyle='dashed')
     
     # put the title
@@ -139,7 +148,8 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
 # -------------------------------- movies --------------------------------------
 
 def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),  
-                  date=None, dpi=150, fps=5, **kwargs):
+                  date=None, coastline=True, plot_contour=False, levels=10,
+                  dpi=150, fps=5, **kwargs):
 
     if fig_dir is None:
         try:
@@ -157,7 +167,9 @@ def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),
         delayed(plotfig)(da.isel(t=i), i, fig_dir=fig_dir, 
                          fig_suffix=fig_suffix, 
                          save=True, dpi=dpi, figsize=figsize, 
-                         date=date, **kwargs,
+                         date=date, 
+                         coastline=coastline, 
+                         plot_contour=plot_contour, levels=levels, **kwargs,
                          ) for i in range(da.t.size)
     ]
 
