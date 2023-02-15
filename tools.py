@@ -35,7 +35,8 @@ def dask_compute_batch(computations, client, batch_size=None):
 
         # compute batch size according to number of workers
         if batch_size is None:
-            batch_size = len(client.scheduler_info()["workers"])
+            # batch_size = len(client.scheduler_info()["workers"])
+            batch_size = sum(list(client.nthreads().values()))
         # find batch indices
         total_range = range(len(computations))
         splits = max(1, np.ceil(len(total_range)/batch_size))
@@ -48,7 +49,7 @@ def dask_compute_batch(computations, client, batch_size=None):
 
             # try to manually clean up memory
             # https://coiled.io/blog/tackling-unmanaged-memory-with-dask/
-            client.run(gc.collect)
+            # client.run(gc.collect)
             client.run(trim_memory)  # should not be done systematically
             outputs.append(out)
         return outputs

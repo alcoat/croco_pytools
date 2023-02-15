@@ -1,9 +1,16 @@
 import numpy as np
 import xarray as xr
 
-import gridop as gop
 from scipy.sparse import lil_matrix
+from pyamg import ruge_stuben_solver, solve
+from pyamg.krylov import bicgstab
+from pyamg.util.linalg import norm
 
+import xrft
+
+import gridop as gop
+
+###################################################
 
 # relative vorticity
 def relative_vorticity(model, ds=None, xgrid=None, u=None, v=None, f=None):
@@ -35,9 +42,10 @@ def relative_vorticity(model, ds=None, xgrid=None, u=None, v=None, f=None):
     
     xi = ((-xgrid.derivative(u, 'y') 
            + xgrid.derivative(v, 'x')
-          )/f).rename('vorticity')
-    return xi.rename('relvort')
+          )/f)
+    return xi.rename('vorticity')
 
+###################################################
 
 def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ijk'):
     """
@@ -157,6 +165,8 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
 
     return pv.squeeze().rename('pv')
 
+###################################################
+
 def dtempdz(model, ds=None, xgrid=None, temp=None, z=None):
     """
     Compute dT/dz at horizontal rho point/vertical w point
@@ -186,6 +196,8 @@ def dtempdz(model, ds=None, xgrid=None, temp=None, z=None):
     if 'lat' in temp.coords: dtempdz = dtempdz.assign_coords(coords={"lat":temp.lat})
     dtempdz = dtempdz.assign_coords(coords={"z_w":z_w})
     return dtempdz.rename('dtdz')
+
+###################################################
 
 def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     """
@@ -242,6 +254,8 @@ def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     Ri = Ri.assign_coords(coords={"z":z_w})
     return Ri.rename('Ri')
 
+###################################################
+
 def get_N2(model, ds=None, rho=None, z=None, rho0=None, g=None, xgrid=None):
     """ Compute square buoyancy frequency N2 
     ... doc to be improved
@@ -262,7 +276,6 @@ def get_N2(model, ds=None, rho=None, z=None, rho0=None, g=None, xgrid=None):
         except:
             print("rho not found in the dataset")
             return None
-    print(g)
     N2 = -g/rho0 * xgrid.diff(rho, 'z', boundary='fill', fill_value=np.NaN) \
             / xgrid.diff(z, 'z', boundary='fill', fill_value=np.NaN)
     # cannot find a solution with xgcm, weird
@@ -270,51 +283,119 @@ def get_N2(model, ds=None, rho=None, z=None, rho0=None, g=None, xgrid=None):
     N2 = N2.fillna(N2.shift(s_w=1))
     return N2.rename('N2')
 
-def get_streamfunction(model,pm,pn,pv,verbo=False):
+###################################################
+
+def poisson_matrix(pm,pn):    
+    """
+    Initialize the elliptic equation matrix (d_xx + d_yy)
+    Input :
+        - pm : (ndarray) 1/dx coefficents
+        - pn : (ndarray) 1/dy coefficents
+    Output:
+        return a compressed sparse matrix of the laplacian operator
+    """
+    # elliptic equation matrix:  d_xx + d_yy
+    [nx,ny] = pm.shape
+    
+    ndim = ny*nx
+    i_s  = ny
+    js  = 1
+    A=lil_matrix((ndim,ndim))
+    ############################
+    
+    for i in range(nx): 
+        for j in range(ny): 
+                idx = i*ny + j;
+                diag = 0.;
+                if j>0:
+                    dy2i = 0.5*(pn[i,j]+pn[i,j-1])*pn[i,j]
+                    A[idx,idx-js] = dy2i;
+                    diag -= dy2i;
+                if i>0:
+                    dx2i = 0.5*(pm[i,j]+pm[i-1,j])*pm[i,j]
+                    A[idx,idx-i_s] = dx2i;
+                    diag -= dx2i;
+                if i<nx-1:
+                    dx2i = 0.5*(pm[i,j]+pm[i+1,j])*pm[i,j]
+                    A[idx,idx+i_s] = dx2i;
+                    diag -= dx2i;
+                if j<ny-1:
+                    dy2i = 0.5*(pn[i,j]+pn[i,j+1])*pn[i,j]
+                    A[idx,idx+js] = dy2i;
+                    diag -= dy2i;
+                A[idx,idx] = diag
+        
+    return A.tocsr()
+
+###################################################
+
+def get_streamfunction(model, pm, pn, pv,
+                       tol=1e-5, solver='classical', verb=False):
     """
     Compute the stream function from the relative vorticity
     Invert the laplacian to solve the poisson equation Ax=b
     A is the horizontal laplacian, b is the vorticity
     Input:
-        - pm : (DataArray) 1/dx metric
-        - pn : (DataArray) 1/dy metric
-        - pv : (DataArray) relative vorticity
-        - verbo : (Boolean) verbose mode
+        - pm : (DataArray) 1/dx metric at f grid point
+        - pn : (DataArray) 1/dy metric at f grid point
+        - pv : (DataArray) relative vorticity at f grid point
+        - tol : (Float) Tolerance for stopping criteria
+        - solver : (String) type of solver
+            'classical' : multilevel solver using Classical AMG (Ruge-Stuben AMG)
+            ' bicgstab' : Biconjugate Gradient Algorithm with Stabilization
+        - verb : (Boolean) verbose mode
     Output:
-        (DataArray) the computed streamfunction 
+        (DataArray) the computed streamfunction at f grid point
     """
 
     if np.any(np.isnan(pv)): 
         print("Can't inverse the laplacian, non compact domain, pv contains nan values")
         return None
 
+    # pm pn at the vorticity f grid point
+    pm = pm.fillna(0)
+    pn = pn.fillna(0)
+    
     #######################################################
     #Create matrix A
     #######################################################
-    if verbo: print('creating matrix A')
-    A = gop.poisson_matrix(pm.values,pn.values)
+    
+    if verb: print('creating matrix A')
+    A = poisson_matrix(pm.values,pn.values)
 
     #######################################################
     #Solve matrix A
-    A = A.tocsr()
     #######################################################
 
-    if verbo: print('creating matrix b')
+    if verb: print('creating matrix b')
     b = -1. * pv.values.flatten() # right hand side
-    ml = ruge_stuben_solver(A)                # construct the multigrid hierarchy
-    if verbo: print(ml)                             # print hierarchy information
-    x = ml.solve(b, tol=1e-8)                       # solve Ax=b to a tolerance of 1e-8     
-    #x = solve(A,b,verb=False,tol=1e-8)
-
-    if verbo: print("residual: ", np.linalg.norm(b-A*x))          # compute norm of residual vector
-
+    
+    if solver=='classical':
+        # multilevel solver using Classical AMG (Ruge-Stuben AMG)
+        ml = ruge_stuben_solver(A)                # construct the multigrid hierarchy
+        if verb: print("ml=",ml)                       # print hierarchy information
+        x = solve(A,b,verb=verb,tol=tol)         # solve Ax=b  
+    else:
+        # Biconjugate Gradient Algorithm with Stabilization
+        (x,flag) = bicgstab(A,b, tol=tol)
+        
+    if verb: print(f'residual: {norm(b - A*x):.6}') # compute norm of residual vector
+    
+    dims = gop.get_spatial_dims(pv)
+    coords = gop.get_spatial_coords(pv)
     chi = xr.DataArray(
-        data=x.reshape(pm.shape),
-        dims=["y_rho", "x_rho"],
-        coords={'nav_lon_rho':pv.nav_lon_rho, 'nav_lat_rho':pv.nav_lat_rho}
+        data=x.reshape(pv.shape),
+        dims=[dims['y'], dims['x']],
+        coords={coords['lon']:pv[coords['lon']], coords['lat']:pv[coords['lat']]}
         )
+    # mask_f = gop.x2f(model.ds,model.ds.mask,model.xgrid)
+    # chi = chi * mask_f
+    dx = 1./pm.where(pm>0,np.nan)
+    dy = 1./pn.where(pm>0,np.nan)
+    chi = chi / (dx*dy).sum().values
     return chi.rename('streamfct')
 
+###################################################
 
 def get_p(model, rho, z_w, z_r, ds=None, g=None, rho0=None, xgrid=None):
     """ 
@@ -395,3 +476,74 @@ def get_p(model, rho, z_w, z_r, ds=None, g=None, rho0=None, xgrid=None):
         )
 
     return P.rename('P')
+
+###################################################
+
+def power_spectrum(da, dims, true_phase=True, true_amplitude=True, 
+                   window=None, detrend=None, spacing_tol=0.001):
+    """
+    Compute the spectrum of the dataarray over the dimensions dims. By default, the signal is supposed 
+    to be periodic through all these dimensions.
+    See the documentation https://xrft.readthedocs.io/en/latest/api.html for more details
+    
+    Input arguments:
+        da : (DataArray) input data 
+        dims : (str or list of str) dimensions of da on which to take the FFT
+        true_phase : (Boolean) If set to False, standard fft algorithm is applied on signal without 
+                     consideration of coordinates
+        true_amplitude : (Boolean) If set to True, output is multiplied by the spacing of the transformed 
+                        variables to match theoretical FT amplitude
+        window : (str) Whether to apply a window to the data before the Fourier transform is taken. 
+                 A window will be applied to all the dimensions in dim. Please follow scipy.signal.windows’ 
+                 naming convention (ex: 'hann', 'gaussian')
+        detrend : (str: 'constant', 'linear' or None) 
+                  If constant, the mean across the transform dimensions will be subtracted before 
+                  calculating the Fourier transform (FT). If linear, the linear least-square fit will be 
+                  subtracted before the FT
+    
+    Returns the power spectrum of da as a DataArray. The dimensions of the FFT are modified in frequency ('y' -> 'freq_y')
+    """
+    
+    dimcoord={'x_u':'lon_u', 'x':'lon', 'y_v':'lat_v', 'y':'lat', 's':'z', 's_w':'z_w', 't':'t'}
+
+    # verify that dims is a list
+    if not isinstance(dims,list): dims = [dims]
+    
+    # verify that every dimension in dims belong to da
+    if not all([d in da.dims for d  in dims]):
+        print('There are missing dimensions in the input DataArray')
+        return None
+
+    # liste des coordonnées de da
+    dacoords = [c for c in da.coords]
+    
+    # retrieve coordinates of da corresponding to dims
+    coords={d:da[v].reset_coords(drop=True) for d in dims for v in dacoords if v.startswith(dimcoord[d])}
+      
+    # makes the coordinates of da become 1D
+    # mean of the coordinates over all the dimensions but one (t(t), lon(x), lat(y)...)
+    coords1D={}
+    for k,v in coords.items():
+        if len(v.shape)>1:
+            maindim = [d for d in v.dims if d.startswith(k)]
+            removedims = list(set(v.dims) - set(maindim))
+            v = v.mean(dim=removedims)         
+        coords1D[k] = v
+        
+    # remove all the coordinates from da
+    newda = da.reset_coords(drop=True)
+    
+    # assign 1D coordinates to newda
+    for d in dims:
+        newda = newda.assign_coords({d:coords1D[d]})
+        
+    # Compute FFT
+    Fda = xrft.xrft.fft(newda, dim=dims,  
+                        detrend=detrend, window=window, 
+                        true_phase=true_phase, true_amplitude=true_amplitude,
+                        spacing_tol=spacing_tol)
+    
+    # return power spectra
+    return abs(Fda*Fda.conj())
+
+###################################################

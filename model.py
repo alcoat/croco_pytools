@@ -80,6 +80,8 @@ class Model:
                 "eta_v"        : "y_v",               # y dimension at v points
                 "x_v"          : "x",                 # x dimension at v points
                 "y_v"          : "y_v",               # y dimension at v points
+                "x_w"          : "x",                 # x dimension at mass points
+                "y_w"          : "y",                 # y dimension at mass points
                 "s_rho"        : "s",                 # sigma dimension at rho level
                 "s_w"          : "s_w",               # sigma dimension at w level
             }
@@ -145,6 +147,8 @@ class Model:
                 "eta_v"        : "y_v",               # y dimension at v points
                 "x_v"          : "x",                 # x dimension at v points
                 "y_v"          : "y_v",               # y dimension at v points
+                "x_w"          : "x",                 # x dimension at mass points
+                "y_w"          : "y",                 # y dimension at mass points
                 "s_rho"        : "s",                 # sigma dimension at rho level
                 "s_w"          : "s_w",               # sigma dimension at w level
             }

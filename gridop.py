@@ -73,7 +73,6 @@ def open_files(model, gridname, filenames,
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
                        xperiodic=xperiodic, yperiodic=yperiodic)
-    # ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
@@ -132,8 +131,7 @@ def open_catalog(model, gridname, catalog, source=None,
     
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
-                        xperiodic=xperiodix, yperiodic=yperiodic)
-    # ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+                        xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
