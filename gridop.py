@@ -14,7 +14,8 @@ from math import radians, cos, sin, asin, sqrt
 def open_files(model, gridname, filenames, 
                grid_metrics=1,
                drop_variables=[], chunks={'t':1},
-               suffix='',
+               suffix='', 
+               remove_ghost_pts=True,
                xperiodic=False,
                yperiodic=False,
                verbose=False
@@ -72,14 +73,15 @@ def open_files(model, gridname, filenames,
     
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
-                       xperiodic=xperiodic, yperiodic=yperiodic)
+                        remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
 def open_catalog(model, gridname, catalog, source=None,
                  grid_metrics=1,
                  chunks={},
-                 suffix='',
+                 suffix='', 
+                 remove_ghost_pts=True,
                  xperiodic=False,
                  yperiodic=False,
                  verbose=False,
@@ -131,7 +133,7 @@ def open_catalog(model, gridname, catalog, source=None,
     
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
-                        xperiodic=xperiodic, yperiodic=yperiodic)
+                        remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
@@ -227,7 +229,8 @@ def get_cs(model, ds, gd, vgrid):
                *(np.tanh((sc+0.5)*theta_s)/np.tanh(0.5*theta_s)-1.)
     return cs
 
-def add_grid(model, gridname, grid_metrics=1, suffix='', xperiodic=False, yperiodic=False):
+def add_grid(model, gridname, grid_metrics=1, suffix='', remove_ghost_pts=True,
+             xperiodic=False, yperiodic=False):
         
     # open grid file
     try : 
@@ -281,15 +284,14 @@ def add_grid(model, gridname, grid_metrics=1, suffix='', xperiodic=False, yperio
     if find_var(model,'g',ds,gd) is not None: ds['g'] = find_var(model,'g',ds,gd)
     
     
-    coords = [c for c in ds.coords if c not in ['t','s','s_w']]
+    # coords = [c for c in ds.coords if c not in ['t','s','s_w']]
+    coords = [c for c in ds.coords if c in ['t','s','s_w','lat','lon']]
     ds = ds.reset_coords()
-    if 's' in ds.dims:
-        ds = ds.set_coords(['t', 's', 's_w', 'lat', 'lon'])
-    else:
-        ds = ds.set_coords(['t', 'lat', 'lon'])
+    ds = ds.set_coords(coords)
         
     # remove ghost points
-    ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+    if remove_ghost_pts:
+        ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds
     
     # On crée la grille xgcm
@@ -312,16 +314,20 @@ def remove_ghost_points(model, ds, xperiodic=False, yperiodic=False):
 def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         
         # Create xgcm grid without metrics
-        if xperiodic:
-            coords={'x': {'center':'x', 'left':'x_u'}}
-        else:
-            coords={'x': {'center':'x', 'outer':'x_u'}}
-        if yperiodic:
-            coords.update({'y': {'center':'y', 'left':'y_v'}} )
-        else:
-            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
+        coords={}
+        if all(d in model.ds.dims for d in ['x','x_u']):
+            if xperiodic:
+                coords.update({'x': {'center':'x', 'left':'x_u'}})
+            else:
+                coords.update({'x': {'center':'x', 'outer':'x_u'}})
+        if all(d in model.ds.dims for d in ['y','y_v']):
+            if yperiodic:
+                coords.update({'y': {'center':'y', 'left':'y_v'}} )
+            else:
+                coords.update({'y': {'center':'y', 'outer':'y_v'}} )
         if 's' in model.ds.dims:
             coords.update({'z': {'center':'s', 'outer':'s_w'}})
+            
         grid = Grid(model.ds, 
                   coords=coords,
                   periodic=False,
@@ -334,12 +340,12 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         # compute horizontal coordinates
 
         ds = model.ds
-        if 'lon_u' not in ds: ds['lon_u'] = grid.interp(ds.lon,'x')
-        if 'lat_u' not in ds: ds['lat_u'] = grid.interp(ds.lat,'x')
-        if 'lon_v' not in ds: ds['lon_v'] = grid.interp(ds.lon,'y')
-        if 'lat_v' not in ds: ds['lat_v'] = grid.interp(ds.lat,'y')
-        if 'lon_f' not in ds: ds['lon_f'] = grid.interp(ds.lon_v,'x')
-        if 'lat_f' not in ds: ds['lat_f'] = grid.interp(ds.lat_u,'y')
+        if 'lon_u' not in ds and 'x_u' in ds.dims: ds['lon_u'] = grid.interp(ds.lon,'x')
+        if 'lat_u' not in ds and 'y'   in ds.dims: ds['lat_u'] = grid.interp(ds.lat,'x')
+        if 'lon_v' not in ds and 'x'   in ds.dims: ds['lon_v'] = grid.interp(ds.lon,'y')
+        if 'lat_v' not in ds and 'y_v' in ds.dims: ds['lat_v'] = grid.interp(ds.lat,'y')
+        if 'lon_f' not in ds and 'x_u' in ds.dims: ds['lon_f'] = grid.interp(ds.lon_v,'x')
+        if 'lat_f' not in ds and 'y_v' in ds.dims: ds['lat_f'] = grid.interp(ds.lat_u,'y')
         _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
         ds = ds.set_coords(_coords)
         
@@ -367,18 +373,19 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         ds['rAu'] = ds.dx_v * ds.dy_v
         ds['rAv'] = ds.dx_u * ds.dy_u
         ds['rAf'] = ds.dx * ds.dy
-
         
-        # create new xgcmgrid with vertical metrics
-#         coords={'x': {'center':'x', 'inner':'x_u'}, 
-#                 'y': {'center':'y', 'inner':'y_v'}, 
-#                 'z': {'center':'s', 'outer':'s_w'}}
-        
-        metrics = {
-               ('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi'], # X distances
-               ('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi'], # Y distances
-               ('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf'] # Areas
-              }
+        metrics={}    
+        if all(d in model.ds.dims for d in ['x','x_u']):
+            metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
+        if all(d in model.ds.dims for d in ['y','y_v']):
+            metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
+        if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
+            metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
+        # metrics = {
+        #        ('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi'], # X distances
+        #        ('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi'], # Y distances
+        #        ('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf'] # Areas
+        #       }
         
         if grid_metrics==1:
             # generate xgcm grid
@@ -475,8 +482,17 @@ def adjust_grid(model, ds):
 def get_spatial_dims(v):
     """ Return an ordered dict of spatial dimensions in the s/z, y, x order
     """
-    dims = OrderedDict( (d, next((x for x in v.dims if x[0]==d), None))
+    if isinstance(v, xr.DataArray):
+        dims = OrderedDict( (d, next((x for x in v.dims if x[0]==d), None))
                         for d in ['s','y','x'] )
+    elif isinstance(v, xr.Dataset):
+        # dims = OrderedDict( (d, next((x for x in v.dims if x==d), None))
+        dims = OrderedDict( (d, [x for x in v.dims if x[0]==d])
+                        for d in ['s','y','x'] ) 
+        # convert empty list to None
+        dims = {k: None if not d else d for k, d in dims.items() }
+    else:
+        print('get_spatial_dims: ERROR!!! the argument must be a DataArray or a Dataset')
     return dims
 
 
@@ -644,7 +660,7 @@ def x2x(ds,v, grid, target):
     elif target == 'w':
         return x2w(ds,v, grid)
     elif target in ['psi', 'p', 'f']:
-        return x2psi(ds,v, grid)
+        return x2f(ds,v, grid)
 
 
 
@@ -652,7 +668,7 @@ def x2x(ds,v, grid, target):
 def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
           hgrid='r', vtransform=2):
     ''' Compute vertical coordinates
-        Spatial dimensions are placed last, in the order: s_rho/s_w, y, x
+        Spatial dimensions are placed last, in the order: s/s_w, y, x
 
         Parameters
         ----------
@@ -666,9 +682,9 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
         h: xarray.DataArray, optional
             Water depth, searche depth in grid if not provided
         vgrid: str, optional
-            Vertical grid, 'r'/'rho' or 'w'. Default is 'rho'
+            Vertical grid, 'r'/'rho' or 'w'. Default is 'r'
         hgrid: str, optional
-            Any horizontal grid: 'r'/'rho', 'u', 'v'. Default is 'rho'
+            Any horizontal grid: 'r'/'rho', 'u', 'v', 'f'. Default is 'r'
         vtransform: int, str, optional
             croco vertical transform employed in the simulation.
             1="old": z = z0 + (1+z0/_h) * _z_sfc  with  z0 = hc*sc + (_h-hc)*cs
@@ -682,7 +698,7 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     z_sfc = 0*ds.h if z_sfc is None else z_sfc
 
     # switch horizontal grid if needed
-    if hgrid in ['u','v']:
+    if hgrid in ['u','v','f']:
         h = x2x(ds, h, xgrid, hgrid)
         z_sfc = x2x(ds, z_sfc, xgrid, hgrid)
 
@@ -690,7 +706,7 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     h, z_sfc  = xr.align(h, z_sfc, join='inner')
 
     if vgrid in ['r', 'rho']:
-        vgrid = 'rho'
+        vgrid = 'r'
         sc = ds['sc_r']
         cs = ds['Cs_r']
     else:
@@ -710,9 +726,10 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     sdims = list(get_spatial_dims(z).values())
     sdims = tuple(filter(None,sdims)) # delete None values
     reordered_dims = tuple(d for d in z.dims if d not in sdims) + sdims
-    z = z.transpose(*reordered_dims, transpose_coords=True)
-
-    return z.fillna(0.).rename('z_'+vgrid)
+    z = z.transpose(*reordered_dims, transpose_coords=True).rename('z_'+hgrid)
+    z.name = z.name.replace('z_r','z_'+vgrid)
+    
+    return z.fillna(0.) #.rename('z_'+hgrid).replace('z_r','z_'+vgrid)
 
 
 
@@ -727,17 +744,17 @@ def rotuv(model, ds=None, xgrid=None, u=None, v=None, angle=None):
     ds = model.ds if ds is None else ds
         
     u = ds.u if u is None else u
-    hgrid = get_grid_point(u)
+    hgrid,vgrid = get_grid_point(u)
     if hgrid != 'r': u = x2rho(ds, u, xgrid)
     #u = ds_hor_chunk(u, wanted_chunk=100)
         
     v = ds.v if v is None else v
-    hgrid = get_grid_point(v)
+    hgrid,vgrid = get_grid_point(v)
     if hgrid != 'r': v = x2rho(ds, v, xgrid)
     #v = ds_hor_chunk(v, wanted_chunk=100)
         
     angle = ds.angle if angle is None else angle
-    hgrid = get_grid_point(angle)
+    hgrid,vgrid = get_grid_point(angle)
     if hgrid != 'r': angle = x2rho(ds, angle, xgrid)
     
     cosang = np.cos(angle)
@@ -766,19 +783,22 @@ def rotuv(model, ds=None, xgrid=None, u=None, v=None, angle=None):
     
 def get_grid_point(var):
     dims = var.dims
+    # horizontal point
+    hpoint='r'
     if "x_u" in dims:
-        if "y_rho" in dims:
-            return 'u'
+        if "y" in dims:
+            hpoint='u'
         else:
-            return 'f'
+            hpoint='f'
     elif "y_v" in dims:
-        return 'v'
+        hpoint='v'
+    if 's' in dims:
+        vpoint='r'
     else:
-        if 's_rho' in dims:
-            return 'r'
-        else:
-            return 'w'
+        vpoint='w'
+    return hpoint,vpoint
         
+    
 def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, depth=None):
     """
     #
@@ -833,7 +853,7 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
     if dims['s'] is not None and coords['z'] is None: 
         var = var.assign_coords(coords={'z':z})
         coords = get_spatial_coords(var)
-    hgrid = get_grid_point(var)
+    # hgrid,vgrid = get_grid_point(var)
 
     if longitude is not None:
         axe = 'x'
@@ -856,7 +876,7 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
 
     # Recursively loop over time if needed
     if len(var.squeeze().dims) == 4:
-        vnew = [slices(model, ds, var.isel(t=t), z.isel(t=t),
+        vnew = [slices(model, var.isel(t=t), z.isel(t=t), ds=ds, xgrid=xgrid,
                       longitude=longitude, latitude=latitude, depth=depth)
                       for t in range(len(var.t))]
         vnew = xr.concat(vnew, dim='t')
@@ -908,7 +928,7 @@ def haversine(lon1, lat1, lon2, lat2):
 
 def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     """
-    Rechunk Dataset or DataArray such as each partition size is about 100Mb
+    Rechunk Dataset or DataArray such as each partition size is about 150Mb
     Input:
         - ds : (Dataset or DataArray) object to rechunk
         - keep_complete_dim : (character) Horizontal axe to keep with no chunk ('x','y','s')
@@ -921,13 +941,11 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     if not isinstance(ds, (xr.Dataset,xr.DataArray)):
         print('argument must be a xarray.DataArray or xarray.Dataset')
         return
-    keep_complete_dim = list(keep_complete_dim) if not isinstance(keep_complete_dim,list) else keep_complete_dim
-    if not all(item in ['s','y','x'] for item in keep_complete_dim):
-    # if keep_complete_dim and keep_complete_dim != 'x' \
-    #                      and keep_complete_dim != 'y' \
-    #                      and keep_complete_dim != 's':
-        print('keep_complete_dim must equal x or y or s')
-        return
+    if keep_complete_dim is not None:
+        keep_complete_dim = list(keep_complete_dim) if not isinstance(keep_complete_dim,list) else keep_complete_dim
+        if not all(item in ['s','y','x'] for item in keep_complete_dim):
+            print('keep_complete_dim must equal x or y or s')
+            return
 
     # get horizontal dimensions names of the Dataset/DataArray
     dname = get_spatial_dims(ds)
@@ -935,10 +953,13 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     dname = {k: v for k, v in dname.items() if v is not None}
     chunks_name = dname.copy()
     
-    # get horizontal dimensions sizes of the Dataset/DataArray
+    # get max dimensions sizes of the Dataset/DataArray
     chunks_size={}
     for k,v in chunks_name.items():
-        chunks_size[k] = ds.sizes[v]
+        if isinstance(v,list):       # for a dataset
+            chunks_size[k] = max([ds.sizes[d] for d in v])
+        else:
+            chunks_size[k] = ds.sizes[v]
 
     # always chunk in time
     if 't' in ds.dims: chunks_size['t'] = 1
@@ -947,29 +968,20 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
         # remove keep_complete_dim from the dimensions of the Dataset/DatAarray
         for d in keep_complete_dim: del chunks_name[d]
         
-        # reduce chunks size  beginning by 's' then 'y' then 'x' if necessary
-        for k in chunks_name.keys():
-            for d in range(chunks_size[k],0,-1):
-                chunk_size = (chunks_size['x']*chunks_size['y']*chunks_size['s']*4 / 1.e6)        
-                if chunk_size > wanted_chunk:
-                    chunks_size[k] = d
-                else:
-                    break
+    # reduce chunks size  beginning by 's' then 'y' then 'x' if necessary
+    for k in chunks_name.keys():
+        for d in range(chunks_size[k],0,-1):
+            # chunk_size = (chunks_size['x']*chunks_size['y']*chunks_size['s']*4 / 1.e6)
+            chunk_size = 4 / 1.e6
+            for chunk in chunks_size.values():
+                chunk_size = chunk_size*chunk
             if chunk_size > wanted_chunk:
+                chunks_size[k] = d
+            else:
                 break
-    else : 
-        
-        # reduce chunks size  beginning by 's' then 'y' then 'x' if necessary
-        for k in chunks_name.keys():
-            for d in range(chunks_size[k],0,-1):
-                chunk_size = (chunks_size['x']*chunks_size['y']*chunks_size['s']*4 / 1.e6)        
-                if chunk_size > wanted_chunk:
-                    chunks_size[k] = d
-                else:
-                    break
-            if chunk_size > wanted_chunk:
-                break
-            
+        if chunk_size > wanted_chunk:
+            break
+
     if isinstance(ds,xr.Dataset):
         # set chunk for all the dimensions of the dataset (ie : x and x_u)
         for c in list(itertools.product(dname.keys(), ds.dims.keys())):
@@ -982,5 +994,4 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
 
         
     return ds.chunk(chunks_size)
-
 
