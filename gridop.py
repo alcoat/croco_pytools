@@ -415,11 +415,11 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
 
         # add vertical metrics for u, v, rho and psi points
         if 'z' in [v for v in ds.coords]:
-            ds['dz'] = grid.diff(ds.z,'z')
-            ds['dz_w'] = grid.diff(ds.z_w,'z')
-            ds['dz_u'] = grid.diff(ds.z_u,'z')
-            ds['dz_v'] = grid.diff(ds.z_v,'z')
-            ds['dz_f'] = grid.diff(ds.z_f,'z')
+            ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
+            ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
+            ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
+            ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
+            ds['dz_f'] = grid.interp(grid.diff(ds.z_f,'z'),'z')
             
         # add coords and metrics for xgcm for the vertical direction
         if 'z' in ds:
@@ -438,6 +438,99 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
 
         return ds, grid
 
+def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
+    
+    """
+    Create the xgcm grid without computing any metrics. Just use those which are already 
+    in the dataset.
+    Input:
+        ds: (Xarray Dataset) the dataset to create the xgcm grid
+        grid_metrics: (integer) 0:no metrics, 1:horizontal metrics, 2:hor + vert metrics
+        xperiodic: True if ds periodic in x
+        yperiodic: True if ds periodic in y
+        
+    Return:
+        grid: the xgcm grid
+        
+    """
+    
+    # Create xgcm grid without metrics
+    coords={}
+    if all(d in ds.dims for d in ['x','x_u']):
+        if xperiodic:
+            coords.update({'x': {'center':'x', 'left':'x_u'}})
+        else:
+            coords.update({'x': {'center':'x', 'outer':'x_u'}})
+    if all(d in ds.dims for d in ['y','y_v']):
+        if yperiodic:
+            coords.update({'y': {'center':'y', 'left':'y_v'}} )
+        else:
+            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
+    if all(d in ds.dims for d in ['s','s_w']):
+        coords.update({'z': {'center':'s', 'outer':'s_w'}})
+        
+    grid = Grid(ds, 
+              coords=coords,
+              periodic=False,
+              boundary='extend')
+
+    if grid_metrics==0: return grid
+
+    # set all lon/lat variables as coordinates
+    _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
+    ds = ds.set_coords(_coords)
+             
+    # set horizontal metrics
+    # move horizontal metrics from global attributes to variables
+    attrs = [k for k in ds.attrs.keys() if k.startswith(('dx','dy','rA'))]
+    if attrs is not None:
+        for k in attrs: ds[k] = ds.attrs[k]
+    metrics={}   
+    # add dx metrics
+    if all(d in ds.dims for d in ['x','x_u']):
+        dx = [v for v in ds.data_vars if v in ['dx','dx_u','dx_v','dx_psi']]
+        metrics.update({('x',): dx})
+    # add dy metrics
+    if all(d in ds.dims for d in ['y','y_v']):
+        dy = [v for v in ds.data_vars if v in ['dy','dy_u','dy_v','dy_psi']]
+        metrics.update({('y',): dy})
+    # add area metrics
+    if all(d in ds.dims for d in ['x','x_u','y','y_v']):        
+        rA = [v for v in ds.data_vars if v in ['rAr','rAu','rAv','rAf']]
+        metrics.update({('x', 'y'): rA})
+    
+    if grid_metrics==1:
+        # generate xgcm grid
+        grid = Grid(ds,
+                    coords=coords,
+                    periodic=False,
+                    metrics=metrics,
+                    boundary='extend')
+        return grid
+
+    # Set z variables as coordinates
+    _coords = [d for d in ds.data_vars.keys() if d in ['z','z_w','z_u','z_v','z_f']]
+    ds = ds.set_coords(_coords)
+
+    # add vertical metrics
+    # move vertical metrics from global attributes to variables
+    attrs = [k for k in ds.attrs.keys() if k.startswith(('dz'))]
+    if attrs is not None:
+        for k in attrs: ds[k] = ds.attrs[k]
+    # add dz metrics
+    if all(d in ds.dims for d in ['s','s_w']):        
+        dz = [v for v in ds.data_vars if v in ['dz', 'dz_u', 'dz_v', 'dz_f', 'dz_w']]
+        metrics.update({('z',): dz})
+    
+    # generate xgcm grid
+    grid = Grid(ds,
+                coords=coords,
+                periodic=False,
+                metrics=metrics,
+                boundary='extend')
+
+    return grid
+    
 def dll_dist(dlon, dlat, lon, lat):
     """
     Converts lat/lon differentials into distances in meters
@@ -505,8 +598,12 @@ def get_spatial_coords(v):
         if c is not None and v.coords[c].size==1: coords[k]= None
     return coords
 
-
-
+def reorder_dims(da):    
+    # reorder spatial dimensions and place them last
+    sdims = list(get_spatial_dims(da).values())
+    sdims = tuple(filter(None,sdims)) # delete None values
+    reordered_dims = tuple(d for d in da.dims if d not in sdims) + sdims
+    return da.transpose(*reordered_dims, transpose_coords=True)
 
 def x2rho(ds,v, grid):
     """ Interpolate from any grid to rho grid
@@ -519,17 +616,17 @@ def x2rho(ds,v, grid):
     if coords['z']: zout = v[coords['z']].copy()
     if dims['x'] == 'x_u' and v.x_u.size>1:
         vout = grid.interp(vout, 'x')
-        if coords['lon']: lonout = grid.interp(lonout, 'x')
-        if coords['lat']: latout = grid.interp(latout, 'x')
-        if coords['z']: zout = grid.interp(zout, 'x')
+        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
+        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
+        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
     if dims['y'] == 'y_v' and v.y_v.size>1:
         vout = grid.interp(vout, 'y')
-        if coords['lon']: lonout = grid.interp(lonout, 'y')
-        if coords['lat']: latout = grid.interp(latout, 'y')
-        if coords['z']: zout = grid.interp(zout, 'y')
+        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
+        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
+        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
     if dims['s'] == 's_w' and v.s_w.size>1:
         vout = grid.interp(vout, 'z')
-        if coords['z']: zout = grid.interp(zout, 'z')
+        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
     # assign coordinates
     if coords['lon']: vout = vout.assign_coords(coords={'lon':lonout})
     if coords['lat']: vout = vout.assign_coords(coords={'lat':latout})
@@ -548,17 +645,17 @@ def x2u(ds,v, grid):
     if coords['z']: zout = v[coords['z']].copy()
     if dims['x'] == 'x' and v.x.size>1:
         vout = grid.interp(vout, 'x')
-        if coords['lon']: lonout = grid.interp(lonout, 'x')
-        if coords['lat']: latout = grid.interp(latout, 'x')
-        if coords['z']: zout = grid.interp(zout, 'x')
+        if coords['lon'] and 'x' in lonout.dims: lonout = grid.interp(lonout, 'x')
+        if coords['lat'] and 'x' in latout.dims: latout = grid.interp(latout, 'x')
+        if coords['z'] and 'x' in zout.dims: zout = grid.interp(zout, 'x')
     if dims['y'] == 'y_v' and v.y_v.size>1:
         vout = grid.interp(vout, 'y')
-        if coords['lon']: lonout = grid.interp(lonout, 'y')
-        if coords['lat']: latout = grid.interp(latout, 'y')
-        if coords['z']: zout = grid.interp(zout, 'y')
+        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
+        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
+        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
     if dims['s'] == 's_w' and v.s_w.size>1:
         vout = grid.interp(vout, 'z')
-        if coords['z']: zout = grid.interp(zout, 'z')
+        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
     # assign coordinates
     if coords['lon']: vout = vout.assign_coords(coords={'lon_u':lonout})
     if coords['lat']: vout = vout.assign_coords(coords={'lat_u':latout})
@@ -576,17 +673,17 @@ def x2v(ds,v, grid):
     if coords['z']: zout = v[coords['z']].copy()
     if dims['x'] == 'x_u' and v.x_u.size>1:
         vout = grid.interp(vout, 'x')
-        if coords['lon']: lonout = grid.interp(lonout, 'x')
-        if coords['lat']: latout = grid.interp(latout, 'x')
-        if coords['z']: zout = grid.interp(zout, 'x')
+        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
+        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
+        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
     if dims['y'] == 'y' and v.y.size>1:
         vout = grid.interp(vout, 'y')
-        if coords['lon']: lonout = grid.interp(lonout, 'y')
-        if coords['lat']: latout = grid.interp(latout, 'y')
-        if coords['z']: zout = grid.interp(zout, 'y')
+        if coords['lon'] and 'y' in lonout.dims: lonout = grid.interp(lonout, 'y')
+        if coords['lat'] and 'y' in latout.dims: latout = grid.interp(latout, 'y')
+        if coords['z'] and 'y' in zout.dims: zout = grid.interp(zout, 'y')
     if dims['s'] == 's_w' and v.s_w.size>1:
         vout = grid.interp(vout, 'z')
-        if coords['z']: zout = grid.interp(zout, 'z')
+        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
     # assign coordinates
     if coords['lon']: vout = vout.assign_coords(coords={'lon_v':lonout})
     if coords['lat']: vout = vout.assign_coords(coords={'lat_v':latout})
@@ -604,17 +701,17 @@ def x2w(ds,v, grid):
     if coords['z']: zout = v[coords['z']].copy()
     if dims['x'] == 'x_u' and v.x_u.size>1:
         vout = grid.interp(vout, 'x')
-        if coords['lon']: lonout = grid.interp(lonout, 'x')
-        if coords['lat']: latout = grid.interp(latout, 'x')
-        if coords['z']: zout = grid.interp(zout, 'x')
+        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
+        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
+        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
     if dims['y'] == 'y_v' and v.y_v.size>1:
         vout = grid.interp(vout, 'y')
-        if coords['lon']: lonout = grid.interp(lonout, 'y')
-        if coords['lat']: latout = grid.interp(latout, 'y')
-        if coords['z']: zout = grid.interp(zout, 'y')
+        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
+        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
+        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
     if dims['s'] == 's' and v.s.size>1:
         vout = grid.interp(vout, 'z')
-        if coords['z']: zout = grid.interp(zout, 'z')
+        if coords['z'] and 's' in zout.dims: zout = grid.interp(zout, 'z')
     # assign coordinates
     if coords['lon']: vout = vout.assign_coords(coords={'lon':lonout})
     if coords['lat']: vout = vout.assign_coords(coords={'lat':latout})
@@ -633,17 +730,17 @@ def x2f(ds,v, grid):
     if coords['z']: zout = v[coords['z']].copy()
     if dims['x'] == 'x' and v.x.size>1:
         vout = grid.interp(vout, 'x')
-        if coords['lon']: lonout = grid.interp(lonout, 'x')
-        if coords['lat']: latout = grid.interp(latout, 'x')
-        if coords['z']: zout = grid.interp(zout, 'x')
+        if coords['lon'] and 'x' in lonout.dims: lonout = grid.interp(lonout, 'x')
+        if coords['lat'] and 'x' in latout.dims: latout = grid.interp(latout, 'x')
+        if coords['z'] and 'x' in zout.dims: zout = grid.interp(zout, 'x')
     if dims['y'] == 'y' and v.y.size>1:
         vout = grid.interp(vout, 'y')
-        if coords['lon']: lonout = grid.interp(lonout, 'y')
-        if coords['lat']: latout = grid.interp(latout, 'y')
-        if coords['z']: zout = grid.interp(zout, 'y')
+        if coords['lon'] and 'y' in lonout.dims: lonout = grid.interp(lonout, 'y')
+        if coords['lat'] and 'y' in latout.dims: latout = grid.interp(latout, 'y')
+        if coords['z'] and 'y' in zout.dims: zout = grid.interp(zout, 'y')
     if dims['s'] == 's_w' and v.s_w.size>1:
         vout = grid.interp(vout, 'z')
-        if coords['z']: zout = grid.interp(zout, 'z')
+        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
     # assign coordinates
     if coords['lon']: vout = vout.assign_coords(coords={'lon_f':lonout})
     if coords['lat']: vout = vout.assign_coords(coords={'lat_f':latout})
@@ -905,6 +1002,45 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
     return vnew.squeeze().fillna(0.)  #unify_chunks()   
 
 
+def interp_regular(da,grid,axis,tgrid,rgrid=None):
+    """
+    interpolate on a regular grid
+    imputs:
+        - da (DataArray) : variable to interpolate
+        - grid (xgcm grid): xgcm grid 
+        - axis (str): axis of the xgcm grid for the interpolation ('x', 'y' or 'z')
+        - tgrid (numpy vector): target relular grid space
+        - rgrid (numpy array or DataArray): reference grid of da
+    return:
+        - (DataArray): regurlarly interpolated variable
+    """
+    
+    # check axis
+    if axis not in ['x','y','z']: 
+        print('axis must be x, y or z')
+        return None
+    
+    # corresponding keys between spatial coords/dims and axes of the xgcm grid
+    refc = {'x':'lon', 'y':'lat', 'z':'z'}
+    refd = {'x':'x', 'y':'y', 'z':'s'}
+    
+    # find spatial coordinates/dims of da
+    coords = get_spatial_coords(da)
+    coord = coords[refc[axis]]
+    dims = get_spatial_dims(da)
+    dim = dims[refd[axis]]
+    
+    # initialize the reference coordinate
+    if rgrid is None and coord is not None:
+        rgrid = da[coord]
+    else:
+        print('the reference grid is missing along the axis of interpolation')
+        return None
+
+    # interpolate da on the regular grid
+    newvar = grid.transform(da,axis,tgrid,target_data=rgrid).rename({coord:dim})
+    
+    return reorder_dims(newvar )
 
 
 def haversine(lon1, lat1, lon2, lat2):

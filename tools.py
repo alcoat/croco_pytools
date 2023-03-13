@@ -186,23 +186,38 @@ def print_netcdf_file_info(netcdf_file):
     """
     print('  location: {} '.format(netcdf_file))
     # get file size
-    file_size = _get_dir_size(netcdf_file)
+    file_size = get_dir_size(netcdf_file)
     print('  size:     {:.1f} GB'.format(file_size/1e9))
     #
     ds = xr.open_dataset(netcdf_file)
-    # get largest item typical chunks
-    chks = dsg.chunks
-    print('  chunks:')
-    for k,v in chks.items():
-        print('     ',k,': ',v[0])
-    print('  size of a 2D chunk: {:.1f} MB'.format(chks['time_counter'][0]*
-                                                   chks['x_rho'][0]*
-                                                   chks['y_rho'][0]* 4 / 1.e6))
-    if 's_rho' in ds.dims.keys():
-        print('  size of a 3D chunk: {:.1f} MB '.format(chks['time_counter'][0]*
-                                                        chks['x_rho'][0]*
-                                                        chks['y_rho'][0]*
-                                                        chks['s_rho'][0]* 4 / 1.e6))
+    n_dim_max = 0
+    for v in ds:
+        if ds[v].chunks and ds[v].ndim>n_dim_max:
+            _size = list(ds[v].sizes.values())
+            _chunks = [np.max(d) for d in ds[v].chunks]
+            n_dim_max = ds[v].ndim
+    if n_dim_max>0:
+        print('  typical chunks: ('
+              +','.join('{}'.format(c) for c in _chunks)
+              +') for size ('
+              +','.join('{}'.format(c) for c in _size)
+              +')'
+             )
+    else:
+        print('  data is not chunked')
+    # # get largest item typical chunks
+    # chks = dsg.chunks
+    # print('  chunks:')
+    # for k,v in chks.items():
+    #     print('     ',k,': ',v[0])
+    # print('  size of a 2D chunk: {:.1f} MB'.format(chks['time_counter'][0]*
+    #                                                chks['x_rho'][0]*
+    #                                                chks['y_rho'][0]* 4 / 1.e6))
+    # if 's_rho' in ds.dims.keys():
+    #     print('  size of a 3D chunk: {:.1f} MB '.format(chks['time_counter'][0]*
+    #                                                     chks['x_rho'][0]*
+    #                                                     chks['y_rho'][0]*
+    #                                                     chks['s_rho'][0]* 4 / 1.e6))
         
 
 def get_dir_size(dir_path):
