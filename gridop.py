@@ -1001,6 +1001,74 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
 #     return vnew.squeeze().unify_chunks().fillna(0.)  #unify_chunks() 
     return vnew.squeeze().fillna(0.)  #unify_chunks()   
 
+def cross_section(grid, da, lon1, lat1, lon2, lat2, dlon=None):
+    
+    # check input parameters
+    if not isinstance(grid,Grid): print('grid must be a xgcm grid'); return None
+    if not isinstance(da,xr.DataArray): print('da must be a xarray DataArray'); return None
+    dims = get_spatial_dims(da)
+    coords = get_spatial_coords(da)
+    if coords['lon'] is None or coords['lat'] is None:
+        print('da must have longitude AND latitude coordinates')
+        return None
+    if not isinstance(lon1,(int,float)): print('lon1 must be a float'); return None
+    if not isinstance(lat1,(int,float)): print('lat1 must be a float'); return None
+    if not isinstance(lon2,(int,float)): print('lon2 must be a float'); return None
+    if not isinstance(lat2,(int,float)): print('lat2 must be a float'); return None
+    if dlon is not None and not isinstance(dlon,(int,float)): print('dlon must be a number'); return None
+           
+    # compute the linear function from the two points
+    a = (lat2 - lat1)/(lon2 - lon1)
+    b = lat1 - a*lon1
+    
+    # get the longitude interval of the new grid , compute the new longitude grid
+    if dlon is None:
+        dlon = ((da[coords['lon']].max().values - da[coords['lon']].min().values) /
+                da[coords['lon']].sizes[dims['x']])
+    longrd = np.arange(lon1,lon2,dlon)
+    
+    # compute the latitude coordinates of the new grid with the linear function
+    latgrd = a * longrd + b
+
+    # interpolate on the regular longitude grid
+    newda = auto_chunk(da, keep_complete_dim='x', wanted_chunk=200)
+    newda = grid.transform(newda,'x', longrd, target_data=da[coords['lon']])
+    newda = newda.rename({coords['lon']:dims['x']})
+    newlat = auto_chunk(da[coords['lat']], keep_complete_dim='x', wanted_chunk=200)
+    newlat = grid.transform(newlat, 'x', longrd, target_data=da[coords['lon']])              
+    newlat = newlat.rename({coords['lon']:dims['x']})
+    if coords['z'] is not None:
+        newz = auto_chunk(da[coords['z']], keep_complete_dim='x', wanted_chunk=200)
+        newz = grid.transform(newz,'x', longrd, target_data=da[coords['lon']]).fillna(0.)
+        newz = newz.rename({coords['lon']:dims['x']})
+        
+    # interpolate on a new latitude grid
+    newda = auto_chunk(newda, keep_complete_dim='y', wanted_chunk=200)
+    newda = grid.transform(newda,'y',latgrd,target_data=newlat)
+    newda = newda.rename({coords['lat']:dims['y']})
+    if coords['z'] is not None:
+        newz = auto_chunk(newz, keep_complete_dim='y', wanted_chunk=200)
+        newz = grid.transform(newz,'y',latgrd,target_data=newlat).fillna(0.)
+        newz = newz.rename({coords['lat']:dims['y']}).fillna(0.)
+    
+    # extract the cross section
+    crossda = []; crossz=[]
+    for lon,lat in zip(longrd,latgrd):
+        crossda.append(newda.loc[{dims['x']:lon}].loc[{dims['y']:lat}])
+        if coords['z'] is not None:
+            crossz.append(newz.loc[{dims['x']:lon}].loc[{dims['y']:lat}])
+
+    cross = xr.concat(crossda,dim=dims['x'])
+    if coords['z'] is not None:
+        crossz = xr.concat(crossz,dim=dims['x'])
+    
+    # assign the coordinates lon/lat/z to the section
+    cross = cross.assign_coords({coords['lon']:cross[dims['x']],
+                                 coords['lat']:cross[dims['y']]})
+    if coords['z'] is not None:
+        cross = cross.assign_coords({coords['z']:crossz})    
+        
+    return reorder_dims(cross.fillna(0.))
 
 def interp_regular(da,grid,axis,tgrid,rgrid=None):
     """
