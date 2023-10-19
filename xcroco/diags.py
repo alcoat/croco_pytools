@@ -13,7 +13,7 @@ import gridop as gop
 ###################################################
 
 # relative vorticity
-def relative_vorticity(model, ds=None, xgrid=None, u=None, v=None, f=None):
+def relative_vorticity_z(model, ds=None, xgrid=None, u=None, v=None, f=None):
     
     """
     Compute relative vorticity normalized by f
@@ -45,6 +45,104 @@ def relative_vorticity(model, ds=None, xgrid=None, u=None, v=None, f=None):
           )/f)
     return xi.rename('vorticity')
 
+
+def relative_vorticity_sigma(
+    u,
+    v,
+    xgrid,
+    hboundary="extend",
+    hfill_value=None,
+    sboundary="extend",
+    sfill_value=None,
+):
+    """Calculate the vertical component of the relative vorticity [1/s]
+
+    Parameters
+    ----------
+    u: DataArray
+        xi component of velocity [m/s]
+    v: DataArray
+        eta component of velocity [m/s]
+    xgrid: xgcm.grid
+        Grid object associated with u, v
+    hboundary: string, optional
+        Passed to `grid` method calls; horizontal boundary selection
+        for calculating horizontal derivatives of u and v.
+        From xgcm documentation:
+        A flag indicating how to handle boundaries:
+        * None:  Do not apply any boundary conditions. Raise an error if
+          boundary conditions are required for the operation.
+        * 'fill':  Set values outside the array boundary to fill_value
+          (i.e. a Neumann boundary condition.)
+        * 'extend': Set values outside the array to the nearest array
+          value. (i.e. a limited form of Dirichlet boundary condition.
+    hfill_value: float, optional
+        Passed to `grid` method calls; horizontal boundary selection
+        fill value.
+        From xgcm documentation:
+        The value to use in the boundary condition with `boundary='fill'`.
+    sboundary: string, optional
+        Passed to `grid` method calls; vertical boundary selection
+        for calculating horizontal derivatives of u and v.
+        From xgcm documentation:
+        A flag indicating how to handle boundaries:
+        * None:  Do not apply any boundary conditions. Raise an error if
+          boundary conditions are required for the operation.
+        * 'fill':  Set values outside the array boundary to fill_value
+          (i.e. a Neumann boundary condition.)
+        * 'extend': Set values outside the array to the nearest array
+          value. (i.e. a limited form of Dirichlet boundary condition.
+    sfill_value: float, optional
+        Passed to `grid` method calls; vertical boundary selection
+        fill value.
+        From xgcm documentation:
+        The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns
+    -------
+    DataArray of vertical component of relative vorticity psi/w grids.
+    Output is `[T,Z,Y,X]`.
+
+    Notes
+    -----
+    relative_vorticity = v_x - u_y
+
+    Examples
+    --------
+    >>> xroms.relative_vorticity(u, v, xgrid)
+    """
+
+    assert isinstance(u, xr.DataArray), "u must be DataArray"
+    assert isinstance(v, xr.DataArray), "v must be DataArray"
+
+    dvdx = gop.hgrad(
+        v,
+        xgrid,
+        which="x",
+        hboundary=hboundary,
+        hfill_value=hfill_value,
+        sboundary=sboundary,
+        sfill_value=sfill_value,
+    )
+    dudy = gop.hgrad(
+        u,
+        xgrid,
+        which="y",
+        hboundary=hboundary,
+        hfill_value=hfill_value,
+        sboundary=sboundary,
+        sfill_value=sfill_value,
+    )
+
+    var = dvdx - dudy
+
+    var.attrs["name"] = "vorticity"
+    var.attrs["long_name"] = "vertical component of vorticity"
+    var.attrs["units"] = "1/s"
+    var.name = var.attrs["name"]
+
+    return var
+    
 ###################################################
 
 def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ijk'):

@@ -31,6 +31,11 @@ def trim_memory() -> int:
     libc = ctypes.CDLL("libc.so.6")
     return libc.malloc_trim(0)
 
+def clear_memory(client):
+    client.run(gc.collect)
+    client.run(trim_memory)
+    return
+
 def dask_compute_batch(computations, client, batch_size=None):
     """ breaks down a list of computations into batches
     """

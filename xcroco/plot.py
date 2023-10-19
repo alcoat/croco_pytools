@@ -1,4 +1,5 @@
 import os
+import glob
 
 import numpy as np
 
@@ -68,9 +69,7 @@ def array2cmap(X):
 
 # -------------------------------- Images --------------------------------------
 
-
-
-def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False, 
+def plotfig(da, numimage=0, fig_dir=None, fig_prefix=None, date=None, save=False, 
             coastline=True, plot_contour=False, levels=10,
             cmap=None, figsize=(10,8), dpi=150, **kwargs):
     '''
@@ -86,9 +85,9 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
         os.mkdir(fig_dir)
     
     # Init the figure name
-    if fig_suffix is None:
-        if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
-    figname = fig_dir+fig_suffix+'_t%05d' %(numimage)+'.png'
+    if fig_prefix is None:
+        if hasattr(da,'name'): fig_prefix = ''.join(da.name) 
+    figname = fig_dir+fig_prefix+'_t%05d' %(numimage)+'.png'
 
     # Define the colormap
     if cmap is None: cmap = DefCmap()
@@ -135,7 +134,7 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
     
     # put the title
     if 't' in da.coords and date is None: date = np.datetime_as_string(da.t, unit='m')
-    title = fig_suffix+', date = %s'%(date)
+    title = fig_prefix+', date = %s'%(date)
     ax.set_title(title)
     
     # save in a file
@@ -146,8 +145,26 @@ def plotfig(da, numimage=0, fig_dir=None, fig_suffix=None, date=None, save=False
     return None
 
 # -------------------------------- movies --------------------------------------
+def image2movie(fig_dir, fig_prefix, fig_suffix="png", fps=5):
 
-def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),  
+    if not os.path.isdir(fig_dir):
+        print("--> Directory not found: ",fig_dir)
+        return
+
+    if not glob.glob(fig_dir+fig_prefix+"*."+fig_suffix):
+        print("--> Images not found: ",fig_dir+fig_prefix+"*."+fig_suffix)
+        return
+        
+    os.chdir(fig_dir)
+    fig_name = fig_prefix+"*."+fig_suffix
+    movie_name = fig_prefix+'.mp4'
+    commande = "ffmpeg -framerate "+str(fps)+" -pattern_type glob  -i '"+fig_name+"' -vcodec mpeg4 -y -q:v 1 "+movie_name
+    os.system(commande)
+
+    commande = "rm -rf "+fig_name
+    os.system(commande)
+    
+def movie_wrapper(da, client, fig_dir=None, fig_prefix=None, figsize=(10,8),  
                   date=None, coastline=True, plot_contour=False, levels=10,
                   dpi=150, fps=5, **kwargs):
 
@@ -159,13 +176,16 @@ def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),
     if not os.path.isdir(fig_dir):
         os.mkdir(fig_dir)
     
-    if fig_suffix is None:
-        if hasattr(da,'name'): fig_suffix = ''.join(da.name) 
+    if fig_prefix is None:
+        if hasattr(da,'name'): 
+            fig_prefix = ''.join(da.name) 
+        else:
+            fig_prefix = "image"
         
-    # plotfig_delayed = delayed(plotfig)
+    # generate images
     tasks = [
         delayed(plotfig)(da.isel(t=i), i, fig_dir=fig_dir, 
-                         fig_suffix=fig_suffix, 
+                         fig_prefix=fig_prefix, 
                          save=True, dpi=dpi, figsize=figsize, 
                          date=date, 
                          coastline=coastline, 
@@ -175,13 +195,15 @@ def movie_wrapper(da, client, fig_dir=None, fig_suffix=None, figsize=(10,8),
 
     # dask_compute_batch(tasks, client)
     out = dask.compute(*tasks)
-    
-    fig_name = fig_dir+fig_suffix+'_t%05d.png'
-    movie_name = fig_dir+fig_suffix+'.mp4'
-    commande = "ffmpeg -framerate "+str(fps)+"  -i "+fig_name+" -vcodec mpeg4 -y "+movie_name
-    # print(commande)
-    os.system(commande)
 
-    figure_name = fig_dir+fig_suffix+'_*.png'
-    commande = "rm -rf "+figure_name
-    os.system(commande)
+    # movie from the images
+    image2movie(fig_dir, fig_prefix)
+    # fig_name = fig_dir+fig_suffix+'_t%05d.png'
+    # movie_name = fig_dir+fig_suffix+'.mp4'
+    # commande = "ffmpeg -framerate "+str(fps)+"  -i "+fig_name+" -vcodec mpeg4 -y "+movie_name
+    # # print(commande)
+    # os.system(commande)
+
+    # figure_name = fig_dir+fig_suffix+'_*.png'
+    # commande = "rm -rf "+figure_name
+    # os.system(commande)

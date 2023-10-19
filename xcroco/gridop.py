@@ -358,15 +358,21 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
             dlon = grid.interp(grid.diff(ds.lon,'x'),'x')
             dlat =  grid.interp(grid.diff(ds.lat,'y'),'y')
             ds['dx'], ds['dy'] = dll_dist(dlon, dlat, ds.lon, ds.lat)
-        dlon = grid.interp(grid.diff(ds.lon_u,'x'),'x')
-        dlat = grid.interp(grid.diff(ds.lat_u,'y'),'y')
-        ds['dx_u'], ds['dy_u'] = dll_dist(dlon, dlat, ds.lon_u, ds.lat_u)
-        dlon = grid.interp(grid.diff(ds.lon_v,'x'),'x')
-        dlat = grid.interp(grid.diff(ds.lat_v,'y'),'y')
-        ds['dx_v'], ds['dy_v'] = dll_dist(dlon, dlat, ds.lon_v, ds.lat_v)
-        dlon = grid.interp(grid.diff(ds.lon_f,'x'),'x')
-        dlat = grid.interp(grid.diff(ds.lat_f,'y'),'y')
-        ds['dx_psi'], ds['dy_psi'] = dll_dist(dlon, dlat, ds.lon_f, ds.lat_f)
+        # dlon = grid.interp(grid.diff(ds.lon_u,'x'),'x')
+        # dlat = grid.interp(grid.diff(ds.lat_u,'y'),'y')
+        # ds['dx_u'], ds['dy_u'] = dll_dist(dlon, dlat, ds.lon_u, ds.lat_u)
+        # dlon = grid.interp(grid.diff(ds.lon_v,'x'),'x')
+        # dlat = grid.interp(grid.diff(ds.lat_v,'y'),'y')
+        # ds['dx_v'], ds['dy_v'] = dll_dist(dlon, dlat, ds.lon_v, ds.lat_v)
+        # dlon = grid.interp(grid.diff(ds.lon_f,'x'),'x')
+        # dlat = grid.interp(grid.diff(ds.lat_f,'y'),'y')
+        # ds['dx_psi'], ds['dy_psi'] = dll_dist(dlon, dlat, ds.lon_f, ds.lat_f)
+        ds["dx_u"] = grid.interp(ds["dx"], "x")
+        ds["dy_u"] = grid.interp(ds["dy"], "x")
+        ds["dx_v"] = grid.interp(ds["dx"], "y")
+        ds["dy_v"] = grid.interp(ds["dy"], "y")
+        ds["dx_psi"] = grid.interp(ds["dx_u"], "y")
+        ds["dy_psi"] = grid.interp(ds["dy_v"], "x")
 
         # add areas metrics for rho,u,v and psi points
         ds['rAr'] = ds.dx_psi * ds.dy_psi
@@ -877,7 +883,220 @@ def rotuv(model, ds=None, xgrid=None, u=None, v=None, angle=None):
 
     return [urot,vrot]
 
-    
+
+
+def hgrad(
+    q,
+    xgrid,
+    which="both",
+    z=None,
+    hcoord=None,
+    scoord=None,
+    hboundary="extend",
+    hfill_value=None,
+    sboundary="extend",
+    sfill_value=None,
+    attrs=None,
+):
+    """Return gradients of property q accounting for s coordinates.
+
+    Note that you need the 3D metrics for horizontal derivatives for ROMS, so ``include_3D_metrics=True`` in ``xroms.roms_dataset()``.
+
+    Parameters
+    ----------
+
+    q: DataArray
+        Property to take gradients of.
+    xgrid: xgcm.grid
+        Grid object associated with q.
+    which: string, optional
+        Which components of gradient to return.
+        * 'both': return both components of hgrad.
+        * 'xi': return only xi-direction.
+        * 'eta': return only eta-direction.
+    z: DataArray, ndarray, optional
+        Depth [m]. If None, use z coordinate attached to q.
+    hcoord: string, optional
+        Name of horizontal grid to interpolate output to.
+        Options are 'rho', 'psi', 'u', 'v'.
+    scoord: string, optional
+        Name of vertical grid to interpolate output to.
+        Options are 's_rho', 's_w', 'rho', 'w'.
+    hboundary: string, optional
+        Passed to `grid` method calls; horizontal boundary selection
+        for calculating horizontal derivatives of q. This same value
+        will be used for all horizontal grid changes too.
+        From xgcm documentation:
+        A flag indicating how to handle boundaries:
+        * None:  Do not apply any boundary conditions. Raise an error if
+          boundary conditions are required for the operation.
+        * 'fill':  Set values outside the array boundary to fill_value
+          (i.e. a Neumann boundary condition.)
+        * 'extend': Set values outside the array to the nearest array
+          value. (i.e. a limited form of Dirichlet boundary condition.
+    hfill_value: float, optional
+        Passed to `grid` method calls; horizontal boundary selection
+        fill value.
+        From xgcm documentation:
+        The value to use in the boundary condition with `boundary='fill'`.
+    sboundary: string, optional
+        Passed to `grid` method calls; vertical boundary selection
+        for calculating horizontal derivatives of q. This same value will
+        be used for all vertical grid changes too.
+        From xgcm documentation:
+        A flag indicating how to handle boundaries:
+        * None:  Do not apply any boundary conditions. Raise an error if
+          boundary conditions are required for the operation.
+        * 'fill':  Set values outside the array boundary to fill_value
+          (i.e. a Neumann boundary condition.)
+        * 'extend': Set values outside the array to the nearest array
+          value. (i.e. a limited form of Dirichlet boundary condition.
+    sfill_value: float, optional
+        Passed to `grid` method calls; vertical boundary selection
+        fill value.
+        From xgcm documentation:
+        The value to use in the boundary condition with `boundary='fill'`.
+    attrs: dict, optional
+        Dictionary of attributes to add to resultant arrays. Requires that
+        q is DataArray.
+
+    Returns
+    -------
+    DataArray(s) of dqdxi and/or dqdeta, the gradients of q
+    in the xi- and eta-directions with attributes altered to reflect calculation.
+
+    Notes
+    -----
+    dqdxi = dqdx*dzdz - dqdz*dzdx
+
+    dqdeta = dqdy*dzdz - dqdz*dzdy
+
+    Derivatives are taken in the ROMS curvilinear grid native xi- and eta- directions.
+
+    These derivatives properly account for the fact that ROMS vertical coordinates are
+    s coordinates and therefore can vary in time and space.
+
+    The xi derivative will alter the number of points in the xi and s dimensions.
+    The eta derivative will alter the number of points in the eta and s dimensions.
+
+    Examples
+    --------
+    >>> dtempdxi, dtempdeta = xroms.hgrad(ds.temp, xgrid)
+    """
+
+    assert isinstance(q, xr.DataArray), "var must be DataArray"
+
+    # if not [dim for dim in q.dims if dim.startswith('s')]:
+    #     is3D = False
+    # else:
+    #     is3D = True
+        
+    if z is None:
+        try:
+            coords = list(q.coords)
+            z_coord_name = coords[[coord[:2] == "z_" for coord in coords].index(True)]
+            z = q[z_coord_name]
+            is3D = True
+        except:
+            # if we get here that means that q doesn't have z coords (like zeta)
+            is3D = False
+    else:
+        is3D = True
+
+    if which in ["both", "x"]:
+
+        if is3D:
+            dqdx = xgrid.interp(
+                xgrid.derivative(q, "x", boundary=hboundary, fill_value=hfill_value),
+                "z",
+                boundary=sboundary,
+                fill_value=sfill_value,
+            )
+            dqdz = xgrid.interp(
+                xgrid.derivative(q, "z", boundary=sboundary, fill_value=sfill_value),
+                "x",
+                boundary=hboundary,
+                fill_value=hfill_value,
+            )
+            dzdx = xgrid.interp(
+                xgrid.derivative(z, "x", boundary=hboundary, fill_value=hfill_value),
+                "z",
+                boundary=sboundary,
+                fill_value=sfill_value,
+            )
+            dzdz = xgrid.interp(
+                xgrid.derivative(z, "z", boundary=sboundary, fill_value=sfill_value),
+                "x",
+                boundary=hboundary,
+                fill_value=hfill_value,
+            )
+
+            dqdx = dqdx * dzdz - dqdz * dzdx
+
+        else:  # 2D variables
+            dqdx = xgrid.derivative(q, "x", boundary=hboundary, fill_value=hfill_value)
+
+        if attrs is None and isinstance(q, xr.DataArray):
+            attrs = q.attrs.copy()
+            attrs["name"] = "d" + q.name + "dx"
+            attrs["units"] = "1/m * " + attrs.setdefault("units", "units")
+            attrs["long_name"] = "horizontal xi derivative of " + attrs.setdefault(
+                "long_name", "var"
+            )
+
+    if which in ["both", "y"]:
+
+        if is3D:
+            dqdy = xgrid.interp(
+                xgrid.derivative(q, "y", boundary=hboundary, fill_value=hfill_value),
+                "z",
+                boundary=sboundary,
+                fill_value=sfill_value,
+            )
+            dqdz = xgrid.interp(
+                xgrid.derivative(q, "z", boundary=sboundary, fill_value=sfill_value),
+                "y",
+                boundary=hboundary,
+                fill_value=hfill_value,
+            )
+            dzdy = xgrid.interp(
+                xgrid.derivative(z, "y", boundary=hboundary, fill_value=hfill_value),
+                "z",
+                boundary=sboundary,
+                fill_value=sfill_value,
+            )
+            dzdz = xgrid.interp(
+                xgrid.derivative(z, "z", boundary=sboundary, fill_value=sfill_value),
+                "y",
+                boundary=hboundary,
+                fill_value=hfill_value,
+            )
+
+            dqdy = dqdy * dzdz - dqdz * dzdy
+
+        else:  # 2D variables
+            dqdy = xgrid.derivative(
+                q, "y", boundary=hboundary, fill_value=hfill_value
+            )
+
+        if attrs is None and isinstance(q, xr.DataArray):
+            attrs = q.attrs.copy()
+            attrs["name"] = "d" + q.name + "dy"
+            attrs["units"] = "1/m * " + attrs.setdefault("units", "units")
+            attrs["long_name"] = "horizontal eta derivative of " + attrs.setdefault(
+                "long_name", "var"
+            )
+
+    if which == "both":
+        return dqdx, dqdy
+    elif which == "x":
+        return dqdx
+    elif which == "y":
+        return dqdy
+    else:
+        print("nothing being returned from hgrad")
+        
+
 def get_grid_point(var):
     dims = var.dims
     # horizontal point
