@@ -141,7 +141,7 @@ def relative_vorticity_sigma(
     var.attrs["units"] = "1/s"
     var.name = var.attrs["name"]
 
-    return var
+    return var.squeeze()
     
 ###################################################
 

@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+from functools import partial
 import pandas as pd
 from xgcm import Grid
 import intake
@@ -13,7 +14,9 @@ from math import radians, cos, sin, asin, sqrt
 
 def open_files(model, gridname, filenames, 
                grid_metrics=1,
-               drop_variables=[], chunks={'t':1},
+               drop_variables=[], 
+               time=None,
+               chunks={'t':1},
                suffix='', 
                remove_ghost_pts=True,
                xperiodic=False,
@@ -39,7 +42,13 @@ def open_files(model, gridname, filenames,
         grid: the associated xgcm grid
                        
     """
-                  
+    if time is not None:
+        def _preprocess(ds,time):
+            return ds.sel(time_counter=time, method='nearest')
+        partial_func = partial(_preprocess, time=time)
+    else:
+        partial_func = None
+              
     # convert filenames to list of strings if string
     filenames = filenames.tolist() if isinstance(filenames,str) else filenames
     # find time dimension name
@@ -56,11 +65,13 @@ def open_files(model, gridname, filenames,
     except:
         try : 
             # list of explicit filenames
-            ds = xr.open_mfdataset(filenames, drop_variables=drop_variables, **open_kwargs)  
+            ds = xr.open_mfdataset(filenames, drop_variables=drop_variables,
+                                   preprocess=partial_func, **open_kwargs)  
         except :
             try :
                 # list of files with wildcards
-                ds = xr.open_mfdataset(filenames[0], drop_variables=drop_variables, **open_kwargs)
+                ds = xr.open_mfdataset(filenames[0], drop_variables=drop_variables,
+                                       preprocess=partial_func, **open_kwargs)
             except:
                 print('open_files: unknown format: only Netcdf or Zarr')
                 print('or filenames do not exist')
@@ -74,8 +85,8 @@ def open_files(model, gridname, filenames,
     # add the grid and the xgcm grid to the dataset
     ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
                         remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
-    model.ds = ds.chunk(chunks=chunks)
-    return model.ds.squeeze(), grid
+    model.ds = ds.chunk(chunks=chunks).squeeze()
+    return model.ds, grid
 
 def open_catalog(model, gridname, catalog, source=None,
                  grid_metrics=1,
@@ -368,31 +379,28 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         # dlat = grid.interp(grid.diff(ds.lat_f,'y'),'y')
         # ds['dx_psi'], ds['dy_psi'] = dll_dist(dlon, dlat, ds.lon_f, ds.lat_f)
         ds["dx_u"] = grid.interp(ds["dx"], "x")
-        ds["dy_u"] = grid.interp(ds["dy"], "x")
-        ds["dx_v"] = grid.interp(ds["dx"], "y")
+        # ds["dy_u"] = grid.interp(ds["dy"], "x")
+        # ds["dx_v"] = grid.interp(ds["dx"], "y")
         ds["dy_v"] = grid.interp(ds["dy"], "y")
-        ds["dx_psi"] = grid.interp(ds["dx_u"], "y")
-        ds["dy_psi"] = grid.interp(ds["dy_v"], "x")
+        # ds["dx_psi"] = grid.interp(ds["dx_u"], "y")
+        # ds["dy_psi"] = grid.interp(ds["dy_v"], "x")
 
         # add areas metrics for rho,u,v and psi points
-        ds['rAr'] = ds.dx_psi * ds.dy_psi
-        ds['rAu'] = ds.dx_v * ds.dy_v
-        ds['rAv'] = ds.dx_u * ds.dy_u
-        ds['rAf'] = ds.dx * ds.dy
+        # ds['rAr'] = ds.dx_psi * ds.dy_psi
+        # ds['rAu'] = ds.dx_v * ds.dy_v
+        # ds['rAv'] = ds.dx_u * ds.dy_u
+        # ds['rAf'] = ds.dx * ds.dy
         
         metrics={}    
-        if all(d in model.ds.dims for d in ['x','x_u']):
-            metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
-        if all(d in model.ds.dims for d in ['y','y_v']):
-            metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
-        if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
-            metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
-        # metrics = {
-        #        ('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi'], # X distances
-        #        ('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi'], # Y distances
-        #        ('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf'] # Areas
-        #       }
-        
+        # if all(d in model.ds.dims for d in ['x','x_u']):
+            # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
+        metrics.update({('x',): ['dx', 'dx_u']})
+        # if all(d in model.ds.dims for d in ['y','y_v']):
+            # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
+        metrics.update({('y',): ['dy', 'dy_v']})
+        # if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
+            # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
+         
         if grid_metrics==1:
             # generate xgcm grid
             grid = Grid(ds,
@@ -408,6 +416,7 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         if 'z_sfc' in [v for v in ds.data_vars] and \
            's' in [d for d in ds.dims.keys()] and \
             ds['s'].size>1:
+            ds['is3D'] = True
             z = get_z(model, z_sfc=ds.z_sfc, xgrid=grid).fillna(0.)
             z_w = get_z(model, z_sfc=ds.z_sfc, xgrid=grid, vgrid='w').fillna(0.)
             ds['z'] = z
@@ -418,20 +427,26 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
             # set as coordinates in the dataset
             _coords = ['z','z_w','z_u','z_v','z_f']
             ds = ds.set_coords(_coords)
+        else:
+            ds['is3D'] = False
 
         # add vertical metrics for u, v, rho and psi points
-        if 'z' in [v for v in ds.coords]:
-            ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
-            ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
-            ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
-            ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
-            ds['dz_f'] = grid.interp(grid.diff(ds.z_f,'z'),'z')
+        # if 'z' in [v for v in ds.coords]:
+        if ds['is3D']:
+            ds['dz'] = grid.interp(grid.diff(z,'z'),'z')
+            ds['dz_w'] = grid.interp(grid.diff(z_w,'z'),'z')
+            # ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
+            # ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
+            # ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
+            # ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
+            # ds['dz_f'] = grid.interp(grid.diff(ds.z_f,'z'),'z')
             
         # add coords and metrics for xgcm for the vertical direction
-        if 'z' in ds:
-#             coords.update({'z': {'center':'s', 'outer':'s_w'}})
-            metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_f', 'dz_w']}), # Z distances
-        
+        # if 'z' in ds:
+        if ds['is3D']:
+# #             coords.update({'z': {'center':'s', 'outer':'s_w'}})
+#             metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_f', 'dz_w']}), # Z distances
+            metrics.update({('z',): ['dz', 'dz_w']}), # Z distances
         # generate xgcm grid
         grid = Grid(ds,
                     coords=coords,
@@ -986,12 +1001,12 @@ def hgrad(
 
     assert isinstance(q, xr.DataArray), "var must be DataArray"
 
-    # if not [dim for dim in q.dims if dim.startswith('s')]:
-    #     is3D = False
-    # else:
-    #     is3D = True
+    if not [dim for dim in q.dims if dim.startswith('s')]:
+        is3D = False
+    else:
+        is3D = True
         
-    if z is None:
+    if is3D and z is None:
         try:
             coords = list(q.coords)
             z_coord_name = coords[[coord[:2] == "z_" for coord in coords].index(True)]
@@ -999,9 +1014,8 @@ def hgrad(
             is3D = True
         except:
             # if we get here that means that q doesn't have z coords (like zeta)
+            print("!!! Missing z coordinate, only horizontal gradient")
             is3D = False
-    else:
-        is3D = True
 
     if which in ["both", "x"]:
 
