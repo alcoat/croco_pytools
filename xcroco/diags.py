@@ -170,12 +170,16 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
     ds = model.ds if ds is None else ds
     xgrid = model.xgrid if xgrid is None else xgrid
 
-    for var in ['f', 'rho']:
-        if var in ds:
-            locals()[var] = ds[var]  
-        else:
-            print(var + ' not found in the dataset')
-            return None
+    if "f" in ds:
+        f = ds.f
+    else:
+        print('f not found in the dataset')
+        return None
+    if "rho" in ds:
+        rho = ds.rho
+    else:
+        print('rho not found in the dataset')
+        return None
     rho0 = 1027 if 'rho0' not in ds else ds.rho0
 
     # 3D variables
@@ -346,7 +350,7 @@ def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     dudz = xgrid.diff(u,'z') / xgrid.diff(gop.x2u(ds,z,xgrid),'z')
     dvdz = xgrid.diff(v,'z') / xgrid.diff(gop.x2v(ds,z,xgrid),'z')
 
-    Ri = xr.ufuncs.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
+    Ri = np.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
     if 'lon' in rho.coords: Ri = Ri.assign_coords(coords={"lon":rho.lon})
     if 'lat' in rho.coords: Ri = Ri.assign_coords(coords={"lat":rho.lat})
     Ri = Ri.assign_coords(coords={"z":z_w})
