@@ -12,184 +12,7 @@ from collections import OrderedDict
 
 from math import radians, cos, sin, asin, sqrt
 
-def open_files(model, gridname, filenames, 
-               grid_metrics=1,
-               drop_variables=[], 
-               time=None,
-               chunks={'t':1},
-               suffix='', 
-               remove_ghost_pts=True,
-               xperiodic=False,
-               yperiodic=False,
-               verbose=False
-              ):
-    """
-    open Netcdf files or zarr archive
-    input: 
-        model : instance of the Model class defined in the model.py module
-        gridname : path to the grid file
-        filenames : path to the Netcdf files or to the zarr archive
-        grid_metrics : type of xgcm grid 
-                       0: no metrics
-                       1: horizontal metrics
-                       2: horizontal and vertical metrics
-        drop_variables : list of variables to drop
-        chunks: chunks to override those in the yaml file
-        suffix: to remove suffixes in dimensions or variables
-        verbose: verbose mode
-    outputs:
-        ds: an xarray dataset
-        grid: the associated xgcm grid
-                       
-    """
-    if time is not None:
-        def _preprocess(ds,time):
-            return ds.sel(time_counter=time, method='nearest')
-        partial_func = partial(_preprocess, time=time)
-    else:
-        partial_func = None
-              
-    # convert filenames to list of strings if string
-    filenames = filenames.tolist() if isinstance(filenames,str) else filenames
-    # find time dimension name
-    concat_dim = [k for k,v in model.rename_vars.items() if v == 't'][0]
-    open_kwargs = {'concat_dim': concat_dim,
-                   'combine': 'nested',
-                   'coords': 'minimal',
-                   'parallel': True,
-                   'compat': 'override'
-                  }
-    try : 
-        # zarr archive
-        ds = xr.open_zarr(filenames[0], drop_variables=drop_variables)
-    except:
-        try : 
-            # list of explicit filenames
-            ds = xr.open_mfdataset(filenames, drop_variables=drop_variables,
-                                   preprocess=partial_func, **open_kwargs)  
-        except :
-            try :
-                # list of files with wildcards
-                ds = xr.open_mfdataset(filenames[0], drop_variables=drop_variables,
-                                       preprocess=partial_func, **open_kwargs)
-            except:
-                print('open_files: unknown format: only Netcdf or Zarr')
-                print('or filenames do not exist')
-                return
-        
-    # delete suffix from dimension or variable names
-    if suffix != '' : ds = del_name_suffix(ds,suffix)
-    # change the names in the dataset according to the model instance
-    model.ds = adjust_grid(model, ds)
-    
-    # add the grid and the xgcm grid to the dataset
-    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
-                        remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
-    model.ds = ds.chunk(chunks=chunks).squeeze()
-    return model.ds, grid
-
-def open_catalog(model, gridname, catalog, source=None,
-                 grid_metrics=1,
-                 chunks={},
-                 suffix='', 
-                 remove_ghost_pts=True,
-                 xperiodic=False,
-                 yperiodic=False,
-                 verbose=False,
-                ):
-    """
-    open files through an intake catalog
-    input: 
-        model : instance of the Model class defined in the model.py module
-        gridname : path to the grid file
-        catalog : path to the intake yaml catalog
-        source : source to open in the catalog (if None, the first)
-        grid_metrics : type of xgcm grid 
-                       0: no metrics
-                       1: horizontal metrics
-                       2: horizontal and vertical metrics
-        chunks: chunks to override those in the yaml file
-        suffix: to remove suffixes in dimensions or variables
-        verbose: verbose mode
-    outputs:
-        ds: an xarray dataset
-        grid: the associated xgcm grid
-                       
-    """
-    
-    try : 
-        # open intake catalog
-        cat = intake.open_catalog(catalog)
-        if verbose: print('Available sources are: ',list(cat))
-    except:
-        print('open_catalog: yaml catalog not found')
-        return
-    
-    # find the first source of the catalog if source is None
-    source = list(cat)[0] if source is None else source
-    if verbose: 
-        print('Source :', source)
-        print('   ', cat[source])
-    # open the source as a dataset
-    try:
-        ds = cat[source].to_dask() # chunks={'time_counter': 50})
-    except:
-        print('May be the source is not found in the yaml catalog')
-        return
-    
-    # delete suffix from dimension or variable names
-    if suffix != '' : ds = del_name_suffix(ds,suffix)
-    # change the names in the dataset according to the model instance
-    model.ds = adjust_grid(model, ds)
-    
-    # add the grid and the xgcm grid to the dataset
-    ds, grid = add_grid(model, gridname, grid_metrics=grid_metrics, suffix=suffix,
-                        remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
-    model.ds = ds.chunk(chunks=chunks)
-    return model.ds.squeeze(), grid
-
-def del_name_suffix(ds,suffix):
-    """ remove a suffix from dimensions, coordinates and variables in the dataset """
-    var_suffix = [v for v in itertools.chain(ds.dims,
-                                          ds.data_vars.keys(),
-                                          ds.coords.keys(),
-                                          ) if suffix in v]
-    if var_suffix:
-        # remove duplicates
-        var_suffix = list(set(var_suffix))
-        var = [v.replace('_'+suffix,'').replace(suffix,'') for v in var_suffix]
-        for (old,new)in zip(var_suffix,var):
-            ds = ds.rename({old: new})
-    return ds
-
-def find_var(model,varname,ds,gd):
-    
-    def good_type(var):
-        if isinstance(var,xr.DataArray) or isinstance(var,np.ndarray) or \
-        isinstance(var,np.float32) or isinstance(var,np.float64) or \
-        isinstance(var,np.int32) or isinstance(var,np.float64):
-            return True
-        else:
-            return False
-        
-    def to_dataarray(model,varname, var):
-        if  isinstance(var,np.ndarray):
-            var = xr.DataArray(data=var,
-                            dims=model.dims_var[varname]
-            )
-                         
-        return var
-        
-    if varname in gd and good_type(gd[varname]):
-        return to_dataarray(model,varname,gd[varname])
-    elif varname in ds and good_type(ds[varname]):
-        return to_dataarray(model,varname,ds[vvarnamear])
-    elif varname in gd.attrs and good_type(gd.attrs[varname]):
-        return to_dataarray(model,varname,gd.attrs[varname])
-    elif varname in ds.attrs and good_type(ds.attrs[varname]):
-        return to_dataarray(model,varname,ds.attrs[varname])
-    else:
-        return None
+import inout as io
 
 def get_cs(model, ds, gd, vgrid):
     """ get croco vertical grid  stretching 
@@ -209,14 +32,14 @@ def get_cs(model, ds, gd, vgrid):
         return None
     
     # search theta_s 
-    if find_var(model,'theta_s',ds,gd) is not None: 
-        theta_s = find_var(model,'theta_s',ds,gd).values
+    if io.find_var(model,'theta_s',ds,gd) is not None: 
+        theta_s = io.find_var(model,'theta_s',ds,gd).values
     else:
         print("Can't find theta_s neither in filename nor in gridname  ")
         return None
     # search theta_b 
-    if find_var(model,'theta_b',ds,gd) is not None: 
-        theta_b = find_var(model,'theta_b',ds,gd).values
+    if io.find_var(model,'theta_b',ds,gd) is not None: 
+        theta_b = io.find_var(model,'theta_b',ds,gd).values
     else:
         print("Can't find theta_b neither in filename nor in gridname  ")
         return None
@@ -240,7 +63,7 @@ def get_cs(model, ds, gd, vgrid):
                *(np.tanh((sc+0.5)*theta_s)/np.tanh(0.5*theta_s)-1.)
     return cs
 
-def add_grid(model, gridname, grid_metrics=1, suffix='', remove_ghost_pts=True,
+def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
              xperiodic=False, yperiodic=False):
         
     # open grid file
@@ -253,46 +76,45 @@ def add_grid(model, gridname, grid_metrics=1, suffix='', remove_ghost_pts=True,
             print('add_grid: unknown format for grid : only Netcdf or Zarr')
             
     # Rename variable according model
-    if suffix != '' : gd = del_name_suffix(gd,suffix)
     gd = adjust_grid(model, gd)
     ds = model.ds
 
-    if find_var(model,'hc',ds,gd) is not None: ds['hc'] = find_var(model,'hc',ds,gd)
-    if find_var(model,'h',ds,gd) is not None: ds['h'] = find_var(model,'h',ds,gd)
-    if find_var(model,'pm',ds,gd) is not None: ds['pm']   = find_var(model,'pm',ds,gd)
-    if find_var(model,'pn',ds,gd) is not None: ds['pn']   = find_var(model,'pn',ds,gd)
+    if io.find_var(model,'hc',ds,gd) is not None: ds['hc'] = io.find_var(model,'hc',ds,gd)
+    if io.find_var(model,'h',ds,gd) is not None: ds['h'] = io.find_var(model,'h',ds,gd)
+    if io.find_var(model,'pm',ds,gd) is not None: ds['pm']   = io.find_var(model,'pm',ds,gd)
+    if io.find_var(model,'pn',ds,gd) is not None: ds['pn']   = io.find_var(model,'pn',ds,gd)
     try:
         N = ds.dims['s']
         if 'sc_r' not in ds:
-            if find_var(model,'sc_r',ds,gd) is not None: 
-                ds['sc_r'] = find_var(model,'sc_r',ds,gd)
+            if io.find_var(model,'sc_r',ds,gd) is not None: 
+                ds['sc_r'] = io.find_var(model,'sc_r',ds,gd)
             else:
                 ds['sc_r'] = xr.DataArray(np.arange(-1.+1./(N+1),0., 1/(N+1)), dims='s')  
         if 'sc_w' not in ds:      
-            if find_var(model,'sc_w',ds,gd) is not None: 
-                ds['sc_w'] = find_var(model,'sc_w',ds,gd)
+            if io.find_var(model,'sc_w',ds,gd) is not None: 
+                ds['sc_w'] = io.find_var(model,'sc_w',ds,gd)
             else:
                 ds['sc_w'] = xr.DataArray(np.arange(-1.,0., 1/(N+1)), dims='s_w')
         if 'Cs_r' not in ds:
-            if  find_var(model,'Cs_r',ds,gd) is not None: 
-                ds['Cs_r'] = find_var(model,'Cs_r',ds,gd)
+            if  io.find_var(model,'Cs_r',ds,gd) is not None: 
+                ds['Cs_r'] = io.find_var(model,'Cs_r',ds,gd)
             else:
                 ds['Cs_r'] = get_cs(model,ds, gd, 'r')
         if 'Cs_w' not in ds:
-            if  find_var(model,'Cs_w',ds,gd) is not None: 
-                ds['Cs_w'] = find_var(model,'Cs_w',ds,gd)
+            if  io.find_var(model,'Cs_w',ds,gd) is not None: 
+                ds['Cs_w'] = io.find_var(model,'Cs_w',ds,gd)
             else:
                 ds['Cs_w'] = get_cs(model,ds, gd, 'w')
     except:
         pass        
         
-    if find_var(model,'angle',ds,gd) is not None: ds['angle'] = find_var(model,'angle',ds,gd)
-    if find_var(model,'mask',ds,gd) is not None: ds['mask'] = find_var(model,'mask',ds,gd)
-    if find_var(model,'lon',ds,gd) is not None: ds['lon'] = find_var(model,'lon',ds,gd)
-    if find_var(model,'lat',ds,gd) is not None: ds['lat'] = find_var(model,'lat',ds,gd)
-    if find_var(model,'f',ds,gd) is not None: ds['f'] = find_var(model,'f',ds,gd)
-    if find_var(model,'rho0',ds,gd) is not None: ds['rho0'] = find_var(model,'rho0',ds,gd)
-    if find_var(model,'g',ds,gd) is not None: ds['g'] = find_var(model,'g',ds,gd)
+    if io.find_var(model,'angle',ds,gd) is not None: ds['angle'] = io.find_var(model,'angle',ds,gd)
+    if io.find_var(model,'mask',ds,gd) is not None: ds['mask'] = io.find_var(model,'mask',ds,gd)
+    if io.find_var(model,'lon',ds,gd) is not None: ds['lon'] = io.find_var(model,'lon',ds,gd)
+    if io.find_var(model,'lat',ds,gd) is not None: ds['lat'] = io.find_var(model,'lat',ds,gd)
+    if io.find_var(model,'f',ds,gd) is not None: ds['f'] = io.find_var(model,'f',ds,gd)
+    if io.find_var(model,'rho0',ds,gd) is not None: ds['rho0'] = io.find_var(model,'rho0',ds,gd)
+    if io.find_var(model,'g',ds,gd) is not None: ds['g'] = io.find_var(model,'g',ds,gd)
     
     
     # coords = [c for c in ds.coords if c not in ['t','s','s_w']]
