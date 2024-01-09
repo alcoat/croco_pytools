@@ -27,13 +27,13 @@ See README.INSTALL for installation of the required python environement (using c
 
 See README.topo for grid and coastline management
 
-- **to be continued** 
+- ***to be continued*** 
 
 #
 ### croco_pyvisu
-- ***to be done:  short introduction***
+- ***to fill:  short introduction***
 
 #
 ### xcroco
-- ***to be done: short introduction***
+- ***to fill: short introduction***
 
