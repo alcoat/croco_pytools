@@ -1,21 +1,21 @@
-# croco_pytools
+# croco_pytools - v1.0
 
 This is a python redesign of the matlab pre- and post-processing tools for CROCO (croco_tools) developed over the last 20 years.
 
 It's a work in progress, which needs to be improved and further tested for some of its features.
 
-For the moment, it's a related project, not officially included in CROCO. It is distributed on a separate GIT repository (XXXX).
+## Release notes: 
 
-A moyen terme, ces outils python seront inclus dans les release officiels du projet croco
 
-To checkout this tools:
+## GIT checkout:
 
-`git clone ``
+`git clone --branch release https://gitlab.inria.fr/croco-ocean/croco_pytools.git`
+
+## Reminders
 
 These scripts come with no warranty, and are provided on a free community development basis.
 
-# 
-
+## Contents:
 The repository consists of several parts :
   - ***PREPO***: a set of python routines, interface with fortran to process the grid and forcing files (initialization, open-boundary conditions, atmospheric forcing, tides forcing, rivers forcing)
   - ***croco_pyvisu***: a vizualisation GUI
