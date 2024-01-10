@@ -15,8 +15,16 @@ from math import radians, cos, sin, asin, sqrt
 import inout as io
 
 def get_cs(model, ds, gd, vgrid):
-    """ get croco vertical grid  stretching 
+    """get croco vertical grid  stretching
     https://www.myroms.org/wiki/Vertical_S-coordinate
+    Args:
+        model (class): classe of the model
+        ds (DataSet): input dataset from the history files
+        gd (DataSet): DataSet of the grid file
+        vgrid (character): type of metrics ('r'': rho level, 'w': w level)
+
+    Returns:
+        DataArray: vertical grid  stretching
     """
     # search vtransform 
     if 'vtransform' in gd:
@@ -65,6 +73,21 @@ def get_cs(model, ds, gd, vgrid):
 
 def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
              xperiodic=False, yperiodic=False):
+    """from the gridname file, add the grid to the dataset and compute the XGCM grid
+
+    Args:
+        model (class): classe of the model
+        ds (DataSet): input dataset from the history files
+        gridname (string): name of the grid file
+        grid_metrics (int, optional): type of metrics (0: no metrics, 1: horizontal, 2: 1+vertical)
+        remove_ghost_pts (bool, optional): remove ghost points. Defaults to True.
+        xperiodic (bool, optional): periodic in x. Defaults to False.
+        yperiodic (bool, optional): periodic in y. Defaults to False.
+
+    Returns:
+        DataSet: the input dataset with the grid inside
+        XGCM grid: the XGCM grid associated to the dataset
+    """
         
     # open grid file
     try : 
@@ -124,7 +147,7 @@ def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
         
     # remove ghost points
     if remove_ghost_pts:
-        ds = remove_ghost_points(model, ds, xperiodic=xperiodic, yperiodic=yperiodic)
+        ds = remove_ghost_points(ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds
     
     # On crée la grille xgcm
@@ -133,9 +156,16 @@ def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
     
     return ds, grid
 
-def remove_ghost_points(model, ds, xperiodic=False, yperiodic=False):
+def remove_ghost_points(ds, xperiodic=False, yperiodic=False):
     """
-    remove ghost points
+    Remove ghost points from the DataSet
+    Args:
+        ds (DataSet): input dataset from the history files
+        xperiodic (bool, optional): periodic in x. Defaults to False.
+        yperiodic (bool, optional): periodic in y. Defaults to False.
+
+    Returns:
+        DataSet: the input dataset without any ghost points
     """
     ds = ds.isel(x=slice(1,-1),y=slice(1,-1))
     if xperiodic:
@@ -145,156 +175,159 @@ def remove_ghost_points(model, ds, xperiodic=False, yperiodic=False):
     return ds
 
 def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
-        
-        # Create xgcm grid without metrics
-        coords={}
-        if all(d in model.ds.dims for d in ['x','x_u']):
-            if xperiodic:
-                coords.update({'x': {'center':'x', 'left':'x_u'}})
-            else:
-                coords.update({'x': {'center':'x', 'outer':'x_u'}})
-        if all(d in model.ds.dims for d in ['y','y_v']):
-            if yperiodic:
-                coords.update({'y': {'center':'y', 'left':'y_v'}} )
-            else:
-                coords.update({'y': {'center':'y', 'outer':'y_v'}} )
-        if 's' in model.ds.dims:
-            coords.update({'z': {'center':'s', 'outer':'s_w'}})
-            
-        grid = Grid(model.ds, 
-                  coords=coords,
-                  periodic=False,
-                  boundary='extend')
-        
-        if grid_metrics==0:           
-            model.xgrid = grid
-            return model.ds, grid
-        
-        # compute horizontal coordinates
+    """
+    Create the xgcm grid of the dataset.
+    Args:
+        model: (Model class) the model class
+        grid_metrics: (integer) 0:no metrics, 1:horizontal metrics, 2:hor + vert metrics
+        xperiodic: True if ds periodic in x
+        yperiodic: True if ds periodic in y
 
-        ds = model.ds
-        if 'lon_u' not in ds and 'x_u' in ds.dims: ds['lon_u'] = grid.interp(ds.lon,'x')
-        if 'lat_u' not in ds and 'y'   in ds.dims: ds['lat_u'] = grid.interp(ds.lat,'x')
-        if 'lon_v' not in ds and 'x'   in ds.dims: ds['lon_v'] = grid.interp(ds.lon,'y')
-        if 'lat_v' not in ds and 'y_v' in ds.dims: ds['lat_v'] = grid.interp(ds.lat,'y')
-        if 'lon_f' not in ds and 'x_u' in ds.dims: ds['lon_f'] = grid.interp(ds.lon_v,'x')
-        if 'lat_f' not in ds and 'y_v' in ds.dims: ds['lat_f'] = grid.interp(ds.lat_u,'y')
-        _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
-        ds = ds.set_coords(_coords)
-        
-        
-        # add horizontal metrics for u, v and psi point
-        if 'pm' in ds and 'pn' in ds:
-            ds['dx'] = 1/ds['pm']
-            ds['dy'] = 1/ds['pn']
-        else: # backward compatibility, hack
-            dlon = grid.interp(grid.diff(ds.lon,'x'),'x')
-            dlat =  grid.interp(grid.diff(ds.lat,'y'),'y')
-            ds['dx'], ds['dy'] = dll_dist(dlon, dlat, ds.lon, ds.lat)
-        # dlon = grid.interp(grid.diff(ds.lon_u,'x'),'x')
-        # dlat = grid.interp(grid.diff(ds.lat_u,'y'),'y')
-        # ds['dx_u'], ds['dy_u'] = dll_dist(dlon, dlat, ds.lon_u, ds.lat_u)
-        # dlon = grid.interp(grid.diff(ds.lon_v,'x'),'x')
-        # dlat = grid.interp(grid.diff(ds.lat_v,'y'),'y')
-        # ds['dx_v'], ds['dy_v'] = dll_dist(dlon, dlat, ds.lon_v, ds.lat_v)
-        # dlon = grid.interp(grid.diff(ds.lon_f,'x'),'x')
-        # dlat = grid.interp(grid.diff(ds.lat_f,'y'),'y')
-        # ds['dx_psi'], ds['dy_psi'] = dll_dist(dlon, dlat, ds.lon_f, ds.lat_f)
-        ds["dx_u"] = grid.interp(ds["dx"], "x")
-        # ds["dy_u"] = grid.interp(ds["dy"], "x")
-        # ds["dx_v"] = grid.interp(ds["dx"], "y")
-        ds["dy_v"] = grid.interp(ds["dy"], "y")
-        # ds["dx_psi"] = grid.interp(ds["dx_u"], "y")
-        # ds["dy_psi"] = grid.interp(ds["dy_v"], "x")
+    Return:
+        DataSet : the dataset with the news metrics
+        XGCM grid: the xgcm grid of the dataset
 
-        # add areas metrics for rho,u,v and psi points
-        # ds['rAr'] = ds.dx_psi * ds.dy_psi
-        # ds['rAu'] = ds.dx_v * ds.dy_v
-        # ds['rAv'] = ds.dx_u * ds.dy_u
-        # ds['rAf'] = ds.dx * ds.dy
+    """
         
-        metrics={}    
-        # if all(d in model.ds.dims for d in ['x','x_u']):
-            # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
-        metrics.update({('x',): ['dx', 'dx_u']})
-        # if all(d in model.ds.dims for d in ['y','y_v']):
-            # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
-        metrics.update({('y',): ['dy', 'dy_v']})
-        # if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
-            # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
-         
-        if grid_metrics==1:
-            # generate xgcm grid
-            grid = Grid(ds,
-                        coords=coords,
-                        periodic=False,
-                        metrics=metrics,
-                        boundary='extend')
-            model.xgrid = grid
-            model.ds = ds
-            return ds, grid
-        
-        # compute z coordinate at rho/w points
-        if 'z_sfc' in [v for v in ds.data_vars] and \
-           's' in [d for d in ds.dims.keys()] and \
-            ds['s'].size>1:
-            ds['is3D'] = True
-            z = get_z(model, z_sfc=ds.z_sfc, xgrid=grid).fillna(0.)
-            z_w = get_z(model, z_sfc=ds.z_sfc, xgrid=grid, vgrid='w').fillna(0.)
-            ds['z'] = z
-            ds['z_w'] = z_w
-            ds['z_u'] = grid.interp(z,'x')
-            ds['z_v'] = grid.interp(z,'y')
-            ds['z_f'] = grid.interp(ds.z_u,'y')
-            # set as coordinates in the dataset
-            _coords = ['z','z_w','z_u','z_v','z_f']
-            ds = ds.set_coords(_coords)
+    # Create xgcm grid without metrics
+    coords={}
+    if all(d in model.ds.dims for d in ['x','x_u']):
+        if xperiodic:
+            coords.update({'x': {'center':'x', 'left':'x_u'}})
         else:
-            ds['is3D'] = False
+            coords.update({'x': {'center':'x', 'outer':'x_u'}})
+    if all(d in model.ds.dims for d in ['y','y_v']):
+        if yperiodic:
+            coords.update({'y': {'center':'y', 'left':'y_v'}} )
+        else:
+            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
+    if 's' in model.ds.dims:
+        coords.update({'z': {'center':'s', 'outer':'s_w'}})
+        
+    grid = Grid(model.ds, 
+              coords=coords,
+              periodic=False,
+              boundary='extend')
+    
+    if grid_metrics==0:           
+        model.xgrid = grid
+        return model.ds, grid
+    
+    # compute horizontal coordinates
 
-        # add vertical metrics for u, v, rho and psi points
-        # if 'z' in [v for v in ds.coords]:
-        if ds['is3D']:
-            ds['dz'] = grid.interp(grid.diff(z,'z'),'z')
-            ds['dz_w'] = grid.interp(grid.diff(z_w,'z'),'z')
-            # ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
-            # ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
-            # ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
-            # ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
-            # ds['dz_f'] = grid.interp(grid.diff(ds.z_f,'z'),'z')
-            
-        # add coords and metrics for xgcm for the vertical direction
-        # if 'z' in ds:
-        if ds['is3D']:
-# #             coords.update({'z': {'center':'s', 'outer':'s_w'}})
-#             metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_f', 'dz_w']}), # Z distances
-            metrics.update({('z',): ['dz', 'dz_w']}), # Z distances
+    ds = model.ds
+    if 'lon_u' not in ds and 'x_u' in ds.dims: ds['lon_u'] = grid.interp(ds.lon,'x')
+    if 'lat_u' not in ds and 'y'   in ds.dims: ds['lat_u'] = grid.interp(ds.lat,'x')
+    if 'lon_v' not in ds and 'x'   in ds.dims: ds['lon_v'] = grid.interp(ds.lon,'y')
+    if 'lat_v' not in ds and 'y_v' in ds.dims: ds['lat_v'] = grid.interp(ds.lat,'y')
+    if 'lon_p' not in ds and 'x_u' in ds.dims: ds['lon_p'] = grid.interp(ds.lon_v,'x')
+    if 'lat_p' not in ds and 'y_v' in ds.dims: ds['lat_p'] = grid.interp(ds.lat_u,'y')
+    _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
+    ds = ds.set_coords(_coords)
+    
+    
+    # add horizontal metrics for u, v and psi point
+    if 'pm' in ds and 'pn' in ds:
+        ds['dx'] = 1/ds['pm']
+        ds['dy'] = 1/ds['pn']
+    else: # backward compatibility, hack
+        dlon = grid.interp(grid.diff(ds.lon,'x'),'x')
+        dlat =  grid.interp(grid.diff(ds.lat,'y'),'y')
+        ds['dx'], ds['dy'] = dll_dist(dlon, dlat, ds.lon, ds.lat)
+    ds["dx_u"] = grid.interp(ds["dx"], "x")
+    # ds["dy_u"] = grid.interp(ds["dy"], "x")
+    # ds["dx_v"] = grid.interp(ds["dx"], "y")
+    ds["dy_v"] = grid.interp(ds["dy"], "y")
+    # ds["dx_psi"] = grid.interp(ds["dx_u"], "y")
+    # ds["dy_psi"] = grid.interp(ds["dy_v"], "x")
+
+    # add areas metrics for rho,u,v and psi points
+    # ds['rAr'] = ds.dx_psi * ds.dy_psi
+    # ds['rAu'] = ds.dx_v * ds.dy_v
+    # ds['rAv'] = ds.dx_u * ds.dy_u
+    # ds['rAf'] = ds.dx * ds.dy
+    
+    metrics={}    
+    # if all(d in model.ds.dims for d in ['x','x_u']):
+        # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
+    metrics.update({('x',): ['dx', 'dx_u']})
+    # if all(d in model.ds.dims for d in ['y','y_v']):
+        # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
+    metrics.update({('y',): ['dy', 'dy_v']})
+    # if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
+        # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
+     
+    if grid_metrics==1:
         # generate xgcm grid
         grid = Grid(ds,
                     coords=coords,
                     periodic=False,
                     metrics=metrics,
                     boundary='extend')
-
         model.xgrid = grid
         model.ds = ds
-
         return ds, grid
+    
+    # compute z coordinate at rho/w points
+    if 'z_sfc' in [v for v in ds.data_vars] and \
+       's' in [d for d in ds.dims.keys()] and \
+        ds['s'].size>1:
+        ds['is3D'] = True
+        z = get_z(model, z_sfc=ds.z_sfc, xgrid=grid).fillna(0.)
+        z_w = get_z(model, z_sfc=ds.z_sfc, xgrid=grid, vgrid='w').fillna(0.)
+        ds['z'] = z
+        ds['z_w'] = z_w
+        ds['z_u'] = grid.interp(z,'x')
+        ds['z_v'] = grid.interp(z,'y')
+        ds['z_p'] = grid.interp(ds.z_u,'y')
+        # set as coordinates in the dataset
+        _coords = ['z','z_w','z_u','z_v','z_p']
+        ds = ds.set_coords(_coords)
+    else:
+        ds['is3D'] = False
+
+    # add vertical metrics for u, v, rho and psi points
+    # if 'z' in [v for v in ds.coords]:
+    if ds['is3D']:
+        ds['dz'] = grid.interp(grid.diff(z,'z'),'z')
+        ds['dz_w'] = grid.interp(grid.diff(z_w,'z'),'z')
+        # ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
+        # ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
+        # ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
+        # ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
+        # ds['dz_p'] = grid.interp(grid.diff(ds.z_p,'z'),'z')
+        
+    # add coords and metrics for xgcm for the vertical direction
+    # if 'z' in ds:
+    if ds['is3D']:
+# #             coords.update({'z': {'center':'s', 'outer':'s_w'}})
+#             metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_p', 'dz_w']}), # Z distances
+        metrics.update({('z',): ['dz', 'dz_w']}), # Z distances
+    # generate xgcm grid
+    grid = Grid(ds,
+                coords=coords,
+                periodic=False,
+                metrics=metrics,
+                boundary='extend')
+
+    model.xgrid = grid
+    model.ds = ds
+
+    return ds, grid
 
 def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
-    
     """
-    Create the xgcm grid without computing any metrics. Just use those which are already 
+    Create the xgcm grid without computing any metrics. Just use those which are already
     in the dataset.
-    Input:
+    Args:
         ds: (Xarray Dataset) the dataset to create the xgcm grid
         grid_metrics: (integer) 0:no metrics, 1:horizontal metrics, 2:hor + vert metrics
         xperiodic: True if ds periodic in x
         yperiodic: True if ds periodic in y
-        
+
     Return:
         grid: the xgcm grid
-        
+
     """
     
     # Create xgcm grid without metrics
@@ -352,7 +385,7 @@ def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
         return grid
 
     # Set z variables as coordinates
-    _coords = [d for d in ds.data_vars.keys() if d in ['z','z_w','z_u','z_v','z_f']]
+    _coords = [d for d in ds.data_vars.keys() if d in ['z','z_w','z_u','z_v','z_p']]
     ds = ds.set_coords(_coords)
 
     # add vertical metrics
@@ -362,7 +395,7 @@ def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
         for k in attrs: ds[k] = ds.attrs[k]
     # add dz metrics
     if all(d in ds.dims for d in ['s','s_w']):        
-        dz = [v for v in ds.data_vars if v in ['dz', 'dz_u', 'dz_v', 'dz_f', 'dz_w']]
+        dz = [v for v in ds.data_vars if v in ['dz', 'dz_u', 'dz_v', 'dz_p', 'dz_w']]
         metrics.update({('z',): dz})
     
     # generate xgcm grid
@@ -377,16 +410,14 @@ def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
 def dll_dist(dlon, dlat, lon, lat):
     """
     Converts lat/lon differentials into distances in meters
-    PARAMETERS
-    ----------
-    dlon : xarray.DataArray longitude differentials 
-    dlat : xarray.DataArray latitude differentials 
-    lon : xarray.DataArray longitude values
-    lat : xarray.DataArray latitude values
-    RETURNS
-    -------
-    dx : xarray.DataArray distance inferred from dlon 
-    dy : xarray.DataArray distance inferred from dlat 
+    Args:
+        dlon : xarray.DataArray longitude differentials
+        dlat : xarray.DataArray latitude differentials
+        lon : xarray.DataArray longitude values
+        lat : xarray.DataArray latitude values
+    Return:
+        dx : xarray.DataArray distance inferred from dlon
+        dy : xarray.DataArray distance inferred from dlat
     """
     distance_1deg_equator = 111000.0
     # dx = dlon * xr.ufuncs.cos(xr.ufuncs.deg2rad(lat)) * distance_1deg_equator 
@@ -397,12 +428,14 @@ def dll_dist(dlon, dlat, lon, lat):
 
 
 def adjust_grid(model, ds):
-    ''' 
+    """
     Change the names in the dataset according to the model
-    Input : model: Instance of the model class
-            ds : dataset to change
-    Output : changed dataset
-    '''
+    Args :
+        model (Model class): Instance of the model class
+        ds (Dataset): dataset to change
+    Return :
+        DataSet : changed dataset
+    """
     # change names in dims, coordinates and variables
     for k,v in model.rename_vars.items():
         if (k in ds and v not in ds) or \
@@ -416,7 +449,11 @@ def adjust_grid(model, ds):
     
 
 def get_spatial_dims(v):
-    """ Return an ordered dict of spatial dimensions in the s/z, y, x order
+    """Return an ordered dict of spatial dimensions in the s, y, x order
+    Args :
+        v (DataArray) : variable for which you have to guess the dimensions
+    Return:
+        Dictionary : ordered dimensions
     """
     if isinstance(v, xr.DataArray):
         dims = OrderedDict( (d, next((x for x in v.dims if x[0]==d), None))
@@ -433,13 +470,50 @@ def get_spatial_dims(v):
 
 
 def get_spatial_coords(v):
-    """ Return an ordered dict of spatial dimensions in the s/z, y, x order
+    """Return an ordered dict of spatial coordinates in the z, lat, lon order
+    Args:
+        v (DataArray) : variable for which you have to guess the coordinates
+    Return:
+        Dictionary: ordered coordinates
     """
     coords = OrderedDict( (d, next((x for x in v.coords if x.startswith(d)), None))
                        for d in ['z','lat','lon'] )
     for k,c in coords.items():
         if c is not None and v.coords[c].size==1: coords[k]= None
     return coords
+
+
+def order_dims(var):
+    """Reorder var to typical dimensional ordering.
+
+    Args:
+        var (DataArray) : Variable to operate on.
+
+    Returns
+        DataArray : with dimensional order ['T', 'Z', 'Y', 'X'], or whatever subset of
+    dimensions are present in var.
+
+    Notes
+    -----
+    Do not consider previously-selected dimensions that are kept on as coordinates but
+    cannot be transposed anymore. This is accomplished with `.reset_coords(drop=True)`.
+
+    Examples
+    --------
+    >>> xroms.order(var)
+    """
+
+    return var.cf.transpose(
+        *[
+            # dim
+            # for dim in ["T", "Z", "Y", "X"]
+            # if dim in var.reset_coords(drop=True).cf.axes
+            dim
+            for dim in ["t", "s", "s_w", "y", "y_v" "x", "x_u"]
+            if dim in var.dims
+        ]
+    )
+
 
 def reorder_dims(da):    
     # reorder spatial dimensions and place them last
@@ -448,170 +522,368 @@ def reorder_dims(da):
     reordered_dims = tuple(d for d in da.dims if d not in sdims) + sdims
     return da.transpose(*reordered_dims, transpose_coords=True)
 
-def x2rho(ds,v, grid):
-    """ Interpolate from any grid to rho grid
+
+def to_rho(v, grid, hboundary="extend", hfill_value=None):
+    """Interpolate to rho horizontal grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a rho horizontal point
     """
+    vout = v.copy()
     dims = get_spatial_dims(v)
     coords = get_spatial_coords(v)
+    coords = {k: v for k, v in coords.items() if v is not None}
+
+    if "x" not in v.dims and dims["x"] is not None and v[dims["x"]].size > 1:
+        v = grid.interp(v, "x")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "x")
+
     vout = v.copy()
-    if coords['lon']: lonout = v[coords['lon']].copy()
-    if coords['lat']: latout = v[coords['lat']].copy()
-    if coords['z']: zout = v[coords['z']].copy()
-    if dims['x'] == 'x_u' and v.x_u.size>1:
-        vout = grid.interp(vout, 'x')
-        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
-        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
-        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
-    if dims['y'] == 'y_v' and v.y_v.size>1:
-        vout = grid.interp(vout, 'y')
-        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
-        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
-        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
-    if dims['s'] == 's_w' and v.s_w.size>1:
-        vout = grid.interp(vout, 'z')
-        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
-    # assign coordinates
-    if coords['lon']: vout = vout.assign_coords(coords={'lon':lonout})
-    if coords['lat']: vout = vout.assign_coords(coords={'lat':latout})
-    if coords['z']: vout = vout.assign_coords(coords={'z':zout})
+    if "y" not in v.dims and dims["y"] is not None and v[dims["y"]].size > 1:
+        v = grid.interp(v, "y")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "y")
 
-    return vout
+    return v
 
-def x2u(ds,v, grid):
-    """ Interpolate from any grid to u grid
+
+def to_u(v, grid, hboundary="extend", hfill_value=None):
+    """Interpolate to u horizontal grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a u horizontal point
     """
+    vout = v.copy()
     dims = get_spatial_dims(v)
     coords = get_spatial_coords(v)
-    vout = v.copy()
-    if coords['lon']: lonout = v[coords['lon']].copy()
-    if coords['lat']: latout = v[coords['lat']].copy()
-    if coords['z']: zout = v[coords['z']].copy()
-    if dims['x'] == 'x' and v.x.size>1:
-        vout = grid.interp(vout, 'x')
-        if coords['lon'] and 'x' in lonout.dims: lonout = grid.interp(lonout, 'x')
-        if coords['lat'] and 'x' in latout.dims: latout = grid.interp(latout, 'x')
-        if coords['z'] and 'x' in zout.dims: zout = grid.interp(zout, 'x')
-    if dims['y'] == 'y_v' and v.y_v.size>1:
-        vout = grid.interp(vout, 'y')
-        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
-        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
-        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
-    if dims['s'] == 's_w' and v.s_w.size>1:
-        vout = grid.interp(vout, 'z')
-        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
-    # assign coordinates
-    if coords['lon']: vout = vout.assign_coords(coords={'lon_u':lonout})
-    if coords['lat']: vout = vout.assign_coords(coords={'lat_u':latout})
-    if coords['z']:vout = vout.assign_coords(coords={'z_u':zout})
-    return vout
+    coords = {k: v for k, v in coords.items() if v is not None}
 
-def x2v(ds,v, grid):
-    """ Interpolate from any grid to v grid
+    if "x_u" not in v.dims and dims["x"] is not None and v[dims["x"]].size > 1:
+        v = grid.interp(v, "x")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "x")
+
+    vout = v.copy()
+    if "y" not in v.dims and dims["y"] is not None and v[dims["y"]].size > 1:
+        v = grid.interp(v, "y")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "y")
+            
+    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
+    for k,c in coords.items():
+        v = v.rename({c:c[0:4]+"_u"})
+
+    return v
+
+
+def to_v(v, grid, hboundary="extend", hfill_value=None):
+    """Interpolate to v horizontal grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a v horizontal point
     """
+    vout = v.copy()
     dims = get_spatial_dims(v)
     coords = get_spatial_coords(v)
-    vout = v.copy()
-    if coords['lon']: lonout = v[coords['lon']].copy()
-    if coords['lat']: latout = v[coords['lat']].copy()
-    if coords['z']: zout = v[coords['z']].copy()
-    if dims['x'] == 'x_u' and v.x_u.size>1:
-        vout = grid.interp(vout, 'x')
-        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
-        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
-        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
-    if dims['y'] == 'y' and v.y.size>1:
-        vout = grid.interp(vout, 'y')
-        if coords['lon'] and 'y' in lonout.dims: lonout = grid.interp(lonout, 'y')
-        if coords['lat'] and 'y' in latout.dims: latout = grid.interp(latout, 'y')
-        if coords['z'] and 'y' in zout.dims: zout = grid.interp(zout, 'y')
-    if dims['s'] == 's_w' and v.s_w.size>1:
-        vout = grid.interp(vout, 'z')
-        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
-    # assign coordinates
-    if coords['lon']: vout = vout.assign_coords(coords={'lon_v':lonout})
-    if coords['lat']: vout = vout.assign_coords(coords={'lat_v':latout})
-    if coords['z']:vout = vout.assign_coords(coords={'z_v':zout})
-    return vout
+    coords = {k: v for k, v in coords.items() if v is not None}
 
-def x2w(ds,v, grid):
-    """ Interpolate from any grid to w grid
+    if "x" not in v.dims and dims["x"] is not None and v[dims["x"]].size > 1:
+        v = grid.interp(v, "x")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "x")
+
+    vout = v.copy()
+    if "y_v" not in v.dims and dims["y"] is not None and v[dims["y"]].size > 1:
+        v = grid.interp(v, "y")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "y")
+            
+    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
+    for k,c in coords.items():
+        v = v.rename({c:c[0:4]+"_v"})
+
+    return v
+
+
+def to_psi(v, grid, hboundary="extend", hfill_value=None):
+    """Interpolate to psi horizontal grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a psi horizontal point
     """
+    vout = v.copy()
     dims = get_spatial_dims(v)
     coords = get_spatial_coords(v)
+    coords = {k: v for k, v in coords.items() if v is not None}
+
+    if "x_u" not in v.dims and dims["x"] is not None and v[dims["x"]].size > 1:
+        v = grid.interp(v, "x")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "x")
+
     vout = v.copy()
-    if coords['lon']: lonout = v[coords['lon']].copy()
-    if coords['lat']: latout = v[coords['lat']].copy()
-    if coords['z']: zout = v[coords['z']].copy()
-    if dims['x'] == 'x_u' and v.x_u.size>1:
-        vout = grid.interp(vout, 'x')
-        if coords['lon'] and 'x_u' in lonout.dims: lonout = grid.interp(lonout, 'x')
-        if coords['lat'] and 'x_u' in latout.dims: latout = grid.interp(latout, 'x')
-        if coords['z'] and 'x_u' in zout.dims: zout = grid.interp(zout, 'x')
-    if dims['y'] == 'y_v' and v.y_v.size>1:
-        vout = grid.interp(vout, 'y')
-        if coords['lon'] and 'y_v' in lonout.dims: lonout = grid.interp(lonout, 'y')
-        if coords['lat'] and 'y_v' in latout.dims: latout = grid.interp(latout, 'y')
-        if coords['z'] and 'y_v' in zout.dims: zout = grid.interp(zout, 'y')
-    if dims['s'] == 's' and v.s.size>1:
-        vout = grid.interp(vout, 'z')
-        if coords['z'] and 's' in zout.dims: zout = grid.interp(zout, 'z')
-    # assign coordinates
-    if coords['lon']: vout = vout.assign_coords(coords={'lon':lonout})
-    if coords['lat']: vout = vout.assign_coords(coords={'lat':latout})
-    if coords['z']:vout = vout.assign_coords(coords={'z_w':zout})
-    return vout
+    if "y_v" not in v.dims and dims["y"] is not None and v[dims["y"]].size > 1:
+        v = grid.interp(v, "y")
+        for k, c in coords.items():
+            v.coords[c] = grid.interp(vout.coords[c], "y")
+            
+    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
+    for k,c in coords.items():
+        v = v.rename({c:c[0:4]+"_p"})
+    return v
 
 
-def x2f(ds,v, grid):
-    """ Interpolate from any grid to psi grid
+def to_s_rho(v, grid, vboundary="extend", vfill_value=None):
+    """Interpolate to rho vertical grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a rho vertical level
     """
+    vout = v.copy()
     dims = get_spatial_dims(v)
     coords = get_spatial_coords(v)
+    coords = {k: v for k, v in coords.items() if v is not None}
+
+    interp = False
+    if "s" not in v.dims and dims["s"] is not None and v[dims["s"]].size > 1:
+        interp = True
+        v = grid.interp(v, "z")
+        if "lon" in coords.keys():
+            v.coords[coords["lon"]] = vout.coords[coords["lon"]]
+        if "lat" in coords.keys():
+            v.coords[coords["lat"]] = vout.coords[coords["lat"]]
+        if "z" in coords.keys():
+            v.coords["z"] = grid.interp(vout.coords[coords["z"]], "z")
+
+    return v
+
+
+def to_s_w(v, grid, vboundary="extend", vfill_value=None):
+    """Interpolate to w vertical grid
+
+    Args:
+        - v (DataArray): variable to interpolate
+        - grid (xgcm.grid): grid object associated with v
+        - hboundary (str, optional):
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            - None: Do not apply any boundary conditions.
+                    Raise an error if boundary conditions are required for the operation.
+            - ‘fill’: Set values outside the array boundary to fill_value
+                    (i.e. a Dirichlet boundary condition.)
+            - ‘extend’: Set values outside the array to the nearest array value.
+                    (i.e. a limited form of Neumann boundary condition.)
+        -hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns:
+        DataArray: input variable interpolated on a w vertical level
+    """
     vout = v.copy()
-    if coords['lon']: lonout = v[coords['lon']].copy()
-    if coords['lat']: latout = v[coords['lat']].copy()
-    if coords['z']: zout = v[coords['z']].copy()
-    if dims['x'] == 'x' and v.x.size>1:
-        vout = grid.interp(vout, 'x')
-        if coords['lon'] and 'x' in lonout.dims: lonout = grid.interp(lonout, 'x')
-        if coords['lat'] and 'x' in latout.dims: latout = grid.interp(latout, 'x')
-        if coords['z'] and 'x' in zout.dims: zout = grid.interp(zout, 'x')
-    if dims['y'] == 'y' and v.y.size>1:
-        vout = grid.interp(vout, 'y')
-        if coords['lon'] and 'y' in lonout.dims: lonout = grid.interp(lonout, 'y')
-        if coords['lat'] and 'y' in latout.dims: latout = grid.interp(latout, 'y')
-        if coords['z'] and 'y' in zout.dims: zout = grid.interp(zout, 'y')
-    if dims['s'] == 's_w' and v.s_w.size>1:
-        vout = grid.interp(vout, 'z')
-        if coords['z'] and 's_w' in zout.dims: zout = grid.interp(zout, 'z')
-    # assign coordinates
-    if coords['lon']: vout = vout.assign_coords(coords={'lon_f':lonout})
-    if coords['lat']: vout = vout.assign_coords(coords={'lat_f':latout})
-    if coords['z']:vout = vout.assign_coords(coords={'z_f':zout})
-    return vout
+    dims = get_spatial_dims(v)
+    coords = get_spatial_coords(v)
+    coords = {k: v for k, v in coords.items() if v is not None}
 
-def x2x(ds,v, grid, target):
-    if target in ['rho', 'r']:
-        return x2rho(ds,v, grid)
-    elif target == 'u':
-        return x2u(ds,v, grid)
-    elif target == 'v':
-        return x2v(ds,v, grid)
-    elif target == 'w':
-        return x2w(ds,v, grid)
-    elif target in ['psi', 'p', 'f']:
-        return x2f(ds,v, grid)
+    interp = False
+    if "s_w" not in v.dims and dims["s"] is not None and v[dims["s"]].size > 1:
+        interp = True
+        v = grid.interp(v, "z")
+        if "lon" in coords.keys():
+            v.coords[coords["lon"]] = vout.coords[coords["lon"]]
+        if "lat" in coords.keys():
+            v.coords[coords["lat"]] = vout.coords[coords["lat"]]
+        if "z" in coords.keys():
+            v.coords["z_w"] = grid.interp(vout.coords[coords["z"]], "z")
+
+    return v
 
 
+def to_grid_point(
+    var,
+    xgrid,
+    hcoord=None,
+    vcoord=None,
+    hboundary="extend",
+    hfill_value=None,
+    vboundary="extend",
+    vfill_value=None,
+    attrs=None,
+):
+    """Interpolate to a new grid point.
+
+    Args
+        var: DataArray or ndarray
+            Variable to operate on.
+        xgrid: xgcm.grid
+            Grid object associated with var
+        hcoord: string, optional.
+            Name of horizontal grid to interpolate output to.
+            Options are 'r', 'rho','p', 'psi', 'u', 'v'.
+        vcoord: string, optional.
+            Name of vertical grid to interpolate output to.
+            Options are 's_rho', 's_w', 'rho', 'r', 'w'.
+        hboundary: string, optional
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            * None:  Do not apply any boundary conditions. Raise an error if
+            boundary conditions are required for the operation.
+            * 'fill':  Set values outside the array boundary to fill_value
+            (i.e. a Neumann boundary condition.)
+            * 'extend': Set values outside the array to the nearest array
+            value. (i.e. a limited form of Dirichlet boundary condition.
+        hfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+        sboundary: string, optional
+            From xgcm documentation:
+            A flag indicating how to handle boundaries:
+            * None:  Do not apply any boundary conditions. Raise an error if
+            boundary conditions are required for the operation.
+            * 'fill':  Set values outside the array boundary to fill_value
+            (i.e. a Neumann boundary condition.)
+            * 'extend': Set values outside the array to the nearest array
+            value. (i.e. a limited form of Dirichlet boundary condition.
+        sfill_value: float, optional
+            From xgcm documentation:
+            The value to use in the boundary condition with `boundary='fill'`.
+
+    Returns
+        DataArray or ndarray interpolated onto hcoord horizontal and vcoord
+        vertical point.
+
+    Notes
+    -----
+    If var is already on selected grid, nothing happens.
+
+    Examples
+    --------
+    >>> to_grid_point(ds.salt, xgrid, hcoord='rho', scoord='w')
+    """
+
+    if attrs is None and isinstance(var, xr.DataArray):
+        attrs = var.attrs.copy()
+        attrs["name"] = var.name
+        attrs["units"] = attrs.setdefault("units", "units")
+        attrs["long_name"] = attrs.setdefault("long_name", "var")
+
+    if hcoord is not None:
+        assert hcoord in ["rho", "r", "psi", "p", "u", "v"], (
+            'hcoord should be "rho" or "r" or "psi" or "p" or "u" or "v" but is "%s"'
+            % hcoord
+        )
+        if hcoord in ["rho", "r"]:
+            var = to_rho(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
+        elif hcoord in ["psi", "p"]:
+            var = to_psi(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
+        elif hcoord == "u":
+            var = to_u(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
+        elif hcoord == "v":
+            var = to_v(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
+
+    if vcoord is not None:
+        assert vcoord in ["s_rho", "rho", "r", "s_w", "w"], (
+            'scoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % scoord
+        )
+        if vcoord in ["s_rho", "rho", "r"]:
+            var = to_s_rho(var, xgrid, vboundary=vboundary, vfill_value=vfill_value)
+        elif vcoord in ["s_w", "w"]:
+            var = to_s_w(var, xgrid, vboundary=vboundary, vfill_value=vfill_value)
+
+    if isinstance(var, xr.DataArray):
+        var.attrs = attrs
+        var.name = var.attrs["name"]
+
+    return var
 
 
 def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
           hgrid='r', vtransform=2):
-    ''' Compute vertical coordinates
-        Spatial dimensions are placed last, in the order: s/s_w, y, x
+    """Compute vertical coordinates
+    Spatial dimensions are placed last, in the order: s/s_w, y, x
 
-        Parameters
-        ----------
+    Args:
         ds: xarray dataset
         z_sfc: xarray.DataArray, optional
             Sea level data, default to 0 if not provided
@@ -629,8 +901,9 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
             croco vertical transform employed in the simulation.
             1="old": z = z0 + (1+z0/_h) * _z_sfc  with  z0 = hc*sc + (_h-hc)*cs
             2="new": z = z0 * (_z_sfc + _h) + _z_sfc  with  z0 = (hc * sc + _h * cs) / (hc + _h)
-    '''
-
+    Return:
+        DataArray : the z coordinate
+    """
     xgrid = model.xgrid if xgrid is None else xgrid
     ds = model.ds if ds is None else ds
 
@@ -638,9 +911,11 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     z_sfc = 0*ds.h if z_sfc is None else z_sfc
 
     # switch horizontal grid if needed
-    if hgrid in ['u','v','f']:
-        h = x2x(ds, h, xgrid, hgrid)
-        z_sfc = x2x(ds, z_sfc, xgrid, hgrid)
+    if hgrid in ['u','v','p']:
+        # h = x2x(ds, h, xgrid, hgrid)
+        # z_sfc = x2x(ds, z_sfc, xgrid, hgrid)
+        h = to_grid_point(h, xgrid, hcoord=hgrid,vcoord=vgrid)
+        z_sfc = to_grid_point(z_sfc, xgrid, hcoord=hgrid,vcoord=vgrid)
 
     # align datasets (z_sfc may contain a slice along one dimension for example)
     h, z_sfc  = xr.align(h, z_sfc, join='inner')
@@ -672,53 +947,58 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     return z.fillna(0.) #.rename('z_'+hgrid).replace('z_r','z_'+vgrid)
 
 
+def rot_uv(u, v, angle, xgrid):
+    """Rotate u,v to lat,lon coordinates
 
-def rotuv(model, ds=None, xgrid=None, u=None, v=None, angle=None):
-    '''
-    Rotate winds or u,v to lat,lon coord -> result on rho grid by default
-    '''
+    Args:
+        u: DataArray
+            3D velocity components in XI direction
 
-    import timeit
-    
-    xgrid = model.xgrid if xgrid is None else xgrid
-    ds = model.ds if ds is None else ds
-        
-    u = ds.u if u is None else u
-    hgrid,vgrid = get_grid_point(u)
-    if hgrid != 'r': u = x2rho(ds, u, xgrid)
-    #u = ds_hor_chunk(u, wanted_chunk=100)
-        
-    v = ds.v if v is None else v
-    hgrid,vgrid = get_grid_point(v)
-    if hgrid != 'r': v = x2rho(ds, v, xgrid)
-    #v = ds_hor_chunk(v, wanted_chunk=100)
-        
-    angle = ds.angle if angle is None else angle
-    hgrid,vgrid = get_grid_point(angle)
-    if hgrid != 'r': angle = x2rho(ds, angle, xgrid)
-    
+        v: DataArray
+            3D velocity components in ETA direction
+
+        angle: DataArray
+            Angle [radians] between XI-axis and the direction to the EAST at RHO-points
+
+        xgrid: xgcm.grid
+            grid object associated with u and v
+
+    Returns:
+        DatArray: rotated velocities, urot/vrot at the horizontal u/v grid point
+    """
+
+    assert xgrid is not None, "Xgcm grid should be input."
+    assert isinstance(xgrid, Grid), "xgrid must be `xgcm` grid object."
+
+    # save attributes to reinstitute at end
+    attrsu = u.attrs
+    attrsv = v.attrs
+
+    # change all the variables to the rho grid point if needed
+    u = to_grid_point(u, xgrid, hcoord="r", vcoord="r")
+    v = to_grid_point(v, xgrid, hcoord="r", vcoord="r")
+    angle = to_grid_point(angle, xgrid, hcoord="r", vcoord="r")
+
     cosang = np.cos(angle)
     sinang = np.sin(angle)
 
-    # All the program statements
-    urot = (u*cosang - v*sinang)
-    
-    #start = timeit.default_timer()
-    vrot = (u*sinang + v*cosang)
-    #stop = timeit.default_timer()
-    #print("time vrot: "+str(stop - start))
-    
-    # assign coordinates to urot/vrot
-    dims = get_spatial_dims(u)
-    coords = get_spatial_coords(u)
-    for k,c in coords.items(): 
-        if c is not None: urot = urot.assign_coords(coords={c:u[c]})
-    dims = get_spatial_dims(v)
-    coords = get_spatial_coords(v)
-    for k,c in coords.items(): 
-        if c is not None: vrot = vrot.assign_coords(coords={c:v[c]})
+    # Rotate velocities
+    urot = u * cosang - v * sinang
+    vrot = u * sinang + v * cosang
 
-    return [urot,vrot]
+    # change velocities to their horizontal grid point
+    urot = to_grid_point(urot, xgrid, hcoord="u", vcoord="r")
+    vrot = to_grid_point(vrot, xgrid, hcoord="v", vcoord="r")
+
+    # add original attributes back in
+    urot.attrs = {**attrsu, **urot.attrs}
+    vrot.attrs = {**attrsv, **vrot.attrs}
+
+    # try to guess cf coordinates
+    urot = urot.squeeze().cf.guess_coord_axis()
+    vrot = vrot.squeeze().cf.guess_coord_axis()
+
+    return [urot.rename("urot"), vrot.rename("vrot")]
 
 
 
@@ -934,6 +1214,14 @@ def hgrad(
         
 
 def get_grid_point(var):
+    """Get the horizontal and vertical grid point of a variable
+
+    Args:
+        var (DataArray): variable to operate on
+
+    Returns:
+        character, character: horizontal, vertical grid point
+    """
     dims = var.dims
     # horizontal point
     hpoint='r'
@@ -953,26 +1241,19 @@ def get_grid_point(var):
     
 def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, depth=None):
     """
-    #
-    #
-    # This function interpolate a 3D variable on slices at constant depths/longitude/latitude
-    # This function use xcgm transform method and needs xgcm.Grid to be defined over the 3 axes.
-    # !!! For now, it works only with curvilinear coordinates !!!
-    #
-    # On Input:
-    #
-    #    ds      dataset to find the grid
-    #    var     (dataArray) Variable to process (3D matrix).
-    #    z       (dataArray) Depths at the same point than var (3D matrix).
-    #    longitude   (scalar,list or ndarray) longitude of the slice (scalar meters, negative).
-    #    latitude    (scalar,list or ndarray) latitude of the slice (scalar meters, negative).
-    #    depth       (scalar,list or ndarray) depth of the slice (scalar meters, negative).
-    #
-    # On Output:
-    #
-    #    vnew    (dataArray) Horizontal slice
-    #
-    #
+    This function interpolate a 3D variable on slices at constant depths/longitude/latitude
+    This function use xcgm transform method and needs xgcm.Grid to be defined over the 3 axes.
+    !!! For now, it works only with curvilinear coordinates !!!
+
+    Args:
+        ds      dataset to find the grid
+        var     (dataArray) Variable to process (3D matrix).
+        z       (dataArray) Depths at the same point than var (3D matrix).
+        longitude   (scalar,list or ndarray) longitude of the slice (scalar meters, negative).
+        latitude    (scalar,list or ndarray) latitude of the slice (scalar meters, negative).
+        depth       (scalar,list or ndarray) depth of the slice (scalar meters, negative).
+    Return:
+        vnew    (dataArray) Horizontal slice
     """
     from matplotlib.cbook import flatten
   
@@ -1056,7 +1337,181 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
 #     return vnew.squeeze().unify_chunks().fillna(0.)  #unify_chunks() 
     return vnew.squeeze().fillna(0.)  #unify_chunks()   
 
+
+def isoslice(var, target, xgrid, target_data=None, axis="z"):
+    """Interpolate var to target.
+
+    This wraps `xgcm` `transform` function for slice interpolation,
+    though `transform` has additional functionality.
+
+    Args:
+        var: DataArray
+            Variable to operate on.
+        target: ndarray
+            Values to interpolate to. If calculating var at fixed depths,
+            target are the fixed depths, which should be negative if
+            below mean sea level. If input as array, should be 1D.
+        xgrid: xgcm.grid, optional
+            Grid object associated with var.
+        target_data: DataArray, optional
+            Array that var is interpolated onto (e.g., z coordinates or
+            density). If calculating var on fixed depth slices, target_data
+            contains the depths [m] associated with var. In that case and
+            if None, will use z coordinate attached to var. Also use this
+            option if you want to interpolate with z depths constant in
+            time and input the appropriate z coordinate.
+        axis: str, optional
+            Dimension over which to calculate isoslice. If calculating var
+            onto fixed depths, `dim='z'`. Options are 'z', 'y', and 'x'.
+    Return:
+        DataArray of var interpolated to target. Dimensionality will be the
+        same as var except with dim dimension of size of target.
+
+    Notes
+    -----
+    var cannot have chunks in the dimension dim.
+
+    cf-xarray should still be usable after calling this function.
+
+    Examples
+    --------
+    To calculate temperature onto fixed depths:
+    >>> isoslice(ds.temp, np.linspace(0, -30, 50))
+
+    To calculate temperature onto salinity:
+    >>> isoslice(ds.temp, np.arange(0, 36), target_data=ds.salt, axis='z')
+
+    Calculate lat-z slice of salinity along a constant longitude value (-91.5):
+    >>> isoslice(ds.salt, -91.5, target_data=ds.lon_rho, axis='x')
+
+    Calculate slice of salt at 28 deg latitude
+    >>> isoslice(ds.salt, 28, target_data=ds.lat_rho, axis='y')
+
+    Interpolate temp to salinity values between 0 and 36 in the X direction
+    >>> isoslice(ds.temp, np.linspace(0, 36, 50), target_data=ds.salt, axis='x')
+
+    Interpolate temp to salinity values between 0 and 36 in the Z direction
+    >>> isoslice(ds.temp, np.linspace(0, 36, 50), target_data=ds.salt, axis='z')
+
+    Calculate the depth of a specific isohaline (33):
+    >>> isoslice(ds.salt, 33, target_data=ds.z_rho, axis='z')
+
+
+    """
+
+    assert xgrid is not None, "Xgcm grid should be input."
+
+    assert isinstance(xgrid, Grid), "xgrid must be `xgcm` grid object."
+
+    attrs = var.attrs  # save to reinstitute at end
+
+    # make sure target are array-like
+    if isinstance(target, (int, float)):
+        target = np.asarray([target])
+
+    # interpolate to the z coordinates associated with var
+    if target_data is None:
+        key = [coord for coord in var.coords if "z_" in coord][0]
+        assert (
+            len(key) > 0
+        ), "z coordinates associated with var could not be identified."
+        target_data = var[key]
+    else:
+        if isinstance(target_data, xr.DataArray) and target_data.name is not None:
+            key = target_data.name
+        else:
+            key = "z"
+
+    # perform interpolation
+    transformed = xgrid.transform(var, axis, target, target_data=target_data)
+
+    if key not in transformed.coords:
+        transformed = transformed.assign_coords({key: target_data})
+
+    # bring along attributes for cf-xarray
+    transformed[key].attrs["axis"] = axis
+    # add original attributes back in
+    transformed.attrs = {**attrs, **transformed.attrs}
+
+    # save key names for later
+    # perform interpolation for other coordinates if needed
+    if "longitude" in var.cf.coordinates:
+        lonkey = var.cf["longitude"].name
+
+        if lonkey not in transformed.coords:
+            # this interpolation won't work for certain combinations of var[latkey] and target_data
+            # without the following step
+            if "T" in target_data.reset_coords(drop=True).cf.axes:
+                target_data = target_data.cf.isel(T=0).drop_vars(
+                    target_data.cf["T"].name, errors="ignore"
+                )
+            if "Z" in target_data.reset_coords(drop=True).cf.axes:
+                target_data = target_data.cf.isel(Z=0).drop_vars(
+                    target_data.cf["Z"].name, errors="ignore"
+                )
+            transformedlon = xgrid.transform(
+                var[lonkey], axis, target, target_data=target_data
+            )
+            transformed = transformed.assign_coords({lonkey: transformedlon})
+
+        transformed[lonkey].attrs["standard_name"] = "longitude"
+
+    if "latitude" in var.cf.coordinates:
+        latkey = var.cf["latitude"].name
+
+        if latkey not in transformed.coords:
+            # this interpolation won't work for certain combinations of var[latkey] and target_data
+            # without the following step
+            if "T" in target_data.reset_coords(drop=True).cf.axes:
+                target_data = target_data.cf.isel(T=0).drop_vars(
+                    target_data.cf["T"].name, errors="ignore"
+                )
+            if "Z" in target_data.reset_coords(drop=True).cf.axes:
+                target_data = target_data.cf.isel(Z=0).drop_vars(
+                    target_data.cf["Z"].name, errors="ignore"
+                )
+            transformedlat = xgrid.transform(
+                var[latkey], axis, target, target_data=target_data
+            )
+            transformed = transformed.assign_coords({latkey: transformedlat})
+
+        transformed[latkey].attrs["standard_name"] = "latitude"
+
+    if "vertical" in var.cf.coordinates:
+        zkey = var.cf["vertical"].name
+
+        if zkey not in transformed.coords:
+            transformedZ = xgrid.transform(
+                var[zkey], axis, target, target_data=target_data
+            )
+            transformed = transformed.assign_coords({zkey: transformedZ})
+
+        transformed[zkey].attrs["positive"] = "up"
+
+    transformed = transformed.squeeze().cf.guess_coord_axis()
+
+    # reorder back to normal ordering in case changed
+    transformed = order_dims(transformed)
+
+    return transformed
+
+
+
 def cross_section(grid, da, lon1, lat1, lon2, lat2, dlon=None):
+    """ Extract a section between 2 geographic points
+
+    Args:
+        grid (XGCM grid): the XGCM grid associated
+        da (DataArray): variable to operate on
+        lon1 (float): minimum longitude
+        lat1 (float): minimum latitude
+        lon2 (float): maximum longitude
+        lat2 (float): maximum latitude
+        dlon (float, optional): longitude interval. Defaults to None.
+
+    Returns:
+        DataArray: new section
+    """
     
     # check input parameters
     if not isinstance(grid,Grid): print('grid must be a xgcm grid'); return None
@@ -1128,13 +1583,13 @@ def cross_section(grid, da, lon1, lat1, lon2, lat2, dlon=None):
 def interp_regular(da,grid,axis,tgrid,rgrid=None):
     """
     interpolate on a regular grid
-    imputs:
+    Args:
         - da (DataArray) : variable to interpolate
-        - grid (xgcm grid): xgcm grid 
+        - grid (xgcm grid): xgcm grid
         - axis (str): axis of the xgcm grid for the interpolation ('x', 'y' or 'z')
         - tgrid (numpy vector): target relular grid space
         - rgrid (numpy array or DataArray): reference grid of da
-    return:
+    Return:
         - (DataArray): regurlarly interpolated variable
     """
     
@@ -1168,8 +1623,16 @@ def interp_regular(da,grid,axis,tgrid,rgrid=None):
 
 def haversine(lon1, lat1, lon2, lat2):
     """
-    Calculate the great circle distance between two points 
+    Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
+
+    Args:
+        lon1 (float): minimum longitude
+        lat1 (float): minimum latitude
+        lon2 (float): maximum longitude
+        lat2 (float): maximum latitude
+    Returns:
+        float: distance in km
     """
     # convert decimal degrees to radians 
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
@@ -1188,11 +1651,11 @@ def haversine(lon1, lat1, lon2, lat2):
 def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     """
     Rechunk Dataset or DataArray such as each partition size is about 150Mb
-    Input:
+    Args:
         - ds : (Dataset or DataArray) object to rechunk
         - keep_complete_dim : (character) Horizontal axe to keep with no chunk ('x','y','s')
         - wanted_chunk : (integer) size of each partition in Mb
-    Output:
+    Return:
         - object rechunked
     """
 

@@ -1,5 +1,6 @@
 import numpy as np
 import xarray as xr
+import cf_xarray as cfxr
 from functools import partial
 import pandas as pd
 from xgcm import Grid
@@ -80,6 +81,7 @@ def open_files(model, gridname, filenames,
     # add the grid and the xgcm grid to the dataset
     ds, grid = gop.add_grid(model, gridname, grid_metrics=grid_metrics,
                         remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
+    ds = force_cf_convention(ds)
     model.ds = ds.chunk(chunks=chunks).squeeze()
     return model.ds, grid
 
@@ -136,10 +138,76 @@ def open_catalog(model, gridname, catalog, source=None,
     # add the grid and the xgcm grid to the dataset
     ds, grid = gop.add_grid(model, gridname, grid_metrics=grid_metrics,
                         remove_ghost_pts=remove_ghost_pts,xperiodic=xperiodic, yperiodic=yperiodic)
+    ds = force_cf_convention(ds)
     model.ds = ds.chunk(chunks=chunks)
     return model.ds.squeeze(), grid
 
+
+def force_cf_convention(ds):
+    """Force CF convention attributes of dimensions and coordinates for using cf_xarray
+
+    Args:
+    ----
+        ds (dataset): input xarray dataset
+
+    Returns:
+    -------
+        ds (dataset): xarray dataset with CF convention for dimensions and coordinates
+
+    Examples:
+    --------
+    >>> ds = force_cf_convention(ds)
+    """
+    # make sure dimensions have axis attribute
+    tdims = [dim for dim in ds.dims if dim.startswith("x")]
+    for dim in tdims:
+        ds[dim] = (dim, np.arange(ds.sizes[dim]), {"axis": "X"})
+    tdims = [dim for dim in ds.dims if dim.startswith("y")]
+    for dim in tdims:
+        ds[dim] = (dim, np.arange(ds.sizes[dim]), {"axis": "Y"})
+    tdims = [dim for dim in ds.dims if dim.startswith("s")]
+    for dim in tdims:
+        if dim in ds.coords:
+            ds[dim].attrs["axis"] = "Z"
+        else:
+            ds[dim] = (dim, np.arange(ds.sizes[dim]), {"axis": "Z"})
+
+    tdims = [dim for dim in ds.dims if dim.startswith("t")]
+    for dim in tdims:
+        if dim in ds.coords:
+            ds[dim].attrs["axis"] = "T"
+        else:
+            ds[dim] = (dim, np.arange(ds.sizes[dim]), {"axis": "T"})
+
+    # make sure lon/lat/depth/time have standard names
+    tcoords = [coord for coord in ds.coords if coord.startswith("lon")]
+    for coord in tcoords:
+        ds[coord].attrs["standard_name"] = "longitude"
+    tcoords = [coord for coord in ds.coords if coord.startswith("lat")]
+    for coord in tcoords:
+        ds[coord].attrs["standard_name"] = "latitude"
+
+    tcoords = [coord for coord in ds.coords if coord.startswith("z")]
+    for coord in tcoords:
+        ds[coord].attrs["standard_name"] = "vertical"
+    tcoords = [coord for coord in ds.coords if coord.startswith("t")]
+    for coord in tcoords:
+        ds[coord].attrs["standard_name"] = "time"
+
+    return ds
+
 def find_var(model,varname,ds,gd):
+    """Find a variable in the gridname or history files variables or attributes
+
+    Args:
+        model (string): model class
+        varname (string): variable name to find
+        ds (dataset):  dataset of history file
+        gd (dataset): dataset of the grid
+        value (optional): value of the variable if not found. Defaults to None.
+    Returns:
+        (DataArray): the DataArray corresponding to varname
+    """
     
     def good_type(var):
         if isinstance(var,xr.DataArray) or isinstance(var,np.ndarray) or \

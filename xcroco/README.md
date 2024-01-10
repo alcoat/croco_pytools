@@ -29,7 +29,7 @@ conda update -y conda
 conda create -n xcroco -c conda-forge -y python=3.10 
 conda activate xcroco
 conda install -y -c conda-forge dask dask-jobqueue dask-labextension \
-            xarray zarr netcdf4 jupyterlab ipywidgets cartopy \
+            xarray cf_xarray zarr netcdf4 jupyterlab ipywidgets cartopy \
             geopandas nodejs intake-xarray xgcm numba jupyterhub \
             kerchunk pyamg xrft \
             ffmpeg memory_profiler

@@ -29,16 +29,16 @@ def relative_vorticity_z(model, ds=None, xgrid=None, u=None, v=None, f=None):
     ds = model.ds if ds is None else ds    
     
     u = ds.u if u is None else u
-    hgrid = gop.get_grid_point(u)
-    if hgrid != 'u': u = gop.x2u(ds, u, xgrid)
+    hgrid, vgrid = gop.get_grid_point(u)
+    if hgrid != 'u': u = gop.to_u(u, xgrid)
         
     v = ds.v if v is None else v
-    hgrid = gop.get_grid_point(v)
-    if hgrid != 'v': v = gop.x2v(ds, v, xgrid)
+    hgrid, vgrid = gop.get_grid_point(v)
+    if hgrid != 'v': v = gop.to_v(v, xgrid)
         
     f = ds.f if f is None else f
-    hgrid = gop.get_grid_point(f)
-    if hgrid != 'f': f = gop.x2f(ds, f, xgrid)
+    hgrid, vgrid = gop.get_grid_point(f)
+    if hgrid != 'f': f = gop.to_psi(f, xgrid)
     
     xi = ((-xgrid.derivative(u, 'y') 
            + xgrid.derivative(v, 'x')
@@ -204,7 +204,7 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
         #  Compute Ertel potential vorticity <k hat> at horizontal RHO-points and
         #  vertical W-points. 
         omega = dvdxi - dudeta
-        omega = f + gop.x2rho(ds, omega, xgrid)
+        omega = f + gop.to_rho(omega, xgrid)
         pvk = xgrid.interp(omega,'z') * drhodz
         del dvdxi, dudeta, drhodz, omega
     else:
@@ -213,19 +213,22 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
     if 'i' in typ:
 
         #  Ertel potential vorticity, term 2: (dw/dy - dv/dz)*(drho/dx)
-        #  Compute d(w)/d(y) at horizontal V-points and vertical RHO-points
+        #  Compute d(w)/d(y) at horizontal RHO-points and vertical RHO-points
         dwdy = xgrid.derivative(w,'y')
+        dwdy = gop.to_rho(dwdy, xgrid)
 
-        #  Compute d(v)/d(z) at horizontal V-points and vertical W-points
+        #  Compute d(v)/d(z) at horizontal RHO-points and vertical W-points
         dz_v = xgrid.interp(dz,'y')
         dvdz = xgrid.diff(v,'z') / dz_v
+        dvdz = gop.to_rho(dvdz, xgrid)
 
-        #  Compute d(rho)/d(xi) at horizontal U-points and vertical RHO-points
+        #  Compute d(rho)/d(xi) at horizontal RHO-points and vertical RHO-points
         drhodx = xgrid.derivative(rho,'x')
+        drhodx = gop.to_rho(drhodx, xgrid)
 
         #  Add in term 2 contribution to Ertel potential vorticity at horizontal RHO-points and
         #  vertical W-points.
-        pvi = (gop.x2w(ds, dwdy, xgrid) - gop.x2w(ds, dvdz, xgrid)) * gop.x2w(ds, drhodx, xgrid)
+        pvi = (gop.to_s_w(dwdy, xgrid) - dvdz) * gop.to_s_w(drhodx, xgrid)
         del dwdy, dz_v, dvdz, drhodx
     else:
         pvi = 0.
@@ -233,19 +236,22 @@ def ertel_pv(model, ds=None, xgrid=None, u=None, v=None, w=None, z=None, typ='ij
     if 'j' in typ:
 
         #  Ertel potential vorticity, term 3: (du/dz - dw/dx)*(drho/dy)
-        #  Compute d(u)/d(z) at horizontal U-points and vertical W-points
+        #  Compute d(u)/d(z) at horizontal RHO-points and vertical W-points
         dz_u = xgrid.interp(dz, 'x')
         dudz = xgrid.diff(u,'z') / dz_u
+        dudz = gop.to_rho(dudz, xgrid)
 
-        #  Compute d(w)/d(x) at horizontal U-points and vertical RHO-points
+        #  Compute d(w)/d(x) at horizontal RHO-points and vertical RHO-points
         dwdx = xgrid.derivative(w,'x')
+        dwdx = gop.to_rho(dwdx, xgrid)
 
-        #  Compute d(rho)/d(eta) at horizontal V-points and vertical RHO-points
+        #  Compute d(rho)/d(eta) at horizontal RHO-points and vertical RHO-points
         drhodeta = xgrid.derivative(rho,'y')
+        drhodeta = gop.to_rho(drhodeta, xgrid)
 
         #  Add in term 3 contribution to Ertel potential vorticity at horizontal RHO-points and
         #  vertical W-points..
-        pvj =  (gop.x2w(ds,dudz,xgrid)-gop.x2w(ds,dwdx,xgrid)) * gop.x2w(ds,drhodeta,xgrid)
+        pvj =  (dudz - gop.to_s_w(dwdx, xgrid)) * gop.to_s_w(drhodeta, xgrid)
         del dz_u, dudz, dwdx, drhodeta
 
     else:
@@ -346,14 +352,18 @@ def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     if z is None: z = gop.get_z(model, ds=ds, z_sfc=ds.z_sfc)
     z_w = xgrid.interp(z,'z').squeeze()
 
-    N2 = get_N2(model, ds=ds, rho=rho, z=z, g=g)
-    dudz = xgrid.diff(u,'z') / xgrid.diff(gop.x2u(ds,z,xgrid),'z')
-    dvdz = xgrid.diff(v,'z') / xgrid.diff(gop.x2v(ds,z,xgrid),'z')
+    u = gop.to_grid_point(u, xgrid, hcoord="r", vcoord="r")
+    v = gop.to_grid_point(v, xgrid, hcoord="r", vcoord="r")
+    z = gop.to_grid_point(z, xgrid, hcoord="r", vcoord="r")
 
-    Ri = np.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
+    N2 = get_N2(model, ds=ds, rho=rho, z=z, g=g)
+    dudz = xgrid.diff(u,'z') / xgrid.diff(z,'z')
+    dvdz = xgrid.diff(v,'z') / xgrid.diff(z,'z')
+
+    Ri = np.log10(N2 / (dudz**2 +  dvdz**2)).squeeze()
     if 'lon' in rho.coords: Ri = Ri.assign_coords(coords={"lon":rho.lon})
     if 'lat' in rho.coords: Ri = Ri.assign_coords(coords={"lat":rho.lat})
-    Ri = Ri.assign_coords(coords={"z":z_w})
+    Ri = Ri.assign_coords(coords={"z_w":z_w})
     return Ri.rename('Ri')
 
 ###################################################
@@ -490,7 +500,7 @@ def get_streamfunction(model, pm, pn, pv,
         dims=[dims['y'], dims['x']],
         coords={coords['lon']:pv[coords['lon']], coords['lat']:pv[coords['lat']]}
         )
-    # mask_f = gop.x2f(model.ds,model.ds.mask,model.xgrid)
+    # mask_f = gop.to_psi(model.ds.mask,model.xgrid)
     # chi = chi * mask_f
     dx = 1./pm.where(pm>0,np.nan)
     dy = 1./pn.where(pm>0,np.nan)
