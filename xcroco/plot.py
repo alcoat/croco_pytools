@@ -23,6 +23,8 @@ import cartopy.crs as ccrs
 
 import scipy.io
 from collections import OrderedDict
+from datetime import datetime
+
 
 
 import gridop as gop
@@ -133,7 +135,14 @@ def plotfig(da, numimage=0, fig_dir=None, fig_prefix=None, date=None, save=False
         ax.grid(color='gray', alpha=0.5, linestyle='dashed')
     
     # put the title
-    if 't' in da.coords and date is None: date = np.datetime_as_string(da.t, unit='m')
+    if 't' in da.coords and date is None: 
+        try:
+            # time is a datetime
+            date = np.datetime_as_string(da.t, unit='m')
+        except:
+            # time is a float in seconds
+            date = datetime.utcfromtimestamp(int(da.t.values)).strftime('%Y-%m-%d')
+            
     title = fig_prefix+', date = %s'%(date)
     ax.set_title(title)
     

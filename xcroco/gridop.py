@@ -249,10 +249,10 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     
     metrics={}    
     # if all(d in model.ds.dims for d in ['x','x_u']):
-        # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
+    # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
     metrics.update({('x',): ['dx', 'dx_u']})
     # if all(d in model.ds.dims for d in ['y','y_v']):
-        # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
+    # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
     metrics.update({('y',): ['dy', 'dy_v']})
     # if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
         # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
