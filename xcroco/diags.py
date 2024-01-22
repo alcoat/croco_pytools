@@ -149,6 +149,7 @@ def relative_vorticity_sigma(
     u,
     v,
     xgrid,
+    z=None,
     hboundary="extend",
     hfill_value=None,
     sboundary="extend",
@@ -164,6 +165,8 @@ def relative_vorticity_sigma(
         eta component of velocity [m/s]
     xgrid: xgcm.grid
         Grid object associated with u, v
+    z: DataArray
+        z coordinate 
     hboundary: string, optional
         Passed to `grid` method calls; horizontal boundary selection
         for calculating horizontal derivatives of u and v.
@@ -214,6 +217,11 @@ def relative_vorticity_sigma(
     assert isinstance(u, xr.DataArray), "u must be DataArray"
     assert isinstance(v, xr.DataArray), "v must be DataArray"
 
+    # assign z coordinate to v
+    zcoord = [c for c in v.coords if c.startswith("z")]
+    if not zcoord and z is not None: 
+        z_v = gop.to_grid_point(z, xgrid, hcoord='v', vcoord='r')
+        v = v.assign_coords({"z_v": z_v})
     dvdx = gop.hgrad(
         v,
         xgrid,
@@ -223,6 +231,12 @@ def relative_vorticity_sigma(
         sboundary=sboundary,
         sfill_value=sfill_value,
     )
+    
+    # assign z coordinate to u
+    zcoord = [c for c in u.coords if c.startswith("z")]
+    if not zcoord and z is not None: 
+        z_u = gop.to_grid_point(z, xgrid, hcoord='u', vcoord='r')
+        u = u.assign_coords({"z_u": z_u})
     dudy = gop.hgrad(
         u,
         xgrid,

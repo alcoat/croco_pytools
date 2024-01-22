@@ -216,12 +216,15 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     # compute horizontal coordinates
 
     ds = model.ds
-    if 'lon_u' not in ds and 'x_u' in ds.dims: ds['lon_u'] = grid.interp(ds.lon,'x')
-    if 'lat_u' not in ds and 'y'   in ds.dims: ds['lat_u'] = grid.interp(ds.lat,'x')
-    if 'lon_v' not in ds and 'x'   in ds.dims: ds['lon_v'] = grid.interp(ds.lon,'y')
-    if 'lat_v' not in ds and 'y_v' in ds.dims: ds['lat_v'] = grid.interp(ds.lat,'y')
-    if 'lon_p' not in ds and 'x_u' in ds.dims: ds['lon_p'] = grid.interp(ds.lon_v,'x')
-    if 'lat_p' not in ds and 'y_v' in ds.dims: ds['lat_p'] = grid.interp(ds.lat_u,'y')
+    if 'x_u' in ds.dims:
+        ds['lon_u'] = grid.interp(ds.lon,'x')
+        ds['lat_u'] = grid.interp(ds.lat,'x')
+    if 'y_v' in ds.dims:
+        ds['lon_v'] = grid.interp(ds.lon,'y')
+        ds['lat_v'] = grid.interp(ds.lat,'y')
+    if 'x_u' in ds.dims and 'y_v' in ds.dims: 
+        ds['lon_p'] = grid.interp(ds.lon_v,'x')
+        ds['lat_p'] = grid.interp(ds.lat_u,'y')
     _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
     ds = ds.set_coords(_coords)
     
@@ -420,7 +423,6 @@ def dll_dist(dlon, dlat, lon, lat):
         dy : xarray.DataArray distance inferred from dlat
     """
     distance_1deg_equator = 111000.0
-    # dx = dlon * xr.ufuncs.cos(xr.ufuncs.deg2rad(lat)) * distance_1deg_equator 
     dx = dlon * np.cos(np.deg2rad(lat)) * distance_1deg_equator 
     dy = ((lon * 0) + 1) * dlat * distance_1deg_equator
     return dx, dy
@@ -436,11 +438,13 @@ def adjust_grid(model, ds):
     Return :
         DataSet : changed dataset
     """
-    # change names in dims, coordinates and variables
+   
     for k,v in model.rename_vars.items():
-        if (k in ds and v not in ds) or \
-            k in ds.dims.keys():
-            ds = ds.rename({k: v})
+        if k in ds or k in ds.dims.keys():
+            if v in ds and k != v:
+                ds = ds.drop(k)
+            else:
+                ds = ds.rename({k: v})
     # change names in attributes
     for k,v in model.rename_vars.items():
         if (k in ds.attrs and v not in ds.attrs):
@@ -912,8 +916,6 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
 
     # switch horizontal grid if needed
     if hgrid in ['u','v','p']:
-        # h = x2x(ds, h, xgrid, hgrid)
-        # z_sfc = x2x(ds, z_sfc, xgrid, hgrid)
         h = to_grid_point(h, xgrid, hcoord=hgrid,vcoord=vgrid)
         z_sfc = to_grid_point(z_sfc, xgrid, hcoord=hgrid,vcoord=vgrid)
 
@@ -1140,14 +1142,15 @@ def hgrad(
                 boundary=sboundary,
                 fill_value=sfill_value,
             )
-            dzdz = xgrid.interp(
-                xgrid.derivative(z, "z", boundary=sboundary, fill_value=sfill_value),
-                "x",
-                boundary=hboundary,
-                fill_value=hfill_value,
-            )
+            # dzdz = xgrid.interp(
+            #     xgrid.derivative(z, "z", boundary=sboundary, fill_value=sfill_value),
+            #     "x",
+            #     boundary=hboundary,
+            #     fill_value=hfill_value,
+            # )
 
-            dqdx = dqdx * dzdz - dqdz * dzdx
+            # dqdx = dqdx * dzdz - dqdz * dzdx
+            dqdx = dqdx - dqdz * dzdx
 
         else:  # 2D variables
             dqdx = xgrid.derivative(q, "x", boundary=hboundary, fill_value=hfill_value)
@@ -1435,8 +1438,9 @@ def isoslice(var, target, xgrid, target_data=None, axis="z"):
 
     # save key names for later
     # perform interpolation for other coordinates if needed
-    if "longitude" in var.cf.coordinates:
-        lonkey = var.cf["longitude"].name
+    if "longitude" in var.cf.standard_names:
+        # lonkey = var.cf["longitude"].name
+        lonkey = var.cf.standard_names["longitude"][0]
 
         if lonkey not in transformed.coords:
             # this interpolation won't work for certain combinations of var[latkey] and target_data
@@ -1456,8 +1460,9 @@ def isoslice(var, target, xgrid, target_data=None, axis="z"):
 
         transformed[lonkey].attrs["standard_name"] = "longitude"
 
-    if "latitude" in var.cf.coordinates:
-        latkey = var.cf["latitude"].name
+    if "latitude" in var.cf.standard_names:
+        # latkey = var.cf["latitude"].name
+        latkey = var.cf.standard_names["latitude"][0]
 
         if latkey not in transformed.coords:
             # this interpolation won't work for certain combinations of var[latkey] and target_data
@@ -1477,8 +1482,9 @@ def isoslice(var, target, xgrid, target_data=None, axis="z"):
 
         transformed[latkey].attrs["standard_name"] = "latitude"
 
-    if "vertical" in var.cf.coordinates:
-        zkey = var.cf["vertical"].name
+    if "vertical" in var.cf.standard_names:
+        # zkey = var.cf["vertical"].name
+        zkey = var.cf.standard_names["vertical"][0]
 
         if zkey not in transformed.coords:
             transformedZ = xgrid.transform(

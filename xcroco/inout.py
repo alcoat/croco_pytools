@@ -14,7 +14,7 @@ from collections import OrderedDict
 import gridop as gop
 
 def open_files(model, gridname, filenames, 
-               grid_metrics=1,
+               grid_metrics=2,
                drop_variables=[],
                chunks={'t':1},
                remove_ghost_pts=True,

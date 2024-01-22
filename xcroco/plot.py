@@ -88,7 +88,10 @@ def plotfig(da, numimage=0, fig_dir=None, fig_prefix=None, date=None, save=False
     
     # Init the figure name
     if fig_prefix is None:
-        if hasattr(da,'name'): fig_prefix = ''.join(da.name) 
+        if hasattr(da,'name') and da.name is not None: 
+            fig_prefix = ''.join(da.name) 
+        else:
+            fig_prefix = ' '
     figname = fig_dir+fig_prefix+'_t%05d' %(numimage)+'.png'
 
     # Define the colormap
