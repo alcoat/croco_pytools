@@ -23,3 +23,4 @@ for the regional ocean model `CROCO <https://www.croco-ocean.org/>`_ .
 
    croco_pyvisu/index.rst
    prepro/index.rst
+   xcroco/index.rst
