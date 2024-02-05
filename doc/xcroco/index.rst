@@ -168,6 +168,7 @@ method directly in the module.
          -  (DataArray): the DataArray corresponding to varname
 
    -  **store_zarr** : writes a DataSet to a zarr archive
+   
       ``store_zarr(ds, zarr_archive)``
 
       -  Args:
