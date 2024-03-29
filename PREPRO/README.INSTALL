@@ -1,4 +1,3 @@
-
 # Here we show the procedure to follow to run CROCO pre-processing tools in python.
 # In the make_grid tools there is a possibility to use a graphic interface (wxPython).
 # To  facilitate the installation of this package on any device we advice to use a conda
@@ -18,7 +17,7 @@
 bash
 
 # Go in python_tools repository and install a new virtual env 
-conda env create -f requirements.yaml #It will create a conda env with python 3.9 version
+conda env create -n envcroco -f requirements.yaml #It will create a conda env with python 3.9 version
 conda activate envcroco # By doing it you enter your environement
 
 #------------------------
