@@ -31,9 +31,17 @@ See README.topo for grid and coastline management
 
 #
 ### croco_pyvisu
-- ***to fill:  short introduction***
+Croco_pyvisu is a  GUI tool written in python to visualize history files genarated by the Croco model.
+
+The croco_pyvisu directory is provided by the CROCO_PYTOOLS.  
+See the [documentation](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/doc/croco_pyvisu) for the installation and the way to use it.
+
 
 #
 ### xcroco
-- ***to fill: short introduction***
+Xcroco is a library written in python to analyse history files genarated by the Croco model.
+
+The Xcroco directory is provided by the CROCO_PYTOOLS.  
+For the installation, see [Xcroco main page](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/xcroco)  
+For the content of the library, see the [documentation](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/doc/xcroco)
 
