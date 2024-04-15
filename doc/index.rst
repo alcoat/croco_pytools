@@ -1,4 +1,3 @@
-
 CROCO_PYTOOLS - Preprocessing tools for CROCO regional model 
 ============================================================
 
@@ -10,10 +9,10 @@ for the regional ocean model `CROCO <https://www.croco-ocean.org/>`_ .
     This tool is a work that brings together the methods of several
     users of the CROCO community but does not constitute a definitive toolbox.
     All the features present in the matlab croco_tools are not
-    not available in this version.
+    available in this version.
 
-    A new toolbox is being created by the teams
-    development of the CROCO group to gather all these features.
+    A new toolbox is being created by the CROCO team
+    to gather all these features.
     
 
 
@@ -21,6 +20,6 @@ for the regional ocean model `CROCO <https://www.croco-ocean.org/>`_ .
    :numbered:
    :maxdepth: 2
 
-   croco_pyvisu/index.rst
    prepro/index.rst
    xcroco/index.rst
+   croco_pyvisu/index.rst
