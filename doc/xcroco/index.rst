@@ -1,5 +1,5 @@
-Xcroco documentation
-====================
+Post-processing tools (xcroco)
+==============================
 
 | Xcroco is a library written in python to post-process history files
   genarated by the Croco model.
@@ -8,7 +8,7 @@ Xcroco documentation
   page <https://gitlab.inria.fr/croco-ocean/croco_pytools/-/tree/postprocessing_python_tools_2023/xcroco>`__
 
 Content of the library
-======================
+----------------------
 
 The Xcroco library is composed of 5 modules:
 
