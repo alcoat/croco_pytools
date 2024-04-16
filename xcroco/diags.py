@@ -248,7 +248,7 @@ def richardson(model, ds=None, u=None, v=None, rho=None, z=None, xgrid=None):
     dudz = xgrid.diff(u,'z') / xgrid.diff(gop.x2u(ds,z,xgrid),'z')
     dvdz = xgrid.diff(v,'z') / xgrid.diff(gop.x2v(ds,z,xgrid),'z')
 
-    Ri = xr.ufuncs.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
+    Ri = np.log10(N2 / (gop.x2w(ds,dudz,xgrid)**2 +  gop.x2w(ds,dvdz,xgrid)**2)).squeeze()
     if 'lon' in rho.coords: Ri = Ri.assign_coords(coords={"lon":rho.lon})
     if 'lat' in rho.coords: Ri = Ri.assign_coords(coords={"lat":rho.lat})
     Ri = Ri.assign_coords(coords={"z":z_w})
