@@ -3,7 +3,7 @@ include Makedefs
 
 # compile flags
 CPPFLAGS = -I$(NETCDFINC)
-FCFLAGS = -c -I$(NETCDFINC) -I$(PWD)/Modules/tools_fort_routines/ $(FFLAGS)
+FCFLAGS = -c -I$(NETCDFINC) -I$(PWD) $(FFLAGS)
 
 # lib flags
 LDFC = $(NETCDFLIB)

@@ -556,8 +556,6 @@ class MainWindow(HasTraits):
         if min(x_rho.ravel())<180 and max(x_rho.ravel())>180:
             # check if grid cross lon=180 and change central lon for cartopy
             mid=180
-            x_rho=x_rho-180
-            ox_psi=ox_psi-180
         else:
             mid=0
 
@@ -668,8 +666,6 @@ class MainWindow(HasTraits):
         if min(prt_xr.ravel())<180 and max(prt_xr.ravel())>180:
             # check if grid cross lon=180 and change central lon for cartopy
             mid=180
-            prt_xr=prt_xr-180;chd_xr=chd_xr-180
-            prt_oxp=prt_oxp-180;chd_oxp=chd_oxp-180
         else:
             mid=0
 

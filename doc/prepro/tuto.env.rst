@@ -9,12 +9,16 @@ Installation with conda and using the "install" script
   Be sure to have conda install on your computer. If not, refer to
   `Conda website <https://conda.io/projects/conda/en/latest/user-guide/install/index.html>`_ to install it.
 
-* If necessary edit ``__init__.py`` to change compilers or netcdf library to use.
-
 .. note:: 
   
-  On DATARMOR you can use gfortan and gcc for compilers and use the
-  module `NetCDF/4.4.1.1__gcc-6.3.0__nop`.
+  the conda environment contains all the elements needed to compile fortran 
+  tools:
+  ::
+
+      - gcc>=8.3.0
+      - gfortran>=8.3.0
+      - netcdf-fortran=4.6.0
+    
 
 * Execute the installation script
   ::
@@ -37,7 +41,7 @@ question:
 .. note::
 
   To use this option you need to have 
-  `mamba <https://mamba.readthedocs.io/en/latest/>_` package. you can install it
+  `mamba <https://mamba.readthedocs.io/en/latest/>`_ package. you can install it
   with the command:
 
   ::
@@ -73,26 +77,32 @@ Fortran tools compilation (if not using the install.py)
 Only if you have not used the ``install.py`` script (first section), or if you have answer ``no`` to the question:
 ``Do you want to compile fortran tools? y,[n]`` when using ``install.py``, you can compile the fortran tools following this procedure.
 
-First be sure to place environment variables for the compilers:
+Activate your python environment:
 ::
 
-    export CC=gcc
-    export CXX=g++ 
-    export FC=gfortran 
-    export F90=gfortran 
-    export F77=gfortran 
+    conda activate croco_pyenv
 
-Also be sure to have netcdf libraries available:
+Or:
 ::
 
-    nf-config --flibs
+    micromamba activate croco_pyenv
 
+.. note:: 
+  
+  the croco_pyenv environment contains all the elements needed to compile fortran 
+  tools:
+  ::
+
+      - gcc>=8.3.0
+      - gfortran>=8.3.0
+      - netcdf-fortran=4.6.0
 
 Launch the Fortran routines compilation:
 ::
 
-    cd Modules/
-    python compilation_fortran_tools.py
+    cd Modules/tools_fort_routines
+    make clean
+    make
 
 If successfull you should now have this file in ``Modules``:
 ::
@@ -107,8 +117,8 @@ You might face some errors while trying to compile fortran tools.
 Here is a list of what have been already encountered by some users and 
 the associated solution.
 
-* ifort can raise wn error while compiling. In ``__init__.py`` try to add 
-  ``--fcompiler=intelem`` in ``ENV_FFLAGS``.
+* ifort can raise wn error while compiling. In ``Modules/tools_fort_routines/Makedefs`` try to add 
+  ``--fcompiler=intelem`` in ``FFLAGS``.
 
 * ImportError means you have missing librairies. In your terminal do ``nf-config 
   --flibs`` and check that you have ``-lnetcdff -lnetcdf``. 

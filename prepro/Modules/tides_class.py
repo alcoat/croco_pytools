@@ -8,7 +8,7 @@ import sys
 import glob
 
 class getdata():
-    def __init__(self,inputdata,inputfile,crocogrd,file_format,tideslist,current=None):
+    def __init__(self,inputdata,inputfile,crocogrd,file_format,tideslist,currentu=None,currentv=None):
  
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if file_format =='Amp_Phase':
@@ -30,23 +30,27 @@ class getdata():
                    }
         
         # Handling current variables
-        if current is not None: 
-            xr_list_uv=[]
-            for inpt in current:
-                xr_list_uv+=[xr.open_dataset(inpt)]
-            dataxr_uv=xr.concat(xr_list_uv,dim='ntides',data_vars='different')
+        if currentu is not None: 
+            xr_list_u=[]
+            xr_list_v=[]
+            for inpt in currentu:
+                xr_list_u+=[xr.open_dataset(inpt)]
+            dataxr_u=xr.concat(xr_list_u,dim='ntides',data_vars='different')
+            for inpt in currentv:
+                xr_list_v+=[xr.open_dataset(inpt)]
+            dataxr_v=xr.concat(xr_list_v,dim='ntides',data_vars='different')
      
-            self.ncglo['u_part1']=eval(''.join(("dataxr_uv."+self.var['U_'+part1_suf])))
-            self.ncglo['u_part2']=eval(''.join(("dataxr_uv."+self.var['U_'+part2_suf])))
-            self.ncglo['v_part1']=eval(''.join(("dataxr_uv."+self.var['V_'+part1_suf])))
-            self.ncglo['v_part2']=eval(''.join(("dataxr_uv."+self.var['V_'+part2_suf])))
+            self.ncglo['u_part1']=eval(''.join(("dataxr_u."+self.var['U_'+part1_suf])))
+            self.ncglo['u_part2']=eval(''.join(("dataxr_u."+self.var['U_'+part2_suf])))
+            self.ncglo['v_part1']=eval(''.join(("dataxr_v."+self.var['V_'+part1_suf])))
+            self.ncglo['v_part2']=eval(''.join(("dataxr_v."+self.var['V_'+part2_suf])))
             
             if 'tpxo' in inputdata and \
                'transport' in self.ncglo['u_part1'].long_name:
             # set transport to velocity           
                 print('Looking for grid file')
                 grd_file=glob.glob(
-                             current[0].replace(current[0].split('/')[-1],
+                             currentu[0].replace(currentu[0].split('/')[-1],
                              'grid*'))
                 # check transport units to change to m2/s
                 if ('cm' in self.ncglo['u_part1'].attrs['units'] or 
@@ -66,12 +70,12 @@ class getdata():
                     hv=eval(''.join((f"xar.{self.var['topov']}")))
                 except:
                     try:
-                        hu=eval(''.join((f"dataxr_uv.{self.var['topou']}")))
-                        hv=eval(''.join((f"dataxr_uv.{self.var['topov']}")))
+                        hu=eval(''.join((f"dataxr_u.{self.var['topou']}")))
+                        hv=eval(''.join((f"dataxr_v.{self.var['topov']}")))
                     except:
                         try:
-                            hu=eval(''.join((f"dataxr_uv.{self.var['topor']}")))
-                            hv=eval(''.join((f"dataxr_uv.{self.var['topor']}")))
+                            hu=eval(''.join((f"dataxr_u.{self.var['topor']}")))
+                            hv=eval(''.join((f"dataxr_v.{self.var['topor']}")))
                         except:
                             try:
                                 hu=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
@@ -147,22 +151,22 @@ class getdata():
 
         [self.lonT ,self.latT ,self.idmin ,self.idmax ,self.jdmin ,self.jdmax ,self.period ]  = self.handle_periodicity(crocogrd,dataxr_ssh,'r')
 
-        if current is not None:
-            [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,dataxr_uv,'u')
-            [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,dataxr_uv,'v')
+        if currentu is not None:
+            [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,dataxr_u,'u')
+            [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,dataxr_v,'v')
        
         # Checking that var in format [ntides,lat,lon] 
         for key in self.ncglo:
             if 'u' in self.ncglo[key]:
-                nx=eval(''.join(("dataxr_uv."+self.var['lonu']))).shape[0]
-                ny=eval(''.join(("dataxr_uv."+self.var['latu']))).shape[-1]
+                nx=eval(''.join(("dataxr_u."+self.var['lonu']))).shape[0]
+                ny=eval(''.join(("dataxr_u."+self.var['latu']))).shape[-1]
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
                     dim=self.ncglo[key].dims
                     self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])
             elif 'v' in self.ncglo[key]:
-                nx=eval(''.join(("dataxr_uv."+self.var['lonv']))).shape[0]
-                ny=eval(''.join(("dataxr_uv."+self.var['latv']))).shape[-1]
+                nx=eval(''.join(("dataxr_v."+self.var['lonv']))).shape[0]
+                ny=eval(''.join(("dataxr_v."+self.var['latv']))).shape[-1]
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
                     dim=self.ncglo[key].dims
@@ -240,11 +244,11 @@ class getdata():
         """
         n=x.shape[0]
         if x0 < x[0] :
-            i=0                      # if x0 is outside the full range
+            i=-1                     # if x0 is outside the full range
         elif x0 > x[-1] :            # of x(1) ... x(n), then return
             i=n                      # i=0 or i=n.
         else:
-            i=int( ( x[-1]-x0 +n*(x0-x[0]) )/(x[-1]-x[0]) )
+            i=int( ( x[-1]-x0 +(n-1)*(x0-x[0]) )/(x[-1]-x[0]) )
             if x[i+1]<x0 :
                 while x[i+1] <x0 :  # This algorithm computes "i" as
                     i=i+1           # linear interpolation between x(1)
@@ -303,7 +307,8 @@ class getdata():
         jmin=self.indx_bound(lat.data, geolim[2])
         jmax=self.indx_bound(lat.data, geolim[-1])
         
-        if 0 < jmin and jmin < lat.shape[0] and 0 < jmax and jmax < lat.shape[0] :
+        if -1<jmin and jmin<lat.shape[0] and \
+           -1<jmax and jmax<lat.shape[0] :
             if jmin > 1 :
                 jmin=jmin-1
             jmax=jmax+2
@@ -314,10 +319,11 @@ class getdata():
         imin=self.indx_bound(lon, geolim[0])
         imax=self.indx_bound(lon, geolim[1])
 
-        if 0 < imin and imin < lon.shape[0] and 0 < imax and imax < lon.shape[0] :
-            if imax > 1:
+        if -1<imin and imin<lon.shape[0] and \
+           -1<imax and imax<lon.shape[0] :
+            if imin > 0:
                 imin=imin-1
-            imax=imax+2
+            imax=imax+1
             shft_west=0 ; shft_east=0 ; period=0
             print('Single region dataset imin/imax=',imin,imax)
         else:
@@ -339,23 +345,28 @@ class getdata():
                 sys.exit()
         ##
             shft_west=0
-            if imin==0 :
+            if imin==-1 :
                 shft_west=-1
                 imin=self.indx_bound(lon, geolim[0]+360)
+                if imin == lon.shape[0]: imin = lon.shape[0]-1
             elif imin==lon.shape[0] :
                 shft_west=+1
                 imin=self.indx_bound(lon, geolim[0]-360)
+                if imin == -1: imin = lon.shape[0]-1
         ##
             shft_east=0
-            if imax == 0:
+            if imax == -1:
                 shft_east=-1
                 imax=self.indx_bound(lon, geolim[1]+360)
+                if imax == lon.shape[0]: imax = 0
             elif imax == lon.shape[0]:
                 shft_east=+1
                 imax=self.indx_bound(lon, geolim[1]-360)
+                if imax == -1: imax = 0
     
-            if 0<imin and imin <lon.shape[0] and 0<imax and imax<lon.shape[0] :
-                if imin>1:
+            if -1<imin and imin<lon.shape[0] and \
+               -1<imax and imax<lon.shape[0] :
+                if imin>0:
                     imin=imin-1
                 imax=imax+1
             else:

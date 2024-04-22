@@ -126,14 +126,17 @@ There are several parts in it:
     if multi_files:
         waves_separated = True # Set to True if input files waves are separated
         elev_file = 'h_<tides>_tpxo9_atlas_30_v5.nc' # elevation file names. if wave_separated put <tides> where wave name is found
-        uv_file   = 'u_<tides>_tpxo9_atlas_30_v5.nc' # currents file names. if wave_separated put <tides> where wave name is found
+        u_file = 'u_<tides>_tpxo9_atlas_30_v5.nc' # eastward currents file names. if wave_separated put <tides> where wave name is found
+        v_file = 'u_<tides>_tpxo9_atlas_30_v5.nc' # northward currents file names. if wave_separated put <tides> where wave name is found
+ 
 
 Here we select the reader for the ``tpxo7`` data. We also select input file
 location and data format (Re/Im or Amp/Pha). Elevation and current data may
 not be in the same file. The ``multi_files`` option is then useful for
-specifying each of them. It is also possible to have waves that are in
-different files using the ``<tides>`` key, which will be replaced by the wave
-list specified below. 
+specifying each of them. If Eastward and Northward components are in the same 
+file put the same name in ``u_file`` and ``v_file``. It is also possible to 
+have waves that are in different files using the ``<tides>`` key, which will 
+be replaced by the wave list specified below. 
 
 .. note:: 
 

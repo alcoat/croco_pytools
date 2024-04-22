@@ -45,21 +45,20 @@ Scripts for easy installation are provided:
 - script for conda environment: prepro/env/conda_install.py
 - script for fortran compilation: prepro/Modules: compilation_fortran_tools.py
 
-See the full documentation for more details.
+See the full [documentation]( https://croco-ocean.gitlabpages.inria.fr/croco_pytools/prepro) for more details.
 
 #
 ### croco_pyvisu
 Croco_pyvisu is a  GUI tool written in python to visualize history files genarated by the Croco model.
 
 The croco_pyvisu directory is provided by the CROCO_PYTOOLS.  
-See the [documentation](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/doc/croco_pyvisu) for the installation and the way to use it.
+See the [documentation](https://croco-ocean.gitlabpages.inria.fr/croco_pytools/croco_pyvisu) for the installation and the way to use it.
 
 
 #
 ### xcroco
 Xcroco is a library written in python to analyse history files genarated by the Croco model.
 
-The Xcroco directory is provided by the CROCO_PYTOOLS.  
-For the installation, see [Xcroco main page](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/xcroco)  
-For the content of the library, see the [documentation](https://gitlab.inria.fr/croco-ocean/croco_pytools/-/blob/release/doc/xcroco)
+The Xcroco directory is provided by the CROCO_PYTOOLS.
+See [documentation]( https://croco-ocean.gitlabpages.inria.fr/croco_pytools/xcroco) for the installation and the way to use it. 
 

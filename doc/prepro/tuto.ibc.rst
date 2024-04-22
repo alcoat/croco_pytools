@@ -87,20 +87,20 @@ There are several parts in it:
 * **Input data informations** contain the general informations about the inputs (reader keyword, directory, prefix)
   ::
   
-  # Input data information and formating
-  inputdata = 'mercator_croco' # Input data dictionnary as defined in the Readers/ibc_reader.py
-  input_dir = '../../MERCATOR_GLOB_2013/'
-  input_prefix='mercator_'
+    # Input data information and formating
+    inputdata = 'mercator_croco' # Input data dictionnary as defined in the Readers/ibc_reader.py
+    input_dir = '../../MERCATOR_GLOB_2013/'
+    input_prefix='mercator_'
   
-  input_file  = f'{input_dir}{input_prefix}Y2013M1.cdf'
-  multi_files=False # If variables are in different netcdf
-  if multi_files: # Mutiple files
-      input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.Y2013M01.nc',\
-                     'temp' : input_dir + input_prefix + 'THETA.Y2013M01.nc',\
-                     'salt' : input_dir + input_prefix + 'SALT.Y2013M01.nc',\
-                     'u'    : input_dir + input_prefix + 'EVEL.Y2013M01.nc',\
-                     'v'    : input_dir + input_prefix + 'NVEL.Y2013M01.nc'\
-                  }
+    input_file  = f'{input_dir}{input_prefix}Y2013M1.cdf'
+    multi_files=False # If variables are in different netcdf
+    if multi_files: # Mutiple files
+        input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.Y2013M01.nc',\
+                       'temp' : input_dir + input_prefix + 'THETA.Y2013M01.nc',\
+                       'salt' : input_dir + input_prefix + 'SALT.Y2013M01.nc',\
+                       'u'    : input_dir + input_prefix + 'EVEL.Y2013M01.nc',\
+                       'v'    : input_dir + input_prefix + 'NVEL.Y2013M01.nc'\
+                    }
   
   # time index to use in the file
   tndx = 0
@@ -121,8 +121,8 @@ If input data files contains several times, the user must select the time index 
 * **tracers**
   ::
 
-  # tracers
-  tracers = ['temp','salt']
+    # tracers
+    tracers = ['temp','salt']
   
 Set tracer names here, if any. Name defined here must also be defined in your
 reader.
@@ -130,10 +130,10 @@ reader.
 * **CROCO grid informations**
   ::
 
-  # CROCO grid informations
-  croco_dir = '../../CROCO_FILES/'
-  croco_grd = 'croco_grd.nc'
-  sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=200) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+    # CROCO grid informations
+    croco_dir = '../../CROCO_FILES/'
+    croco_grd = 'croco_grd.nc'
+    sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=200) # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
 
 Informations about your CROCO grid. Indicate the path (``croco_dir``),
 the input grid to use (``croco_grd``), the parameters for the

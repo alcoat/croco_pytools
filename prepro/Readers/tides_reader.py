@@ -61,8 +61,8 @@ def lookvar(input):
     elif input == 'fes2014':
         dico={ 'lonr':'lon','lonu':'lon','lonv':'lon',\
                'latr':'lat','latu':'lat','latv':'lat',\
-               'H_a':'Ha',\
-               'H_p':'Hg',\
+               'H_a':'amplitude',\
+               'H_p':'phase',\
                'U_a':'Ua',\
                'U_p':'Ug',\
                'V_a':'Va',\

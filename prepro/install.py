@@ -70,7 +70,10 @@ if fortran_compilation.lower() in ['y','yes']:
             continue
 
     if env_to_use in env_fine:
-        os.chdir(ENV_MOD)
-        subprocess.run(f"conda run -n {env_to_use} python compilation_fortran_tools.py",
+        os.chdir(ENV_MOD+'/tools_fort_routines')
+#        subprocess.run(f"conda run -n {env_to_use} python compilation_fortran_tools.py",
+        subprocess.run(["make", "clean"], check=True)
+        log = subprocess.run(f"conda run -n {env_to_use} make",
                        shell=True,
                        check=True)
+        print(log)
