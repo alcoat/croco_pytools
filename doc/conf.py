@@ -21,8 +21,8 @@
 
 project = "croco_pytools"
 copyright = "2023, CROCO team"
-author = "M. Le Corre"
-author_tex = "\\hfill \\large M. Le Corre \\normalsize"
+author = ""
+author_tex = ""
 
 # The short X.Y version
 version = ""
