@@ -1,7 +1,7 @@
-CROCO_PYVISU tutorial
-======================
+Visualization tool (croco_pyvisu)
+=================================
 
-Croco_visu is a tool written in python to visualize history files genarated by 
+Croco_pyvisu is a tool written in python to visualize history files genarated by 
 the Croco model.
 
 Setup your Miniconda environment

@@ -1,18 +1,15 @@
 Preprocessing tools
-###################
-
-- The current croco_pytools can perform:
-    * Creation of CROCO grid 
-    * Building **Ocean** initial and boundary conditions
-    * Creation of tidal forcing
-    * Generation of netcdf file for river discharge (do not handle tracers)
-
-- Contact
-    mathieu.le.corre@shom.fr
-
+===================
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 1
 
-    start
-    tuto
+   presentation 
+   tuto.env
+   tuto.readers
+   tuto.grid
+   tuto.ibc
+   tuto.tide
+   tuto.rivers  
+   tuto.zoom
+   tuto.download
