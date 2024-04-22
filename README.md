@@ -36,6 +36,8 @@ No routine is available for managing surface forcing at the moment, and the user
 which performs the surface forcing interpolation, directly during the run. 
 See the usual croco_tools tutorial, and tools for downloading and formating the data. 
 
+These pre-processing tools are taking advantage of several fortran routines created by Alexander Shchepetkin, which are interfaced within python with f2py.
+
 **Readers** are available for the various type of data, to ease the use and addition of different type of input data. 
 
 **croco_pytools/prepro** installation required to set-up a python environment (see prepro/env/environment_tools.yml), and
