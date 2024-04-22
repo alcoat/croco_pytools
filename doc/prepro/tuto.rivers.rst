@@ -69,24 +69,24 @@ There are several parts in it:
 
   ::
 
-  # Dates
-  Yorig = 2013 # year origin of time : days since Yorig-01-01
-  Ystart, Mstart = 2013,1   # Starting month
-  Yend,   Mend   = 2013,3   # Ending month
+    # Dates
+    Yorig = 2013 # year origin of time : days since Yorig-01-01
+    Ystart, Mstart = 2013,1   # Starting month
+    Yend,   Mend   = 2013,3   # Ending month
   
-  # Input data informations
-  input_dir = './' # where .txt file can be found
-  input_file = 'river_list.txt' # txt file name
+    # Input data informations
+    input_dir = './' # where .txt file can be found
+    input_file = 'river_list.txt' # txt file name
   
-  # CROCO path and filename informations
-  croco_dir = '../../CROCO_FILES/'
-  croco_grd = 'croco_grd.nc'
+    # CROCO path and filename informations
+    croco_dir = '../../CROCO_FILES/'
+    croco_grd = 'croco_grd.nc'
   
-  # Rivers file informations
-  river_filename = 'croco_runoff.nc' # output will be put in croco_dir by default
-  river_file_format = "MONTHLY" # How outputs are split (MONTHLY,YEARLY,FULL)
-  rivers_cyl = 0. # if cycle is needed
-  rivers_output_frequency = 'DAILY' # output frequency for rivers (HOURLY,DAILY,MONTHLY depending on your data)
+    # Rivers file informations
+    river_filename = 'croco_runoff.nc' # output will be put in croco_dir by default
+    river_file_format = "MONTHLY" # How outputs are split (MONTHLY,YEARLY,FULL)
+    rivers_cyl = 0. # if cycle is needed
+    rivers_output_frequency = 'DAILY' # output frequency for rivers (HOURLY,DAILY,MONTHLY depending on your data)
   
 Origin year, along with starting and ending date are defined.
 

@@ -19,6 +19,7 @@ import glob
 import numpy as np
 import sys
 sys.path.append("./Modules/")
+import os
 import toolsf
 
 #--- USER CHANGES ---------------------------------------------------------

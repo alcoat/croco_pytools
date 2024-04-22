@@ -68,7 +68,8 @@ multi_files  = False # Set to True if several input files
 if multi_files: 
     waves_separated = True # Set to True if input files waves are separated
     elev_file = 'h_<tides>_tpxo9_atlas_30_v5.nc' # elevation file names. if wave_separated put <tides> where wave name is found
-    uv_file   = 'u_<tides>_tpxo9_atlas_30_v5.nc' # currents file names. if wave_separated put <tides> where wave name is found
+    u_file = 'u_<tides>_tpxo9_atlas_30_v5.nc' # eastward currents file names. if wave_separated put <tides> where wave name is found
+    v_file = 'u_<tides>_tpxo9_atlas_30_v5.nc' # northward currents file names. if wave_separated put <tides> where wave name is found
 
 # CROCO grid informations
 croco_dir = '../../CROCO_FILES/'
@@ -105,7 +106,8 @@ crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)), sigma_params)
 if multi_files:
     if waves_separated:
         input_file_ssh=[]
-        input_file_uv=[]
+        input_file_u=[]
+        input_file_v=[]
         for inp in tides:
             if path.isfile(input_dir+elev_file.replace('<tides>',inp)):
                 input_file_ssh+=[input_dir+elev_file.replace('<tides>',inp)]
@@ -115,32 +117,45 @@ if multi_files:
                 sys.exit('Elevation file %s for wave %s is missing' % (input_dir+elev_file.replace('<tides>',inp), inp))
            
             if cur:
-                if path.isfile(input_dir+uv_file.replace('<tides>',inp)):
-                    input_file_uv+=[input_dir+uv_file.replace('<tides>',inp)]
-                elif path.isfile(input_dir+uv_file.replace('<tides>',inp.lower())):
-                    input_file_uv+=[input_dir+uv_file.replace('<tides>',inp.lower())]
+                if path.isfile(input_dir+u_file.replace('<tides>',inp)):
+                    input_file_u+=[input_dir+u_file.replace('<tides>',inp)]
+                elif path.isfile(input_dir+u_file.replace('<tides>',inp.lower())):
+                    input_file_u+=[input_dir+u_file.replace('<tides>',inp.lower())]
                 else:
-                    sys.exit('Current file for wave %s is missing' % inp)
+                    sys.exit('Eastward current file for wave %s is missing' % inp)
+
+                if path.isfile(input_dir+v_file.replace('<tides>',inp)):
+                    input_file_v+=[input_dir+v_file.replace('<tides>',inp)]
+                elif path.isfile(input_dir+v_file.replace('<tides>',inp.lower())):
+                    input_file_v+=[input_dir+v_file.replace('<tides>',inp.lower())]
+                else:
+                    sys.exit('Northward current file for wave %s is missing' % inp)
         
-        input_file_ssh=list(input_file_ssh)
+        input_file_ssh = list(input_file_ssh)
         if cur:
-            input_file_uv=list(input_file_uv)
+            input_file_u = list(input_file_u)
+            input_file_v = list(input_file_v)
         else: 
-            input_file_uv=None
+            input_file_u = None
+            input_file_v = None
     else:
         input_file_ssh=list(input_dir+elev_file)
         if cur:
-            input_file_uv=list(input_dir+uv_file)
+            input_file_u = list(input_dir+u_file)
+            input_file_v = list(input_dir+v_file)
         else:
-            input_file_uv=None
+            input_file_u = None
+            input_file_v = None
 else:
     input_file_ssh=list([input_dir+input_file])
     if cur:
-        input_file_uv=list([input_dir+input_file])
+        input_file_u=list([input_dir+input_file])
+        input_file_v=list([input_dir+input_file])
     else:
-        input_file_uv=None
+        input_file_u=None
+        input_file_v=None
 
-inpdat=Inp.getdata(inputdata,input_file_ssh,crocogrd,input_type,tides,input_file_uv)
+inpdat=Inp.getdata(inputdata,input_file_ssh,crocogrd,input_type,tides,input_file_u,input_file_v)
 
 # --- Create the initial file -----------------------------------------
 
@@ -186,7 +201,7 @@ for i,tide in enumerate(tides) :
         # read ntime/periods dimension and find the closest wave
         tndx=np.argwhere(abs(inpdat.ntides-period)<1e-4)
         if len(tndx)==0:
-            sys.exit('  Did not find wave %s in input file' % tides)
+            sys.exit('  Did not find wave %s in input file' % tide)
         else:
             tndx=tndx[0]
 

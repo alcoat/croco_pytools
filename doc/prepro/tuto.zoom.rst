@@ -4,22 +4,22 @@ Build a nest
 To represent fine-scale phenomena, CROCO offers the ability to create zooms of increased resolution. 
 Two options exist:
 
-* **offline zoom**: creating a grid of the desired resolution, which boundaries are inside a 
-grid from a larger CROCO domain, already modelled. In such case, the higher-resolution grid takes as 
-initialization and boundary conditions, those from the larger CROCO simulation. The simulations are independent
-and no feedback from the higer-resolution grid towards the coarser grid is possible. The simulations run separately. 
-The advantages are: independency, no constraints on the chosen resolution, 
-the drawbacks are: no feedback to the larger domain, boundary forcing of the zoom depends on the frequency of the parent 
-grid's history, which may filter out some of the waves present in the parent grid. 
+* **offline zoom**: Creating a grid of the desired resolution, which boundaries are inside a 
+  grid from a larger CROCO domain, already modelled. In such case, the higher-resolution grid takes as 
+  initialization and boundary conditions, those from the larger CROCO simulation. The simulations are independent
+  and no feedback from the higer-resolution grid towards the coarser grid is possible. The simulations run separately. 
+  The advantages are: independency, no constraints on the chosen resolution, 
+  the drawbacks are: no feedback to the larger domain, boundary forcing of the zoom depends on the frequency of the parent 
+  grid's history, which may filter out some of the waves present in the parent grid. 
 
 * **AGRIF zoom**: AGRIF is a library that allows to run CROCO with several embedded domains together. (see documentation in 
-`CROCO documentation <https://croco-ocean.gitlabpages.inria.fr/croco_doc/model/model.nesting.html>`_)
-Parent and child(s) domain are run simultaneously, coupling the domains at the barotropic time step. 
-The advantages are: 2-way feedback to the parent domain is possible and can significantly improve results of the larger domain,
-coupling at the highest possible frequency, consistency of numerics, any number of nesting levels is allowed.
-The drawbacks are: requires to run the parent and child(s) grids simultaneously, nesting ratio should be 3 or 5,  
-in the current state, the AGRIF zooms in CROCO must have the 
-same vertical resolution as the parent.
+  `CROCO documentation <https://croco-ocean.gitlabpages.inria.fr/croco_doc/model/model.nesting.html>`_)
+  Parent and child(s) domain are run simultaneously, coupling the domains at the barotropic time step. 
+  The advantages are: 2-way feedback to the parent domain is possible and can significantly improve results of the larger domain,
+  coupling at the highest possible frequency, consistency of numerics, any number of nesting levels is allowed.
+  The drawbacks are: requires to run the parent and child(s) grids simultaneously, nesting ratio should be 3 or 5,  
+  in the current state, the AGRIF zooms in CROCO must have the 
+  same vertical resolution as the parent.
 
 Child grid creation
 ^^^^^^^^^^^^^^^^^^^
@@ -77,8 +77,10 @@ Choose topo smoothing parameters.
 
 Click ``Compute child grid`` to validate your choices and update the plot. 
 
-.. note:: AGRIF requires a perfect match of the psi points at boundaries. The procedure to build the AGRIF grid may thus 
-          slightly change the grid location or number of points to match this criterion. 
+.. note:: 
+
+  AGRIF requires a perfect match of the psi points at boundaries. The procedure to build the AGRIF grid may thus 
+  slightly change the grid location or number of points to match this criterion. 
  
 If you are happy with the created grid, edit the path of the ouptut directory 
 and click ``Save grid``. 
@@ -87,7 +89,7 @@ When saving the grid, two files are created:
 
 * the grid file: ``croco_grd.nc.1``
 * a file named ``AGRIF_FixedGrids.in``. This file contains information on the zoom position and refinment
-it is needed by CROCO to run with AGRIF.
+  it is needed by CROCO to run with AGRIF.
 
 .. warning::
 

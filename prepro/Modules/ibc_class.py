@@ -104,11 +104,11 @@ class getdata():
         """
         n=x.shape[0]
         if x0 < x[0] :
-            i=0                      # if x0 is outside the full range
+            i=-1                      # if x0 is outside the full range
         elif x0 > x[-1] :            # of x(1) ... x(n), then return
             i=n                      # i=0 or i=n.
         else:
-            i=int( ( x[-1]-x0 +n*(x0-x[0]) )/(x[-1]-x[0]) )
+            i=int( ( x[-1]-x0 +(n-1)*(x0-x[0]) )/(x[-1]-x[0]) )
             if x[i+1]<x0 :
                 while x[i+1] <x0 :  # This algorithm computes "i" as
                     i=i+1           # linear interpolation between x(1)
@@ -171,8 +171,9 @@ class getdata():
         jmin=self.indx_bound(lat.data, geolim[2])
         jmax=self.indx_bound(lat.data, geolim[-1])
 
-        if 0 < jmin and jmin < lat.shape[0] and 0 < jmax and jmax < lat.shape[0] :
-            if jmin > 1 :
+        if -1<jmin and jmin<lat.shape[0] and \
+           -1<jmax and jmax<lat.shape[0] :
+            if jmin > 0 :
                 jmin=jmin-1
             jmax=jmax+2
         else:
@@ -182,10 +183,11 @@ class getdata():
         imin=self.indx_bound(lon, geolim[0])
         imax=self.indx_bound(lon, geolim[1])
 
-        if 0 < imin and imin < lon.shape[0] and 0 < imax and imax < lon.shape[0] :
-            if imax > 1:
+        if -1<imin and imin<lon.shape[0] and \
+           -1<imax and imax<lon.shape[0]:
+            if imin > 0:
                 imin=imin-1
-            imax=imax+2
+            imax=imax+1
             shft_west=0 ; shft_east=0 ; period=0
             print('Single region dataset imin/imax=',imin,imax, )
         else:
@@ -207,22 +209,27 @@ class getdata():
                 exit()
         ##
             shft_west=0
-            if imin==0 :
+            if imin==-1 :
                 shft_west=-1
                 imin=self.indx_bound(lon, geolim[0]+360)
+                if imin == lon.shape[0]: imin = lon.shape[0]-1
             elif imin==lon.shape[0] :
                 shft_west=+1
                 imin=self.indx_bound(lon, geolim[0]-360)
+                if imin == -1: imin = lon.shape[0]-1
         ##
             shft_east=0
-            if imax == 0:
+            if imax == -1:
                 shft_east=-1
                 imax=self.indx_bound(lon, geolim[1]+360)
+                if imax == lon.shape[0]: imax = 0
             elif imax == lon.shape[0]:
                 shft_east=+1
                 imax=self.indx_bound(lon, geolim[1]-360)
+                if imax == -1: imax = 0
     
-            if 0<imin and imin <lon.shape[0] and 0<imax and imax<lon.shape[0] :
+            if -1<imin and imin<lon.shape[0] and \
+               -1<imax and imax<lon.shape[0] :
                 if imin>1:
                     imin=imin-1
                 imax=imax+1

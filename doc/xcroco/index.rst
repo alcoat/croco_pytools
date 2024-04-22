@@ -4,8 +4,6 @@ Post-processing tools (xcroco)
 | Xcroco is a library written in python to post-process history files
   genarated by the Croco model.
 | The ``Xcroco`` directory is provided by the CROCO_PYTOOLS.
-| For the installation, see `Xcroco main
-  page <https://gitlab.inria.fr/croco-ocean/croco_pytools/-/tree/postprocessing_python_tools_2023/xcroco>`__
 
 Content of the library
 ----------------------
@@ -26,6 +24,47 @@ and 2 tutorials:
 
 -  tuto_xcroco.ipynb : a notebook with several examples of diagnostics
 -  tuto_movie.ipynb : a notebook how to make a movie
+
+Installation
+------------
+
+Install miniconda: Download Miniconda3 (i.e. for python3) from the [conda website](https://conda.io/miniconda.html) and run:
+::
+
+    ./Miniconda3-latest-Linux-x86_64.sh
+
+Download the repository:
+::
+
+    git clone https://gitlab.inria.fr/croco-ocean/croco_tools.git
+    cd croco_tools/xcroco
+
+
+Install an appropriate conda-environment:
+::
+
+    conda env create -n xcroco -f doc/environment.yml
+
+or:
+::
+  
+    conda update -y conda
+    conda create -n xcroco -c conda-forge -y python=3.10
+    conda activate xcroco
+    conda install -y -c conda-forge dask dask-jobqueue dask-labextension \
+            xarray cf_xarray zarr netcdf4 jupyterlab ipywidgets cartopy \
+            geopandas nodejs intake-xarray xgcm numba jupyterhub \
+            kerchunk pyamg xrft \
+            ffmpeg memory_profiler
+
+    jupyter labextension install @jupyter-widgets/jupyterlab-manager \
+                             @pyviz/jupyterlab_pyviz \
+                             jupyter-leaflet
+
+Install the xcroco project in an editable mode in the conda environment:
+::
+
+    cd croco-tools/xcroco; pip install -e .
 
 First, customize your own class for your history files
 ------------------------------------------------------

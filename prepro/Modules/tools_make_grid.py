@@ -9,7 +9,9 @@ import scipy.interpolate as itp
 from scipy.interpolate import griddata
 import regionmask
 import geopandas as gp
+import pandas as pd
 from shapely.geometry import Polygon
+from itertools import product
 import sys
 #
 def topo_periodicity(topo_file, geolim):
@@ -53,8 +55,9 @@ def topo_periodicity(topo_file, geolim):
 ####
     jmin=indx_bound(topo_lat, geolim[2])
     jmax=indx_bound(topo_lat, geolim[-1])
-    if 0 < jmin and jmin < topo_lat.shape[0] and 0 < jmax and jmax < topo_lat.shape[0] :
-        if jmin > 1 :
+    if -1<jmin and jmin<topo_lat.shape[0] and \
+       -1<jmax and jmax<topo_lat.shape[0] :
+        if jmin > 0 :
             jmin=jmin-1
         jmax=jmax+2
     else:
@@ -64,10 +67,12 @@ def topo_periodicity(topo_file, geolim):
     imin=indx_bound(topo_lon, geolim[0])
     imax=indx_bound(topo_lon, geolim[1])
 
-    if 0 < imin and imin < topo_lon.shape[0] and 0 < imax and imax < topo_lon.shape[0] :
-        if imax > 1:
+    # Do not include border to check periodicity
+    if -1<imin and imin<topo_lon.shape[0] and \
+       -1<imax and imax<topo_lon.shape[0] :
+        if imin>0:
             imin=imin-1
-        imax=imax+2
+        imax=imax+1
         shft_west=0 ; shft_east=0
         print('Single region dataset imin/imax=',imin,imax, )
     else:
@@ -89,23 +94,29 @@ def topo_periodicity(topo_file, geolim):
             exit()
         ##
         shft_west=0
-        if imin==0 :
+        if imin==-1 :
             shft_west=-1
             imin=indx_bound(topo_lon, geolim[0]+360)
+            if imin == topo_lon.shape[0]: imin = topo_lon.shape[0]-1
         elif imin==topo_lon.shape[0] :
             shft_west=+1
             imin=indx_bound(topo_lon, geolim[0]-360)
+            if imin == -1: imin = topo_lon.shape[0]-1
         ##
         shft_east=0
-        if imax == 0:
+        if imax == -1:
             shft_east=-1
             imax=indx_bound(topo_lon, geolim[1]+360)
+            if imax == topo_lon.shape[0]: imax = 0
         elif imax == topo_lon.shape[0]:
             shft_east=+1
             imax=indx_bound(topo_lon, geolim[1]-360)
+            if imax == -1: imax = 0
 
-        if 0<imin and imin <topo_lon.shape[0] and 0<imax and imax<topo_lon.shape[0] :
-            if imin>1:
+        # Problem if index not in [0,lon.shape[0]-1]
+        if -1<imin and imin<topo_lon.shape[0] and \
+           -1<imax and imax<topo_lon.shape[0] :
+            if imin>0:
                 imin=imin-1
             imax=imax+1
         else:
@@ -334,47 +345,58 @@ class GetMask():
             urcrnrlon = outputs.lon_rho.ravel().max()
             llcrnrlat = outputs.lat_rho.ravel().min()
             urcrnrlat = outputs.lat_rho.ravel().max()
-    
-            lon_point=[llcrnrlon,llcrnrlon,urcrnrlon,urcrnrlon,llcrnrlon]
-            lat_point=[llcrnrlat,urcrnrlat,urcrnrlat,llcrnrlat,llcrnrlat]
-            polygon_geom = Polygon(zip(lon_point, lat_point))
+            
+            geoshp=gp.read_file(gfile,bbox=(llcrnrlon,llcrnrlat,urcrnrlon,urcrnrlat))
+            if urcrnrlon>180: # 0-360 format
+                # select -180-urcrnrlon part that was not previously included
+                geoshp_bis = gp.read_file(gfile,
+                               bbox=(-180,llcrnrlat,urcrnrlon-360,urcrnrlat))
+                # put it in 0-360 format
+                geoshp_bis = gp.GeoDataFrame(geometry=geoshp_bis.translate(xoff=360))
+                # Merge both side
+                geoshp = gp.GeoDataFrame( pd.concat( [geoshp,geoshp_bis], ignore_index=True) )
 
-            geoshp=gp.read_file(gfile,mask=polygon_geom) 
-            print('Building mask from ', gfile)
+            ny,nx = outputs.lon_rho.shape
+            outputs.mask_rho = np.zeros([ny,nx])
+            n2max = 50000 # max point by chunk
 
             if geoshp.shape[0]>3000:
-                print(f'{gfile} is large, processing by chuncks')
-                ny,nx = outputs.lon_rho.shape
-                npx,npy = int(nx//100),int(ny//100)
-                nbproc = npx*npy
-                outputs.mask_rho = np.zeros([ny,nx])
-                for myrank in range(nbproc):
-                    i,j = myrank%npx,myrank//npx
+                nchunk = int(np.max([np.sqrt((ny)*(nx)/n2max),1]))
+            else :
+              nchunk = 1
 
-                    nx1i,nx2i = int(i*(nx)/npx),int((i+1)*nx/npx)
-                    ny1i,ny2i = int(j*(ny)/npy),int((j+1)*ny/npy)
+            if nchunk>1:
+                print(f"Chunk format (y,x):({nchunk},{nchunk})")
  
-                    llcrnrlon = np.nanmin(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
-                    urcrnrlon = np.nanmax(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
-                    llcrnrlat = np.nanmin(outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
-                    urcrnrlat = np.nanmax(outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
+            for i,j in product(list(range(nchunk)),list(range(nchunk))):
+                if nchunk>1:
+                    print(f"Doing chunk ({i+1},{j+1})")
+                dx1=2; dx2=2; dy1=2; dy2=2 #chunk overlap
+                if i==0: dx1=0
+                if i==nchunk-1: dx2=0
+                if j==0: dy1=0
+                if j==nchunk-1: dy2=0
 
-                    lon_point=[llcrnrlon,llcrnrlon,urcrnrlon,urcrnrlon,llcrnrlon]
-                    lat_point=[llcrnrlat,urcrnrlat,urcrnrlat,llcrnrlat,llcrnrlat]
-                    polygon_geom = Polygon(zip(lon_point, lat_point))
-                    geoshp=gp.read_file(gfile,mask=polygon_geom)
-                    try: # Error if no polygon in the chunck
-                        rmask = regionmask.mask_geopandas(geoshp.geometry,outputs.lon_rho[ny1i:ny2i,nx1i:nx2i], outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
-                        outputs.mask_rho[ny1i:ny2i,nx1i:nx2i][np.isnan(rmask)]=1
-                    except:# Put 1 everywhere in the chunck when no polygon
-                        outputs.mask_rho[ny1i:ny2i,nx1i:nx2i]=1
-                        continue
-            elif geoshp.shape[0]== 0:
-                outputs.mask_rho=np.ones(outputs.lon_rho.shape)
-            else:          
-                rmask = regionmask.mask_geopandas(geoshp.geometry,outputs.lon_rho, outputs.lat_rho)#,method='shapely')#.values
-                outputs.mask_rho=np.zeros(rmask.shape)
-                outputs.mask_rho[np.isnan(rmask)]=1
+                nx1i = int(i*(nx)/nchunk-2*dx1)
+                nx2i = int((i+1)*(nx)/nchunk+2*dx2)
+                ny1i = int(j*(ny)/nchunk-2*dy1)
+                ny2i = int((j+1)*(ny)/nchunk+2*dy2)
+    
+                llcrnrlon = np.nanmin(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
+                urcrnrlon = np.nanmax(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
+                llcrnrlat = np.nanmin(outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
+                urcrnrlat = np.nanmax(outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
+
+                gs=geoshp.clip((llcrnrlon,llcrnrlat,urcrnrlon,urcrnrlat))
+                try: # Error if no polygon in the chunck
+                    rmask = regionmask.mask_geopandas(
+                              gs.geometry,outputs.lon_rho[ny1i:ny2i,nx1i:nx2i],outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
+                    outputs.mask_rho[ny1i+dy1:ny2i-dy2,nx1i+dx1:nx2i-dx2]\
+                        [np.isnan(rmask[dy1:ny2i-ny1i-dy2,dx1:nx2i-nx1i-dx2])] = 1
+                except:# Put 1 everywhere in the chunck when no polygon
+                    outputs.mask_rho[ny1i+dy1:ny2i-dy2,nx1i+dx1:nx2i-dx2] = 1
+                    continue
+ 
         else: # case hmin<=0
             outputs.mask_rho=np.ones(outputs.hraw.shape)
             if hmin<np.nanmin(outputs.hraw.ravel()):
@@ -411,7 +433,7 @@ class GetMask():
                 outputs.mask_rho[dist<=nmsk]=maskr_coarse[dist<=nmsk]
                 test=np.copy(outputs.mask_rho)
                 outputs.mask_rho=self.process_mask(outputs.mask_rho)
-  
+
         if sgl_connect is not None:
             if sgl_connect[0]:
                 if outputs.mask_rho[sgl_connect[2],sgl_connect[1]]<0.5 :
@@ -591,7 +613,7 @@ class EasyGrid():
 
 
         r_earth = 6371315. # Mean earth radius in metres (from scalars.h)
-        
+
         size_x = inputs.size_x * 1000. # convert to meters
         size_y = inputs.size_y * 1000. # convert to meters
 
@@ -726,7 +748,7 @@ class EasyGrid():
         outputs.angle = ang
         outputs.lon_psi = np.rad2deg(lone)
         outputs.lat_psi = np.rad2deg(late)
-        
+
         return outputs
 
     def AGRIFgrid(self,prt_grd,inputs,outputs):
@@ -884,11 +906,11 @@ def indx_bound(x, x0):
     """
     n=x.shape[0]
     if x0 < x[0] :
-        i=0                      # if x0 is outside the full range
+        i=-1                     # if x0 is outside the full range
     elif x0 > x[-1] :            # of x(1) ... x(n), then return
         i=n                      # i=0 or i=n.
     else:
-        i=int( ( x[-1]-x0 +n*(x0-x[0]) )/(x[-1]-x[0]) )
+        i=int( ( x[-1]-x0 +(n-1)*(x0-x[0]) )/(x[-1]-x[0]) )
         if x[i+1]<x0 :
             while x[i+1] <x0 :  # This algorithm computes "i" as
                 i=i+1           # linear interpolation between x(1)
