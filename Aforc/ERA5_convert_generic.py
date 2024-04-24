@@ -58,6 +58,10 @@ for iyear in range(year_start,year_end+1):
 
             print('  Processing variable: '+var)
 
+            if var=='sst' or var=='ssr' or var=='u10m' or var=='v10m' or var=='t2m':
+                continue
+
+
             if not READ_PATM and var == 'msl':
                 print(' MSL is not formatted because READ_PATM == FALSE')
                 continue
@@ -197,7 +201,8 @@ for iyear in range(year_start,year_end+1):
             varlat.units = 'degree_north'
             vartime.units = 'days since '+str(Yorig)+'-1-1'
             vardata.missing_value = 9999.
-            vardata.units = variables.get_units(name) #Same as var
+            if var=='r': vardata.units = '%'
+            else: vardata.units = variables.get_units(name)
             vardata.long_name = vlong
 	
             varlon[:]=lon
