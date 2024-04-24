@@ -19,7 +19,7 @@ from calendar import monthrange
 
 # -------------------------------------------------
 # Import my crocotools_param_python file
-from era5_crocotools_param_reader import *
+from era5_crocotools_param import *
 # -------------------------------------------------
 
 # -------------------------------------------------
