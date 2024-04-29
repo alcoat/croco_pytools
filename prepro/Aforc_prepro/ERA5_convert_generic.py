@@ -201,8 +201,7 @@ for iyear in range(year_start,year_end+1):
             varlat.units = 'degree_north'
             vartime.units = 'days since '+str(Yorig)+'-1-1'
             vardata.missing_value = 9999.
-            if var=='r': vardata.units = '%'
-            else: vardata.units = variables.get_units(name)
+            vardata.units = variables.get_units(name)
             vardata.long_name = vlong
 	
             varlon[:]=lon
