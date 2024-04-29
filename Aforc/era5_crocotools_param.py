@@ -12,27 +12,25 @@ from aforc_class import aforc_class, create_class
 #
 # General path
 #
-#config_dir = 'path_to_my_run_dir/'            # must be the same than crocotools_param
-config_dir = '/home3/datawork/alschaef/TRAINING_2022/CONFIGS/pacifique_ird/'
-config_name = 'pacifique_ird'
-#
-# Original ERA5 directory
-#
+config_dir = 'path_to_my_run_dir/'            # must be the same than crocotools_param
+config_name = 'my_config'
 
 #
 # Data origin : era_dataref (datarmor) / era_ecmwf (downwloaded by script) / arome
 #
 data_origin = 'era_ecmwf'
 
+#
+# Original ERA5 directory
+#
 #era5_dir_raw = config_dir + 'DATA/ERA5_native_' + config_name
-if data_origin == 'era_dataref': era5_dir_raw = '/dataref/ref19/intranet/ERA5'
-else: era5_dir_raw = '/home/datawork-lops-siam-moawi/PROJECTS/CLIPSSA/data_from_carlos/CROCO_Config_Pacific/DATA/ERA5'
+if data_origin == 'era_dataref': era5_dir_raw = '/path_to_ERA5_dataref_data'
+else: era5_dir_raw = '/path_to_downloaded_ERA5_data'
 #
 
 # Output ERA5 directory
 #
 #era5_dir_processed = config_dir + 'DATA/ERA5_' + config_name
-era5_dir_processed = '/home3/datawork/alschaef/TRAINING_2022/DATA/ERA5_formatted/tests/readers'
 #
 
 #
