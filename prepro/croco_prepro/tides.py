@@ -1,15 +1,14 @@
 import numpy as np
-import netCDF4 as netcdf
 import cftime
 import xarray as xr
-import tides_reader as dico
-import os
 import sys
 import glob
 
+from .readers import tides as dico
+
 class getdata():
     def __init__(self,inputdata,inputfile,crocogrd,file_format,tideslist,currentu=None,currentv=None):
- 
+
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if file_format =='Amp_Phase':
             part1_suf='a'
@@ -24,13 +23,13 @@ class getdata():
         for inpt in inputfile:
             xr_list_ssh+=[xr.open_dataset(inpt)]
         dataxr_ssh=xr.concat(xr_list_ssh,dim='ntides',data_vars='different')
-        
+
         self.ncglo={'ssh_part1':eval(''.join(("dataxr_ssh."+self.var['H_'+part1_suf]))),\
                     'ssh_part2':eval(''.join(("dataxr_ssh."+self.var['H_'+part2_suf])))
                    }
-        
+
         # Handling current variables
-        if currentu is not None: 
+        if currentu is not None:
             xr_list_u=[]
             xr_list_v=[]
             for inpt in currentu:
@@ -39,21 +38,21 @@ class getdata():
             for inpt in currentv:
                 xr_list_v+=[xr.open_dataset(inpt)]
             dataxr_v=xr.concat(xr_list_v,dim='ntides',data_vars='different')
-     
+
             self.ncglo['u_part1']=eval(''.join(("dataxr_u."+self.var['U_'+part1_suf])))
             self.ncglo['u_part2']=eval(''.join(("dataxr_u."+self.var['U_'+part2_suf])))
             self.ncglo['v_part1']=eval(''.join(("dataxr_v."+self.var['V_'+part1_suf])))
             self.ncglo['v_part2']=eval(''.join(("dataxr_v."+self.var['V_'+part2_suf])))
-            
+
             if 'tpxo' in inputdata and \
                'transport' in self.ncglo['u_part1'].long_name:
-            # set transport to velocity           
+            # set transport to velocity
                 print('Looking for grid file')
                 grd_file=glob.glob(
                              currentu[0].replace(currentu[0].split('/')[-1],
                              'grid*'))
                 # check transport units to change to m2/s
-                if ('cm' in self.ncglo['u_part1'].attrs['units'] or 
+                if ('cm' in self.ncglo['u_part1'].attrs['units'] or
                     'centimeter' in self.ncglo['u_part1'].attrs['units']):
                    coef = 100
                 elif ('mm' in self.ncglo['u_part1'].attrs['units'] or
@@ -81,7 +80,7 @@ class getdata():
                                 hu=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
                                 hv=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
                             except:
-                                sys.exit('Need either a grid file or topo in tpxo file to correct transport.') 
+                                sys.exit('Need either a grid file or topo in tpxo file to correct transport.')
                 self.ncglo['u_part1']=self.ncglo['u_part1']/coef**2/hu.values
                 self.ncglo['u_part1'].attrs['units']='meter/sec'
                 self.ncglo['u_part2']=self.ncglo['u_part2']/coef**2/hu.values
@@ -89,19 +88,19 @@ class getdata():
                 self.ncglo['v_part1']=self.ncglo['v_part1']/coef**2/hv.values
                 self.ncglo['v_part1'].attrs['units']='meter/sec'
                 self.ncglo['v_part2']=self.ncglo['v_part2']/coef**2/hv.values
-                self.ncglo['v_part2'].attrs['units']='meter/sec'                    
-        # If all waves are in one file, reads period along record dimension 
+                self.ncglo['v_part2'].attrs['units']='meter/sec'
+        # If all waves are in one file, reads period along record dimension
         if len(inputfile)==1 and self.ncglo['ssh_part1'].ndim ==3:
             rcd_dim=self.ncglo['ssh_part1'].dims[0]
             self.ntides = np.array((eval(''.join(("dataxr_ssh."+rcd_dim+".data")))))
-       
-        # If len(inputfile)==1 and wave dimension is 2-d, need to add a dummy dimension   
+
+        # If len(inputfile)==1 and wave dimension is 2-d, need to add a dummy dimension
         for key in self.ncglo:
             if self.ncglo[key].ndim == 2:
-                self.ncglo[key]=self.ncglo[key].expand_dims(dim={'ntides':1},axis=0)       
+                self.ncglo[key]=self.ncglo[key].expand_dims(dim={'ntides':1},axis=0)
         # Take care of unit
         for key in self.ncglo:
-            try:         
+            try:
                 uni = self.ncglo[key].units
             except:
                 print('No units in input file.')
@@ -110,7 +109,7 @@ class getdata():
                         print('looking at Phase. Assume it is in degree')
                         uni='degrees'
                     else:
-                        if 'u' in self.ncglo[key] or 'v' in self.ncglo[key]: 
+                        if 'u' in self.ncglo[key] or 'v' in self.ncglo[key]:
                             print('looking at velocity Imaginary part. Assume it is in meter.second-1')
                             uni='meter.second-1'
                         else:
@@ -147,15 +146,15 @@ class getdata():
             elif uni.lower() in ['millimeter.second-1', 'mm.s-1','millimeters/second','mm/s','milliimeter/sec','millimeters/sec']:
                 print('converting %s to meter.second-1' % uni)
                 self.ncglo[key]=self.ncglo[key]/1000
-         
+
 
         [self.lonT ,self.latT ,self.idmin ,self.idmax ,self.jdmin ,self.jdmax ,self.period ]  = self.handle_periodicity(crocogrd,dataxr_ssh,'r')
 
         if currentu is not None:
             [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,dataxr_u,'u')
             [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,dataxr_v,'v')
-       
-        # Checking that var in format [ntides,lat,lon] 
+
+        # Checking that var in format [ntides,lat,lon]
         for key in self.ncglo:
             if 'u' in self.ncglo[key]:
                 nx=eval(''.join(("dataxr_u."+self.var['lonu']))).shape[0]
@@ -177,8 +176,8 @@ class getdata():
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
                     dim=self.ncglo[key].dims
-                    self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])       
-        
+                    self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])
+
     def ap2ep(self,Au, PHIu, Av, PHIv):
         '''
         This function compute Semi Major axis along with eccentricity and inclination and phase angle for tide ellipse
@@ -217,9 +216,9 @@ class getdata():
         SEMI = Wp-Wm              # Semin Minor Axis, or minimum speed
         ECC = SEMI/SEMA          # Eccentricity
 
-        PHA = (THETAm-THETAp)/2   # Phase angle, the time (in angle) when 
+        PHA = (THETAm-THETAp)/2   # Phase angle, the time (in angle) when
                                  # the velocity reaches the maximum
-        INC = (THETAm+THETAp)/2   # Inclination, the angle between the 
+        INC = (THETAm+THETAp)/2   # Inclination, the angle between the
                                  # semi major axis and x-axis (or u-axis).
 
         # convert to degrees for output
@@ -228,7 +227,7 @@ class getdata():
         THETAp = THETAp/np.pi*180
         THETAm = THETAm/np.pi*180
 
-        # flip THETAp and THETAm, PHA, and INC in the range of 
+        # flip THETAp and THETAm, PHA, and INC in the range of
         # [-pi, 0) to [pi, 2*pi), which at least is my convention.
         id = THETAp < 0;   THETAp[id] = THETAp[id]+360
         id = THETAm < 0;   THETAm[id] = THETAm[id]+360
@@ -274,11 +273,11 @@ class getdata():
         the last and first longitude points ( for global data).
         It is returning lon/lat/topo adapted to the desired domain
         geolim = [lonmin,lonmax,latmin,latmax]
- 
+
         input: inputfile : data file
                crocogrd  : croco grid lon/lat
                grid      : which grid (rho: 'r', u: 'u', v: 'v')
- 
+
         output: lon/lat of the grid
                 imin/imax index min/max xaxis
                 jmin/jmax index min/max yaxis
@@ -297,7 +296,7 @@ class getdata():
             else:
                 lon = lon[0,:]
                 lat = lat[:,0]
-                
+
         for i in range(1,lon.shape[0]): # Fix discontinuity
             if lon[i]<lon[i-1]:        # between 180/-180 in the
                 lon[i]=lon[i]+360      # middle
@@ -306,7 +305,7 @@ class getdata():
 
         jmin=self.indx_bound(lat.data, geolim[2])
         jmax=self.indx_bound(lat.data, geolim[-1])
-        
+
         if -1<jmin and jmin<lat.shape[0] and \
            -1<jmax and jmax<lat.shape[0] :
             if jmin > 1 :
@@ -363,7 +362,7 @@ class getdata():
                 shft_east=+1
                 imax=self.indx_bound(lon, geolim[1]-360)
                 if imax == -1: imax = 0
-    
+
             if -1<imin and imin<lon.shape[0] and \
                -1<imax and imax<lon.shape[0] :
                 if imin>0:
@@ -373,7 +372,7 @@ class getdata():
                 print('ERROR: Data longitude covers 360 degrees, but still cannot find  starting and ending indices.')
                 sys.exit()
 
-        print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', 
+        print('Bounding indices of the relevant part to be extracted from the entire dataset:\n',
               'imin,imax =', imin,imax,'out of', lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',lat.shape[0])
         ny_lat=jmax-jmin+1
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
@@ -435,14 +434,14 @@ class getdata():
 
             del lon,lat
             (lon,lat)=np.meshgrid(lon_tmp,lat_tmp)
-    
+
         return lon,lat,imin,imax,jmin,jmax,period
 
-    #############################   
+    #############################
     def var_periodicity(self,vname,l,k,bdy=""):
         '''
         handle periodicity for tracers. Limits (imin,imax,jmin,jmax) are fixed before
-        by runing 
+        by runing
         '''
         if vname in ['u','u_part1','u_part2']:
             imin=eval(''.join(("self.idminU"+bdy))) ; imax=eval(''.join(("self.idmaxU"+bdy)))
@@ -456,7 +455,7 @@ class getdata():
             imin=eval(''.join(("self.idmin"+bdy))) ; imax=eval(''.join(("self.idmax"+bdy)))
             jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
             period=eval(''.join(("self.period"+bdy)));grdid='r'
-        
+
         try:
             mintime=min(l);maxtime=max(l)+1
         except:
@@ -473,7 +472,7 @@ class getdata():
             else:
                 field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
-        elif imin>imax:    
+        elif imin>imax:
             nx_lon=imax+period-imin+1
             try:
                 lent=l.shape[0]
@@ -481,7 +480,7 @@ class getdata():
             except:
                 ftmp = np.zeros([ny_lat,nx_lon])
             # First
-            start1=0 ; end1=start1+nx_lon; count1=imax 
+            start1=0 ; end1=start1+nx_lon; count1=imax
             if k==-1:
                 field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
@@ -523,8 +522,8 @@ class getdata():
     def egbert_correction(self,input_wav,date_ini):
         '''
         Correct phases and amplitudes for real time runs
-        Use parts of pos-processing code from Egbert's & Erofeeva's (OSU) 
-        TPXO model. Their routines have been adapted from code by Richard Ray 
+        Use parts of pos-processing code from Egbert's & Erofeeva's (OSU)
+        TPXO model. Their routines have been adapted from code by Richard Ray
         (@?) and David Cartwright.
 
         Inputs:
@@ -554,7 +553,7 @@ class getdata():
             for wav in fwav:
                 exec(f'{wav}={val[cbt]}')
                 cbt+=1
-        
+
         # Time in Modified Julian Date
         # To compute lunar position time should be in days relatively Jan 1 2000 12:00:00
 #        timetemp=cftime.date2num(date_ini,'days since 2000-01-01:12:00:00')
@@ -570,10 +569,10 @@ class getdata():
         N = 125.0445 -  0.05295377 * timetemp
         N = np.mod(N,360.0)
 #        if N<0:
-#            N=N+360 
+#            N=N+360
         N=np.deg2rad(N)
 
-        # nodal corrections: pf = amplitude scaling factor [], 
+        # nodal corrections: pf = amplitude scaling factor [],
         #                    pu = phase correction [rad]
         sinn = np.sin(N)
         cosn = np.cos(N)
@@ -592,11 +591,11 @@ class getdata():
         elif input_wav.lower() in ['2n2','mu2','n2','nu2','m2','2sm2']:
             pf = np.sqrt((1.-.03731*cosn+.00052*cos2n)**2 +(.03731*sinn-.00052*sin2n)**2)
         elif input_wav.lower() == 'mm':
-            pf= 1 - 0.130*cosn   
+            pf= 1 - 0.130*cosn
         elif input_wav.lower() == 'mf':
             pf = 1.043 + 0.414*cosn
         elif input_wav.lower() == 'mt':
-            pf = np.sqrt((one+.203*cosn+.040*cos2n)**2 + (.203*sinn+.040*sin2n)**2)
+            pf = np.sqrt((1+.203*cosn+.040*cos2n)**2 + (.203*sinn+.040*sin2n)**2)
         elif input_wav.lower() == 'chi1':
             pf = np.sqrt((1.+.221*cosn)**2+(.221*sinn)**2)
         elif input_wav.lower() == 'k1':
@@ -624,11 +623,11 @@ class getdata():
         elif input_wav.lower() == 'm1':
             pf = np.sqrt(tmp1**2 + tmp2**2)
         elif input_wav.lower() == 'l2':
-            pf = np.sqrt(temp1**2 + temp2**2)    
+            pf = np.sqrt(temp1**2 + temp2**2)
         else:
             print('No amplitude correction for wave %s' % input_wav)
             pf = 1
-        
+
         ##
         if input_wav.lower() in ['sa','ssa','mm','msf','alpha1','tau1','pi1','p1','s1','psi1','phi1','theta1','m2a','m2b','lambda2','la2','t2','s2','r2','s3','s4','s5','s6','s7','s8']:
             pu=0
@@ -661,7 +660,7 @@ class getdata():
         elif input_wav.lower() == 'chi1':
            pu = np.arctan(-.221*sinn/(1.+.221*cosn))
         elif input_wav.lower() == 'm1':
-           pu = np.arctan2(tmp2,tmp1) 
+           pu = np.arctan2(tmp2,tmp1)
         elif input_wav.lower() == 'l2':
            pu = np.arctan(-temp2/temp1)
         elif input_wav.lower() == 'o1':
@@ -669,11 +668,11 @@ class getdata():
         elif input_wav.lower() == 'mf':
            pu = np.deg2rad(-23.7*sinn + 2.7*sin2n - 0.4*sin3n)
         elif input_wav.lower() == 'mt':
-           pu = np.arctan(-(.203*sinn+.040*sin2n)/(one+.203*cosn+.040*cos2n))
+           pu = np.arctan(-(.203*sinn+.040*sin2n)/(1+.203*cosn+.040*cos2n))
         else:
-            print('No phase correction for wave %s' % input_wav)        
+            print('No phase correction for wave %s' % input_wav)
             pu=0
-        
+
         try:
             mkb=eval(''.join(('phase_mkb.',input_wav.lower())))
         except:
@@ -687,14 +686,14 @@ class getdata():
 
     class pot_tide():
         '''
-        Includes the direct astronomical contribution from the sun and moon 
-        (factor amp, from Schwiderski, 1978) and the contributions 
+        Includes the direct astronomical contribution from the sun and moon
+        (factor amp, from Schwiderski, 1978) and the contributions
         from solid Earth body tide (factor elas, from Wahr, 1981).
-        
+
         More informations about potential tides (or equilibrium tides) can be found here:
         - Global Ocean Tides. Part I , Schwiderski, 1978
         - Sea-level Science,p.43-44, David Pugh and Philip Woodworth
-            
+
         '''
 
         amp=np.array([0.242334,0.112743,0.141565,0.100661,\

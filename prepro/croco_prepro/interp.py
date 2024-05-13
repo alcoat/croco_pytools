@@ -1,19 +1,13 @@
+import time as tm
 import numpy as np
-from scipy.interpolate import griddata
 import scipy.interpolate as itp
-import os
-import sys
-import time
 from scipy.spatial import Delaunay
-import Cgrid_transformation_tools as grd_tools
-from sigmagrid_tools import ztosigma
-from progressbar import progressbar
 import xarray as xr
 import pyinterp
-import pyinterp.backends.xarray as pyxr
-import pyinterp.fill as pyfi
-#
 
+from . import sigma as ztosigma
+from . import cgrid as grd_tools
+from .progressbar import progressbar
 
 
 def make_xarray(data,lon2D,lat2D):
@@ -94,7 +88,7 @@ def get_tri_coef(X, Y, newX, newY, verbose=0):
 
 def get_delaunay_bry(lon_bry,lat_bry,inputfile,bdy):
     '''
-    This function computes the delaunay matrices for the interpolations 
+    This function computes the delaunay matrices for the interpolations
     at the boundaies
 
     Input:
@@ -107,7 +101,7 @@ def get_delaunay_bry(lon_bry,lat_bry,inputfile,bdy):
       LonT_bry,LatT_bry,iminT_bry,imaxT_bry,jminT_bry,jmaxT_bry,elemT_bry,coefT_bry,
       LonU_bry,LatU_bry,iminU_bry,imaxU_bry,jminU_bry,jmaxU_bry,elemU_bry,coefU_bry,
       LonV_bry,LatV_bry,iminV_bry,imaxV_bry,jminV_bry,jmaxV_bry,elemV_bry,coefV_bry
-    ''' 
+    '''
     comp_delaunay=1
 
 #
@@ -115,7 +109,7 @@ def get_delaunay_bry(lon_bry,lat_bry,inputfile,bdy):
 #
     LonU_bry,LatU_bry   = eval(''.join(("inputfile.lonU"+bdy))),eval(''.join(("inputfile.latU"+bdy)))
     LonV_bry,LatV_bry   = eval(''.join(("inputfile.lonV"+bdy))),eval(''.join(("inputfile.latV"+bdy)))
-    LonT_bry,LatT_bry   = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy))) 
+    LonT_bry,LatT_bry   = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy)))
 
 #
 # Get the 2D interpolation coefficients
@@ -173,7 +167,7 @@ def add2layers(vin):
     vertical extrapolations when doing a vertical interpolation
 
     Input:
-      Vin    3 or 4D Variable 
+      Vin    3 or 4D Variable
 
     Output:
       vout   Vin with 2 new layers above and below
@@ -215,7 +209,7 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
 
     Output:
       vout          Interpolation of the field time series on 2D CROCO grid
-      Nzgood        Number of good points on the input level k        
+      Nzgood        Number of good points on the input level k
     '''
 
 # 0: Read input data informations
@@ -253,8 +247,8 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
         del Vtmp
 
 # 2: Remove bad values (using nearest values)
-    if "_FillValue" not in inputfile.ncglo[vname].encoding:# If no FillValue in netcdf, assume 0 as value for the mask  
-        Vin[Vin==0]=np.nan 
+    if "_FillValue" not in inputfile.ncglo[vname].encoding:# If no FillValue in netcdf, assume 0 as value for the mask
+        Vin[Vin==0]=np.nan
 
     if bdy != "":
         if bdy == 'S':
@@ -272,11 +266,11 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
         crocolat=crocogrd.lat
 
     Vout=np.zeros([Vin.shape[0],crocolon.shape[0],crocolon.shape[1]])
-   
+
     for tt in range(Vin.shape[0]):
         igood = np.where(np.isnan(Vin[tt,:])==False)
         ibad  = np.where(np.isnan(Vin[tt,:]))
- 
+
         NzGood=np.size(igood)
         Nbad=np.size(ibad)
 
@@ -287,7 +281,7 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
 #            print('\nWarning: less than 10 good values')
             Vinfilled=np.copy(Vin[tt,:])
             Vinfilled[:]=np.nanmean(Vinfilled[igood])
-            val_interpolator=pyinterp.backends.xarray.Grid2D(make_xarray(Vinfilled,Lon,Lat))           
+            val_interpolator=pyinterp.backends.xarray.Grid2D(make_xarray(Vinfilled,Lon,Lat))
         else:
             spline = itp.NearestNDInterpolator((Lon[igood].ravel(),Lat[igood].ravel()),Vin[tt,igood[0],igood[1]])
             Vinfilled =np.copy(np.squeeze(Vin[tt,:]))
@@ -341,7 +335,7 @@ def interp(inputfile,vname,Nzgoodmin,z_rho,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy
             if Nzgood>Nzgoodmin:
                 kgood=kgood+1
                 t4d[:,kgood,:,:]=t3d
-                
+
         t4d=t4d[:,0:kgood,:,:]
         depth=depth[0:kgood]
         np.savez('t4d.npz',t4d=t4d,depth=depth)
@@ -357,7 +351,7 @@ def interp(inputfile,vname,Nzgoodmin,z_rho,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy
         Z=depth
     else:
         Z=-depth
-    
+
 #  Vertical interpolation
     print('Vertical interpolation')
 
@@ -427,7 +421,7 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
             if Nzgood>Nzgoodmin:
                 kgood=kgood+1
 #
-# Rotation and put to u-points and v-points 
+# Rotation and put to u-points and v-points
 #
                 u4d[:,kgood,:,:]=grd_tools.rho2u(u3d*cosa3d+v3d*sina3d)
                 v4d[:,kgood,:,:]=grd_tools.rho2v(v3d*cosa3d-u3d*sina3d)
@@ -474,7 +468,7 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
     u4d=np.flip(add2layers(u4d),axis=1)
     v4d=np.flip(add2layers(v4d),axis=1)
 #
-# Do the vertical interpolations 
+# Do the vertical interpolations
 #
     uout=ztosigma(u4d,Z,grd_tools.rho2u(z_rho))
     vout=ztosigma(v4d,Z,grd_tools.rho2v(z_rho))
@@ -530,7 +524,7 @@ def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,
 
         part1 = inputfile.var_periodicity(field+'_part1',l,k,bdy=bdy)
         part2 = inputfile.var_periodicity(field+'_part2',l,k,bdy=bdy)
-        
+
         if input_type=='Amp_Phase':
             rpart,impart = part1*np.cos(part2),part1*np.sin(part2)
         else:
@@ -541,7 +535,7 @@ def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,
             impart=impart[np.newaxis,:]
 
 # 2: Remove bad values (using nearest values)
-#        if "_FillValue" not in inputfile.ncglo[field+'_part1'].encoding:# If no FillValue in netcdf, assume 0 as value for the mask  
+#        if "_FillValue" not in inputfile.ncglo[field+'_part1'].encoding:# If no FillValue in netcdf, assume 0 as value for the mask
 #            rpart[rpart==0]=np.nan
 #            impart[impart==0]=np.nan
 
@@ -600,7 +594,7 @@ def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,
 
         Vout=(Rout+1j*Iout)
 
- 
+
         if field =='u':
             Uout=np.copy(Vout)
 

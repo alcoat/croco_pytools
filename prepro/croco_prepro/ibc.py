@@ -1,33 +1,32 @@
 import numpy as np
-import netCDF4 as netcdf
 import xarray as xr
-import ibc_reader as dico
+from .readers import ibc as dico
 '''
 This class need to:
     - open netcdf
     - read depth,lon,lat(T,U,V if needed),ssh, temp, salt, u,v
 '''
 
-class getdata():   
+class getdata():
     def __init__(self,inputdata,inputfile,crocogrd,multi_files,tracers=[],bdy=None): # bdy=[obs,tstart,tend,cycle]
-        
+
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if bdy is None: # Ini case
             if  multi_files == False:
                 dataxr=xr.open_dataset(inputfile)
                 self.depth=eval(''.join(("dataxr."+self.var['depth'])))
-  
+
                 self.ncglo   = { 'ssh'  : dataxr,\
                                  'u'    : dataxr,\
                                  'v'    : dataxr\
                                }
                 for trc in tracers:
-                    self.ncglo[trc] = dataxr 
-        
+                    self.ncglo[trc] = dataxr
+
             else:
                 dataxr=xr.open_dataset(inputfile['u'])
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
-            
+
                 self.ncglo   = { 'ssh'  : xr.open_dataset(inputfile['ssh']),\
                                  'u'    : xr.open_dataset(inputfile['u']),\
                                  'v'    : xr.open_dataset(inputfile['v'])\
@@ -38,7 +37,7 @@ class getdata():
 
             [self.lonT ,self.latT ,self.idmin  ,self.idmax  ,self.jdmin  ,self.jdmax  ,self.period  ]  = self.handle_periodicity(crocogrd,'r')
             [self.lonU ,self.latU ,self.idminU ,self.idmaxU ,self.jdminU ,self.jdmaxU ,self.periodU ]  = self.handle_periodicity(crocogrd,'u')
-            [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,'v')        
+            [self.lonV ,self.latV ,self.idminV ,self.idmaxV ,self.jdminV ,self.jdmaxV ,self.periodV ]  = self.handle_periodicity(crocogrd,'v')
         elif bdy is not None and bdy[-1]==0: # bdy case
             if multi_files == False:
                 dataxr=xr.open_mfdataset(inputfile,combine='nested',concat_dim=self.var['time_dim'])
@@ -56,7 +55,7 @@ class getdata():
             else:
                 dataxr=xr.open_mfdataset(inputfile['u'])
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
-                
+
                 self.ncglo   = { 'ssh'  : xr.open_mfdataset(inputfile['ssh'],combine='nested',concat_dim=self.var['time_dim']) ,\
                                  'u'    : xr.open_mfdataset(inputfile['u'],combine='nested',concat_dim=self.var['time_dim']),\
                                  'v'    : xr.open_mfdataset(inputfile['v'],combine='nested',concat_dim=self.var['time_dim']),\
@@ -67,7 +66,7 @@ class getdata():
                     self.ncglo[trc] = xr.open_mfdataset(inputfile[trc],
                                          combine='nested',
                                          concat_dim=self.var['time_dim'])
-   
+
             for boundary, is_open in zip(bdy[0].keys(), bdy[0].values()):
 
                 if 'west' in boundary and is_open:
@@ -94,7 +93,7 @@ class getdata():
                     [self.lonTN ,self.latTN ,self.idminN ,self.idmaxN ,self.jdminN ,self.jdmaxN ,self.periodN  ]  = self.handle_periodicity(crocogrd,'r',bdy='north')
                     [self.lonUN ,self.latUN ,self.idminUN ,self.idmaxUN ,self.jdminUN ,self.jdmaxUN ,self.periodUN ]  = self.handle_periodicity(crocogrd,'u',bdy='north')
                     [self.lonVN ,self.latVN ,self.idminVN ,self.idmaxVN ,self.jdminVN ,self.jdmaxVN ,self.periodVN ]  = self.handle_periodicity(crocogrd,'v',bdy='north')
-        
+
         for ll in self.ncglo.keys():
             self.ncglo[ll]=eval(''.join(("self.ncglo[ll]."+self.var[ll])))
     #####################################
@@ -135,11 +134,11 @@ class getdata():
         the last and first longitude points ( for global data).
         It is returning lon/lat/topo adapted to the desired domain
         geolim = [lonmin,lonmax,latmin,latmax]
- 
+
         input: inputfile : data file
                crocogrd  : croco grid lon/lat
                grid      : which grid (rho: 'r', u: 'u', v: 'v')
- 
+
         output: lon/lat of the grid
                 imin/imax index min/max xaxis
                 jmin/jmax index min/max yaxis
@@ -227,7 +226,7 @@ class getdata():
                 shft_east=+1
                 imax=self.indx_bound(lon, geolim[1]-360)
                 if imax == -1: imax = 0
-    
+
             if -1<imin and imin<lon.shape[0] and \
                -1<imax and imax<lon.shape[0] :
                 if imin>1:
@@ -237,7 +236,7 @@ class getdata():
                 print('ERROR: Data longitude covers 360 degrees, but still cannot find  starting and ending indices.')
                 exit()
 
-        print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', 
+        print('Bounding indices of the relevant part to be extracted from the entire dataset:\n',
               'imin,imax =', imin,imax,'out of', lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',lat.shape[0])
         ny_lat=jmax-jmin+1
         start2=jmin ; end2=start2+ny_lat; count2=ny_lat
@@ -300,14 +299,14 @@ class getdata():
 
             del lon,lat
             (lon,lat)=np.meshgrid(lon_tmp,lat_tmp)
-    
+
         return lon,lat,imin,imax,jmin,jmax,period
 
-    #############################   
+    #############################
     def var_periodicity(self,vname,l,k,bdy=""):
         '''
         handle periodicity for tracers. Limits (imin,imax,jmin,jmax) are fixed before
-        by runing 
+        by runing
         '''
         if vname == 'u':
             imin=eval(''.join(("self.idminU"+bdy))) ; imax=eval(''.join(("self.idmaxU"+bdy)))
@@ -321,7 +320,7 @@ class getdata():
             imin=eval(''.join(("self.idmin"+bdy))) ; imax=eval(''.join(("self.idmax"+bdy)))
             jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
             period=eval(''.join(("self.period"+bdy)));grdid='r'
-        
+
         try:
             mintime=min(l);maxtime=max(l)+1
         except:
@@ -339,7 +338,7 @@ class getdata():
             else:
                 field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
-        elif imin>imax:    
+        elif imin>imax:
             nx_lon=imax+period-imin+1
             try:
                 lent=l.shape[0]
@@ -347,7 +346,7 @@ class getdata():
             except:
                 ftmp = np.zeros([ny_lat,nx_lon])
             # First
-            start1=0 ; end1=start1+nx_lon; count1=imax 
+            start1=0 ; end1=start1+nx_lon; count1=imax
             if k==-1:
                 field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:

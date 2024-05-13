@@ -1,18 +1,16 @@
 import numpy as np
 import netCDF4 as netcdf
 import xarray as xr
-import topo_reader
-import toolsf
-import netCDF4 as netcdf
-from datetime import datetime
 import scipy.interpolate as itp
 from scipy.interpolate import griddata
 import regionmask
 import geopandas as gp
 import pandas as pd
-from shapely.geometry import Polygon
 from itertools import product
 import sys
+
+from . import toolsf
+from .readers import topo as topo_reader
 #
 def topo_periodicity(topo_file, geolim):
     '''
@@ -31,7 +29,7 @@ def topo_periodicity(topo_file, geolim):
         nc = xr.open_dataset(topo_file)
     except:
         sys.exit(''.join(('ERROR: \n', 'Topo file -> ',topo_file ,' does not exist... ')))
-    
+
     topo_lon = eval(''.join(("nc."+topo_type['lon']+'.values')))
     topo_lat = eval(''.join(("nc."+topo_type['lat']+'.values')))
     if topo_lon.ndim==2: # gebco is a bit different
@@ -122,7 +120,7 @@ def topo_periodicity(topo_file, geolim):
         else:
             print('ERROR: Data longitude covers 360 degrees, but still cannot find  starting and ending indices.')
             exit()
-    
+
     print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', \
           'imin,imax =', imin,imax,'out of', topo_lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',topo_lat.shape[0])
     ny_lat=jmax-jmin+1
@@ -130,7 +128,7 @@ def topo_periodicity(topo_file, geolim):
     lat_tmp=np.zeros([ny_lat])
     for j in range(0,ny_lat):
         lat_tmp[j]=topo_lat[j+jmin]
- 
+
     #####
 
     if imin < imax :
@@ -221,9 +219,9 @@ def topo_periodicity(topo_file, geolim):
         topo=np.copy(htopo)
 
     del topo_lon,topo_lat
-   
+
     topo[np.isnan(topo)]=np.nanmax(topo.ravel())
-    
+
     topo_lon=np.copy(lon_tmp)
     topo_lat=np.copy(lat_tmp)
 
@@ -238,7 +236,7 @@ class GetTopo():
       ETOPO
       GEBCO
       Romstools (etopo2.nc; http://www.romsagrif.org)
-    
+
     The default topography is an Etopo5 file (etopo5.nc).
     A file selector is available to point to choose alternative topo products.
     """
@@ -253,13 +251,13 @@ class GetTopo():
         if smooth is not None:
             rd=smooth.smthr
         else:
-            rd = 1 
+            rd = 1
 
         topo_type=topo_reader.lookvar(topo_file)
         if 'srtm' in topo_type.keys():
             srtm_file='/'.join(topo_file.split('/')[:-1])
             topo=toolsf.srtopo(srtm_file,outputs.lon_rho,outputs.lat_rho,outputs.pm,outputs.pn,rd)
-        else:          
+        else:
             lonmin,lonmax,latmin,latmax=toolsf.roms_grid_geo_bounds(outputs.lon_rho,outputs.lat_rho,rd)
             topo_lon,topo_lat,topo=topo_periodicity(topo_file,[lonmin,lonmax,latmin,latmax])
             print('Interpolating topography to CROCO grid')
@@ -268,15 +266,15 @@ class GetTopo():
 
         if smooth is not None:
             outputs.hraw = topo
-            if hmin is not None and hmax is not None: #Means you are in zoom AGRIF        
-                GetMask.mask(GetMask,outputs,shpfile,hmin=hmin,sgl_connect=sgl_connect,prt_grd=prt_grd,ref_coef=coef)   
+            if hmin is not None and hmax is not None: #Means you are in zoom AGRIF
+                GetMask.mask(GetMask,outputs,shpfile,hmin=hmin,sgl_connect=sgl_connect,prt_grd=prt_grd,ref_coef=coef)
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,hmin,hmax, \
                                     smooth.rfact,outputs.mask_rho)")))
             else:
                 if prt_grd is not None: #compute approximatively the ref coeff
                     coef=int(np.nanmean(outputs.pm)/np.nanmean(prt_grd.pm))
                     print('ratio between prt and chld grid is approx:', coef)
-           
+
                 GetMask.mask(GetMask,outputs,shpfile,hmin=smooth.depthmin,sgl_connect=sgl_connect,prt_grd=prt_grd)
                 topo=eval(''.join(("toolsf.",smooth.smooth,"(topo,smooth.depthmin,smooth.depthmax, \
                                     smooth.rfact,outputs.mask_rho)")))
@@ -308,7 +306,7 @@ class GetMask():
         return func(lon), func(lat)
 
     def process_mask(maskin):
- 
+
         print('Processing mask to close narrow bay and narrow land (1 point wide)')
         maskout=np.copy(maskin)
         [M,L]=maskout.shape
@@ -316,13 +314,13 @@ class GetMask():
         neibmask[2:-2,2:-2]=maskout[1:-3,2:-2]+maskout[3:-1,2:-2]+\
                             maskout[2:-2,1:-3]+maskout[2:-2,3:-1]
         cpt=0
-        
+
         while np.sum(((neibmask[2:-2,2:-2]>=3) & (maskout[2:-2,2:-2]==0)) |
                       ((neibmask[2:-2,2:-2]<=1) & (maskout[2:-2,2:-2]==1)))>0:
             cpt+=1
             maskout[(neibmask>=3) & (maskout==0)]=1
             maskout[(neibmask<=1) & (maskout==1)]=0
- 
+
             neibmask[2:-2,2:-2]=maskout[1:-3,2:-2]+maskout[3:-1,2:-2]+\
                                 maskout[2:-2,1:-3]+maskout[2:-2,3:-1]
             if cpt>15:
@@ -345,7 +343,7 @@ class GetMask():
             urcrnrlon = outputs.lon_rho.ravel().max()
             llcrnrlat = outputs.lat_rho.ravel().min()
             urcrnrlat = outputs.lat_rho.ravel().max()
-            
+
             geoshp=gp.read_file(gfile,bbox=(llcrnrlon,llcrnrlat,urcrnrlon,urcrnrlat))
             if urcrnrlon>180: # 0-360 format
                 # select -180-urcrnrlon part that was not previously included
@@ -367,7 +365,7 @@ class GetMask():
 
             if nchunk>1:
                 print(f"Chunk format (y,x):({nchunk},{nchunk})")
- 
+
             for i,j in product(list(range(nchunk)),list(range(nchunk))):
                 if nchunk>1:
                     print(f"Doing chunk ({i+1},{j+1})")
@@ -381,7 +379,7 @@ class GetMask():
                 nx2i = int((i+1)*(nx)/nchunk+2*dx2)
                 ny1i = int(j*(ny)/nchunk-2*dy1)
                 ny2i = int((j+1)*(ny)/nchunk+2*dy2)
-    
+
                 llcrnrlon = np.nanmin(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
                 urcrnrlon = np.nanmax(outputs.lon_rho[ny1i:ny2i,nx1i:nx2i])
                 llcrnrlat = np.nanmin(outputs.lat_rho[ny1i:ny2i,nx1i:nx2i])
@@ -396,12 +394,12 @@ class GetMask():
                 except:# Put 1 everywhere in the chunck when no polygon
                     outputs.mask_rho[ny1i+dy1:ny2i-dy2,nx1i+dx1:nx2i-dx2] = 1
                     continue
- 
+
         else: # case hmin<=0
             outputs.mask_rho=np.ones(outputs.hraw.shape)
             if hmin<np.nanmin(outputs.hraw.ravel()):
                 hmin=np.ceil(np.nanmin(outputs.hraw.ravel()))
-            outputs.mask_rho[outputs.hraw<=hmin]=0       
+            outputs.mask_rho[outputs.hraw<=hmin]=0
 
 #        ##
         if prt_grd is not None: # Means we are in a zoom and we use prt grid mask at boundaries
@@ -449,25 +447,25 @@ class EasyGrid():
     """
     '''
     def easygrid(self, inputs, outputs):
-    
+
         lon_rho = np.linspace(inputs.tra_lon-size_x/111.,
                               inputs.tra_lon+size_x/111.,inputs.nx)
         lat_rho = np.linspace(inputs.tra_lat-size_y/111.,
                               inputs.tra_lat+size_y/111.,inputs.ny)
-                            
+
         lon_rho, lat_rho = np.meshgrid(lon_rho,lat_rho)
-        
+
         outputs.lon_rho = lon_rho
         outputs.lat_rho = lat_rho
-        
+
         return outputs
     '''
-   
+
     def easygrid(self, inputs, outputs):
         """
         Easy grid makes a rectangular, orthogonal grid with minimal gridsize variation
         It uses a Mercator projection around the equator and then rotates the sphere around its three axes to position the grid wherever it is desired.
-   
+
         Inputs:
           nx:      Number of grid point in the x direction
           ny:      Number of grid point in the y direction
@@ -514,7 +512,7 @@ class EasyGrid():
             rp1 = np.sqrt(y1 ** 2 + z1 ** 2)
 
             ap1 = 0.5 * np.pi * np.ones((n, m))
-            tmpi = np.abs(y1) > 1.e-5 
+            tmpi = np.abs(y1) > 1.e-5
             ap1[tmpi] = np.arctan(np.abs(z1[tmpi] /
                                          y1[tmpi]))
             tmpi = y1 < 0.
@@ -546,8 +544,8 @@ class EasyGrid():
             lat2[tmpi] = -lat2[tmpi]
 
             return lon2, lat2
-        
-        
+
+
         def rot_sphere(lon1, lat1, rot):
             """
             Rotate sphere around its y-axis
@@ -598,8 +596,8 @@ class EasyGrid():
             lat2[z2 < 0] = -lat2[z2 < 0]
 
             return lon2, lat2
-        
-        
+
+
         def gc_dist(lon1, lat1, lon2, lat2):
             '''
             Use Haversine formula to calculate distance
@@ -628,7 +626,7 @@ class EasyGrid():
             nl = np.float64(inputs.nx)
             width = np.float64(size_y)
             nw = np.float64(inputs.ny)
-    
+
         dlon = length / r_earth
         lon1d = (dlon * np.arange(-0.5, nl + 1.5, 1.) / nl ) - ( 0.5 * dlon)
 
@@ -639,9 +637,9 @@ class EasyGrid():
             y1 = np.log(np.tan((0.25 * np.pi) - (0.25 * dlat)))
             y2 = np.log(np.tan((0.25 * np.pi) + (0.25 * dlat)))
             y = ((y2 - y1) * np.arange(-0.5, nw + 1.5, 1.) / nw ) + y1
-            
+
             lat1d = np.arctan(np.sinh(y))
-            dlat_cen = 0.5 * (lat1d[np.int32(np.round(0.5 * nw))] -  
+            dlat_cen = 0.5 * (lat1d[np.int32(np.round(0.5 * nw))] -
                               lat1d[np.int32(np.round(0.5 * nw) - 2)])
             dlon_cen = dlon / nl
             mul = (dlat_cen / dlon_cen) * (length/width) * (nw / nl)
@@ -651,20 +649,20 @@ class EasyGrid():
         ye = ((y2-y1) * np.arange(-1., nw + 2., 1.) / nw ) + y1
         lat1de = np.arctan(np.sinh(ye))
         lat1de /= mul
-        
+
         lon1, lat1 = np.meshgrid(lon1d, lat1d)
         lone, late = np.meshgrid(lon1de, lat1de)
         lonu = 0.5 * (lon1[:, :-1] + lon1[:, 1:])
         latu = 0.5 * (lat1[:, :-1] + lat1[:, 1:])
         lonv = 0.5 * (lon1[:-1] + lon1[1:])
         latv = 0.5 * (lat1[:-1] + lat1[1:])
-        
+
         if size_y > size_x:
             lon1, lat1 = rot_sphere(lon1, lat1, 90.)
             lonu, latu = rot_sphere(lonu, latu, 90.)
             lonv, latv = rot_sphere(lonv, latv, 90.)
             lone, late = rot_sphere(lone, late, 90.)
-            
+
             lon1 = lon1[::-1].T
             lat1 = lat1[::-1].T
             lone = lone[::-1].T
@@ -691,8 +689,8 @@ class EasyGrid():
         lonu += np.deg2rad(inputs.tra_lon)
         lonv += np.deg2rad(inputs.tra_lon)
         lone += np.deg2rad(inputs.tra_lon)
-        
-        pi2 = 2 * np.pi 
+
+        pi2 = 2 * np.pi
         lon4[lon4 < -np.pi] += pi2
         lonu[lonu < -np.pi] += pi2
         lonv[lonv < -np.pi] += pi2
@@ -707,7 +705,7 @@ class EasyGrid():
         pm[:, 0] = pm[:, 1]
         pm[:, -1] = pm[:, -2]
         pm = 1. / pm
-        
+
         pnv = gc_dist(lonv[:-1], latv[:-1],
                       lonv[1:], latv[1:])
         pn = np.zeros_like(lon4)
@@ -727,7 +725,7 @@ class EasyGrid():
         ang_s = np.arctan(dellat / (dellon + 1.e-16))
         deli = np.logical_and(dellon < 0., dellat < 0.)
         ang_s[deli] -= np.pi
-        
+
         deli = np.logical_and(dellon < 0., dellat >= 0.)
         ang_s[deli] += np.pi
         ang_s[ang_s > np.pi] -= np.pi
@@ -765,12 +763,12 @@ class EasyGrid():
             return r_earth * dang # distance
 
         [Mp,Lp]=prt_grd.lon_rho.shape
-        
+
         igrdp=np.arange(0,Lp-1);jgrdp=np.arange(0,Mp-1)
         igrdr=np.arange(0,Lp);jgrdr=np.arange(0,Mp)
         igrdu=np.arange(0,Lp-1);jgrdu=np.arange(0,Mp)
         igrdv=np.arange(0,Lp);jgrdv=np.arange(0,Mp-1)
-       
+
         [iprtgrd_p,jprtgrd_p]=np.meshgrid(igrdp,jgrdp)
         [iprtgrd_r,jprtgrd_r]=np.meshgrid(igrdr,jgrdr)
         [iprtgrd_u,jprtgrd_u]=np.meshgrid(igrdp,jgrdr)
@@ -782,7 +780,7 @@ class EasyGrid():
         bbound_north=1
 
         while (bbound_east | bbound_west | bbound_south | bbound_north):
-            
+
             ipch=np.arange(inputs.imin,inputs.imax+0.5/inputs.coef,1/inputs.coef)
             jpch=np.arange(inputs.jmin,inputs.jmax+0.5/inputs.coef,1/inputs.coef)
             ################
@@ -793,7 +791,7 @@ class EasyGrid():
             [ichildgrd_r,jchildgrd_r]=np.meshgrid(irch,jrch)
             [ichildgrd_u,jchildgrd_u]=np.meshgrid(ipch,jrch)
             [ichildgrd_v,jchildgrd_v]=np.meshgrid(irch,jpch)
-         
+
             spline_lonp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lon_psi)
             spline_latp    = itp.RectBivariateSpline(jgrdp,igrdp,prt_grd.lat_psi)
             outputs.lon_psi = spline_lonp(jchildgrd_p,ichildgrd_p,grid=False)
@@ -819,7 +817,7 @@ class EasyGrid():
                                     (jchildgrd_r.ravel(),ichildgrd_r.ravel()),method='nearest')
 
             maskr_coarse = np.reshape(maskr_coarse,[jchildgrd_r.shape[0],jchildgrd_r.shape[1]])
-         
+
             eastchk = abs(maskr_coarse[:,-2]-maskr_coarse[:,-1]);
             westchk = abs(maskr_coarse[:,0]-maskr_coarse[:,1]);
             southchk = abs(maskr_coarse[0,:]-maskr_coarse[1,:]);
@@ -831,7 +829,7 @@ class EasyGrid():
                 print('==> East limits displacement +1')
             else:
                 bbound_east=0
-     
+
             if sum(westchk)!=0:
                 inputs.imin=inputs.imin-1
                 bbound_west=1

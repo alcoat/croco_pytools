@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "croco_prepro"
+version = "0.1.0"
+description = "CROCO pre-processing tools"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "matplotlib-base",
+  "scipy",
+  "cartopy",
+  "netcdf4",
+  "dask",
+  "xarray",
+  "geopandas",
+  "regionmask",
+  "pyinterp"
+]
+authors = [
+  {name = "Mathieu Le Corre", email = "mathieu.le.corre@shom.fr"},
+  {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"},
+]
+maintainers = [
+  {name = "Mathieu Le Corre", email = "mathieu.le.corre@shom.fr"},
+  {name = "Stéphane Raynaud", email = "stephane.raynaud@shom.fr"}
+]
+[project.optional-dependencies]
+gui = [
+  "wxpython",
+  "traits",
+  "traitsui",
+]
+
+[project.scripts]
+pycroco-make-bry = "croco_prepro.cli.make_bry:main"
+
+[tool.setuptools]
+packages = ["croco_prepro"]
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+skip-string-normalization = true

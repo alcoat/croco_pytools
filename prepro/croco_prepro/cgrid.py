@@ -1,6 +1,4 @@
 import numpy as np
-import netCDF4 as netcdf
-import sys
 
 #######################################################
 #Transfert a field at rho points to psi points

@@ -1,10 +1,10 @@
 import numpy as np
-import Cgrid_transformation_tools as grd_tools
-import sigmagrid_tools as sig_tools
-import netcdf_tools as nc_tools
 import netCDF4 as netcdf
 from datetime import datetime
 from collections import OrderedDict
+
+from . import sigma
+from . import netcdf_tools as nc_tools
 
 class CROCO_grd(object):
 
@@ -60,7 +60,7 @@ class CROCO_grd(object):
         '''
         Depths at vertical rho points
         '''
-        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sigma.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[0]
 
 
@@ -68,7 +68,7 @@ class CROCO_grd(object):
         '''
         S-coordinate stretching curves at rho points
         '''
-        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sigma.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[1]
 
 
@@ -76,14 +76,14 @@ class CROCO_grd(object):
         '''
         Depths at vertical w points
         '''
-        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sigma.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[0]
 
     def Cs_w(self, zeta=0., bdy="", scoord='new2008'):
         '''
         S-coordinate stretching curves at w points
         '''
-        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sigma.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[1]
     def s_rho(self):
         return ((np.arange(1,self.N+1,dtype=np.float64))-self.N-0.5)/self.N
