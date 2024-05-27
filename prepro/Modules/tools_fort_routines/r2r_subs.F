@@ -434,7 +434,7 @@
 
       write(*,'(1x,2A)',advance='no') 'creating diagnostic file ',
      &                                  '''croco_init_diag.nc''...'
-      ierr=nf_create('croco_init_diag.nc', nf_64bit_offset, ncid)
+      ierr=nf_create('croco_init_diag.nc', nf_netcdf4, ncid)
       ierr=nf_set_fill(ncid, nf_nofill, old_fill_mode)
 
       ierr=nf_def_dim(ncid, 'xi_rho',  ncx, dimids(1))

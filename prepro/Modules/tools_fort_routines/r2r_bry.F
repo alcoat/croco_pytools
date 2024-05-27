@@ -1163,7 +1163,7 @@ Cf2py intent(in) ntrc,nhists,chldgrd,theta_s,theta_b,hc,N, WESN , prntgrd, prnt_
 
 ! Create boundary forcing file.
 
-      ierr=nf_create(roms_bry, nf_64bit_offset, nctarg)
+      ierr=nf_create(roms_bry, nf_netcdf4, nctarg)
       if (ierr == nf_noerr) then
         call def_bry_file(roms_bry, nctarg, ncx,ncy,N,
      &         OBC_WEST, OBC_EAST, OBC_SOUTH, OBC_NORTH,

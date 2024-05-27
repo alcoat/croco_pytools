@@ -484,7 +484,7 @@ def vintegr4D(var,zw,zr,z01,z02):
 #
 # Perform the vertical integration
     dz=zw[:,1:,:,:]-zw[:,:-1,:,:]
-    V=np.sum(dz*isgood*var,axis=0) + dzbot*Vbot + dztop*Vtop
+    V=np.sum(dz*isgood*var,axis=1) + dzbot*Vbot + dztop*Vtop
 #
 # Get the depth
 #
