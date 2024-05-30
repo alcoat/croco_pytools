@@ -604,7 +604,7 @@ c**      stop !<-- to test initialization
 ! files, record number as global attributes so this target file can
 ! be reproduced later using exactly the same conditions...
 
-      ierr=nf_create(roms_init, nf_64bit_offset, nctarg)
+      ierr=nf_create(roms_init, nf_netcdf4, nctarg)
       if (ierr == nf_noerr) then
         call def_roms_file(ntrc,nctarg, roms_init, ncx,ncy,N,
      &            theta_s,theta_b, hc, Cs_w,Cs_r,tracer,ncsrc)
