@@ -418,7 +418,7 @@ C$OMP END PARALLEL
 !------- ------ -----
 
       call lenstr(fname,lfnm)
-      ierr=nf_create(fname(1:lfnm), nf_64bit_offset, ncgrd)
+      ierr=nf_create(fname(1:lfnm), nf_netcdf4, ncgrd)
       if (ierr == nf_noerr) then
         ierr=nf_def_dim(ncgrd, 'xi_rho',  xi_rho,    r2dgrd(1))
         ierr=nf_def_dim(ncgrd, 'xi_u',    xi_u,      p2dgrd(1))

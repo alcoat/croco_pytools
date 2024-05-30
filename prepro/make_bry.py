@@ -305,9 +305,12 @@ if __name__ == '__main__':
                         if conserv == 1:
                             ubar_croco=sig_tools.vintegr4D(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)[0]/grd_tools.rho2u(eval(''.join(('crocogrd.h_'+boundary))))
                             vbar_croco=sig_tools.vintegr4D(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)[0]/grd_tools.rho2v(eval(''.join(('crocogrd.h_'+boundary))))
+                            
+                            u = u - np.tile(ubar_croco[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
+                            u = u + np.tile(ubar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
 
-                            u = u - ubar_croco ; u = u + np.tile(ubar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
-                            v = v - vbar_croco ; v = v + np.tile(vbar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
+                            v = v - np.tile(vbar_croco[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
+                            v = v + np.tile(vbar[:,np.newaxis,:,:],(1,z_rho.shape[1],1,1))
 
 
     # --- Saving in netcdf ------------------------------------------------
@@ -330,10 +333,11 @@ if __name__ == '__main__':
                     indices2D="[:,-1,:]"   # T,j=last,I
 
                 mask_zet = np.tile(eval(''.join(('crocogrd.maskr_',boundary))),[zeta.shape[0],1,1])
-                mask_u   = np.tile(eval(''.join(('crocogrd.umask_',boundary))),[u.shape[0],u.shape[1],1,1]) 
-                mask_v   = np.tile(eval(''.join(('crocogrd.vmask_',boundary))),[u.shape[0],u.shape[1],1,1])
-                mask_ubar   = np.tile(eval(''.join(('crocogrd.umask_',boundary))),[u.shape[0],1,1])
-                mask_vbar   = np.tile(eval(''.join(('crocogrd.vmask_',boundary))),[v.shape[0],1,1])
+                if "velocity" in var_loop:
+                    mask_u   = np.tile(eval(''.join(('crocogrd.umask_',boundary))),[u.shape[0],u.shape[1],1,1]) 
+                    mask_v   = np.tile(eval(''.join(('crocogrd.vmask_',boundary))),[u.shape[0],u.shape[1],1,1])
+                    mask_ubar   = np.tile(eval(''.join(('crocogrd.umask_',boundary))),[u.shape[0],1,1])
+                    mask_vbar   = np.tile(eval(''.join(('crocogrd.vmask_',boundary))),[v.shape[0],1,1])
                 
                 nc.variables['zeta_'+str(boundary)][:]=eval(''.join(('zeta',indices2D)))*eval(''.join(('mask_zet',indices2D)))
                 nc.variables['u_'+str(boundary)][:]   =eval(''.join(('u',indices3D)))*eval(''.join(('mask_u',indices3D)))

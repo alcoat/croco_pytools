@@ -85,6 +85,10 @@ class CROCO_grd(object):
         '''
         return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[1]
+    def s_rho(self):
+        return ((np.arange(1,self.N+1,dtype=np.float64))-self.N-0.5)/self.N
+    def s_w(self):
+        return (np.arange(self.N+1,dtype=np.float64)-self.N)/self.N
 
     def WEST_grid(self,indices="[:,0:2]"):
         '''
@@ -210,6 +214,7 @@ class CROCO():
         nc.variables['s_rho'].units = 'nondimensional'
         nc.variables['s_rho'].valid_min = -1.
         nc.variables['s_rho'].valid_max = 0.
+        nc.variables['s_rho'][:] = grdobj.s_rho()
 
         nc.createVariable('Cs_rho', 'f8', ('s_rho'), zlib=True)
         nc.variables['Cs_rho'].long_name = 'S-coordinate stretching curves at RHO-points'
@@ -348,7 +353,7 @@ class CROCO():
         nc.variables['s_rho'].units = 'nondimensional'
         nc.variables['s_rho'].valid_min = -1.
         nc.variables['s_rho'].valid_max = 0.
-        nc.variables['s_rho'][:] = grdobj.sc_r
+        nc.variables['s_rho'][:] = grdobj.s_rho()
 
         nc.createVariable('Cs_rho', 'f8', ('s_rho'))
         nc.variables['Cs_rho'].long_name = 'S-coordinate stretching curves at RHO-points'
