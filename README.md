@@ -1,4 +1,4 @@
-# croco_pytools - v1.0
+# croco_pytools
 
 This is a python redesign of the matlab pre- and post-processing tools for CROCO (croco_tools) developed over the last 20 years.
 
@@ -6,10 +6,20 @@ It's a work in progress, which needs to be improved and further tested for some 
 
 ## Release notes: 
 
+Release changelog are available here : https://gitlab.inria.fr/croco-ocean/croco_pytools/-/releases
 
 ## GIT checkout:
 
 `git clone --branch release https://gitlab.inria.fr/croco-ocean/croco_pytools.git`
+
+To get the tag list available (here va.b.c in the example) :
+
+`git fetch --tags`
+
+`git tag -l`
+
+It is recommended to use the latest tag (let say here vx.y):  `git checkout tags/vx.y`
+
 
 ## Reminders
 
