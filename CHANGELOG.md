@@ -2,7 +2,7 @@
 
 Release changelog are available here : https://gitlab.inria.fr/croco-ocean/croco_pytools/-/releases
 
-## [1.0.1] - 2024-05-30
+## [1.0.1] - 2024-06-03
 
 ### Added
 - In prepro/ :
@@ -24,15 +24,3 @@ check merge request and documentation if interested
 ### Other
 
 
-## [1.0.0] - 2024-04-22 : First croco_pytools release
-### Added
-
-### Fixed
-
-### Changed
-
-### Deprecated
-
-### Removed
-
-### Other
