@@ -62,7 +62,7 @@ inputdata = 'mercator_croco' # Input data dictionnary as defined in the Readers/
 input_dir = '../../MERCATOR_GLOB_2013/'
 input_prefix='mercator_'
 
-input_file  = f'{input_dir}{input_prefix}Y2013M1.cdf'
+input_file  = f'{input_dir}{input_prefix}Y{Yini}M{Mini}.cdf'
 multi_files=False # If variables are in different netcdf
 if multi_files: # Mutiple files
     input_file = { 'ssh'  : input_dir + input_prefix + 'ETAN.Y2013M01.nc',\

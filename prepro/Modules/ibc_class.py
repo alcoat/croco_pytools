@@ -163,10 +163,10 @@ class getdata():
                 lon[i]=lon[i]+360      # middle
         ####
         if bdy is not None:
-            geolim=[np.min(eval(''.join(('crocogrd.lon_',bdy))))-1,np.max(eval(''.join(('crocogrd.lon_',bdy))))+1,\
-                    np.min(eval(''.join(('crocogrd.lat_',bdy))))-1,np.max(eval(''.join(('crocogrd.lat_',bdy))))+1]
+            geolim=[np.min(eval(''.join(('crocogrd.lon_',bdy))))-0.1,np.max(eval(''.join(('crocogrd.lon_',bdy))))+0.1,\
+                    np.min(eval(''.join(('crocogrd.lat_',bdy))))-0.1,np.max(eval(''.join(('crocogrd.lat_',bdy))))+0.1]
         else:
-            geolim=[crocogrd.lonmin()-1,crocogrd.lonmax()+1,crocogrd.latmin()-1,crocogrd.latmax()+1]
+            geolim=[crocogrd.lonmin()-0.1,crocogrd.lonmax()+0.1,crocogrd.latmin()-0.1,crocogrd.latmax()+0.1]
 
         jmin=self.indx_bound(lat.data, geolim[2])
         jmax=self.indx_bound(lat.data, geolim[-1])

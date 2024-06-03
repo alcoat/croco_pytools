@@ -65,7 +65,7 @@ copernicusmarine.login()
 for dt in rrule.rrule(rrule.MONTHLY, dtstart=date_start, until=date_end):
     month_beg = datetime.strftime(dt,'%Y-%m-%d %H:%M:%S')
     month_end = datetime.strftime(dt+
-                            relativedelta.relativedelta(days=1),'%Y-%m-%d %H:%M:%S'
+                            relativedelta.relativedelta(months=1),'%Y-%m-%d %H:%M:%S'
                                  )
     if multi_files:
         vars_loop = variables
