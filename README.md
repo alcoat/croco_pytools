@@ -18,7 +18,7 @@ To get the tag list available (here va.b.c in the example) :
 
 `git tag -l`
 
-It is recommended to use the latest tag (let say here vx.y):  `git checkout tags/vx.y`
+It is recommended to use the latest tag (let say here vx.y.z):  `git checkout tags/vx.y.z`
 
 
 ## Reminders
