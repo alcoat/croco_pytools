@@ -41,6 +41,20 @@ def lookvar(input):
                'time':'time',\
                'time_dim':'time'\
              }
+
+    elif input == 'hycom':
+        dico={ 'depth':'depth',\
+               'lonr':'lon','lonu':'lon','lonv':'lon',\
+               'latr':'lat','latu':'lat','latv':'lat',\
+               'ssh':'surf_el',\
+               'temp': 'water_temp',\
+               'salt': 'salinity',\
+               'u': 'water_u',\
+               'v': 'water_v',\
+               'time':'time',\
+               'time_dim':'time'\
+             }
+             
     elif input == 'mercator_croco':
         dico={ 'depth':'depth',\
                'lonr':'lonT','lonu':'lonU','lonv':'lonV',\
