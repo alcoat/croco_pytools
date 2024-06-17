@@ -1,4 +1,4 @@
-name: /home1/datahome/slgentil/conda-env/xcroco
+name: xcroco
 channels:
   - conda-forge
   - defaults
