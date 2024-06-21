@@ -29,7 +29,7 @@ centered at midnight instead of noon for original files.
 Ystart,Mstart = 2013,1 # Starting month
 Yend,Mend = 2013,3    # Ending month 
 
-product_id = 'cmems_mod_glo_phy_my_0.083deg_P1M-m'
+product_id = 'cmems_mod_glo_phy_my_0.083deg_P1D-m'
 #cmems_mod_glo_phy_my_0.083deg_P1D-m --> Reana DAILY data
 #cmems_mod_glo_phy_my_0.083deg_P1M-m --> Reana MONTHLY data
 #cmems_mod_glo_phy-cur_anfc_0.083deg_P1M-m --> Currents Forecast MONTHLY data
