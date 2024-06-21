@@ -53,7 +53,7 @@ if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
 grd = Croco.CROCO_grd(f"{croco_dir}/{croco_grd}")
-area = [grd.latmax()+0.1, grd.lonmin()-0.1, grd.latmin()-0.1, grd.lonmax()+0.1]
+area = [grd.latmax()+2.0, grd.lonmin()-2.0, grd.latmin()-2.0, grd.lonmax()+2.0]
 
 
 date_start = datetime(Ystart,Mstart,1)
