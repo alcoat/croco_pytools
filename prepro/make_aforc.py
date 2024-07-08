@@ -33,26 +33,25 @@ import pyinterp.backends.xarray
 #                         U S E R  *  O P T I O N S
 # *******************************************************************************
 
-#############
+# -------------------------------------------------
 # INPUT :
-#############
+# -------------------------------------------------
 data_origin = 'era_dataref' # era_dataref, era_ecmwf, cfsr
 input_dir = '/path/in/'
- input_prefix = '*' # For multifiles, if the name of the file begin with the variable name, just write '*'
+input_prefix = '*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 multi_files = False # If one file per variable in input : True
 
-#############
+# -------------------------------------------------
 # OUTPUT :
-#############
+# -------------------------------------------------
 output_dir = '/path/out/'
-output_filename = 'croco_aforc.nc'
 output_file_format = "DAILY" # How outputs are split (MONTHLY,DAILY)
 
+# -------------------------------------------------
 # Grid size : 
 ownArea = 1 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
-    # croco_grd = '/home3/datawork/alschaef/TRAINING_2022/CONFIGS/test_run_python/CROCO_FILES/croco_grd.nc'
     croco_grd = '../../CONFIGS/your_run_folder/CROCO_FILES/croco_grd.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 6,24,-40,-24
@@ -62,15 +61,15 @@ Yorig = 2000                 # year defining the origin of time as: days since Y
 Ystart, Mstart = 2005,1   # Starting month
 Yend, Mend  = 2005,1    # Ending month
 
-#############
+# -------------------------------------------------
 # OPTIONS :
-#############
+# -------------------------------------------------
 # To convert the atmospheric pressure : True
 READ_PATM = False
 
-# *******************************************************************************
-#                         E N D     U S E R  *  O P T I O N S
-# *******************************************************************************
+# *****************************************************************************
+#                      E N D     U S E R  *  O P T I O N S
+# *****************************************************************************
 
 # -------------------------------------------------
 # Read variables
@@ -87,7 +86,7 @@ os.makedirs(output_dir,exist_ok=True)
 # python Dictionary from JSON file
 # -------------------------------------------------
 # with open('ERA5_variables.json', 'r') as jf:
-with open('/Readers/croco_variables.json', 'r') as jf:
+with open('/Readers/Aforc_variables.json', 'r') as jf:
     croco_variables = json.load(jf)
 
 # -------------------------------------------------
@@ -96,7 +95,7 @@ with open('/Readers/croco_variables.json', 'r') as jf:
 # -------------------------------------------------
 input_file = find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files)
 print(input_file)
-###############################################################################
+
 # -------------------------------------------------
 # Read croco grid to find emprise
 # -------------------------------------------------
@@ -104,9 +103,9 @@ if ownArea == 0:
     grid = xr.open_dataset(croco_grd)
     lon_min,lon_max,lat_min,lat_max = np.floor(grid['lon_rho'].min())-5,np.ceil(grid['lon_rho'].max())+5,np.floor(grid['lat_rho'].min())-5,np.ceil(grid['lat_rho'].max())+5
 
-# -------------------------------------------------
-# MAIN FUNCTION
-# -------------------------------------------------
+# *****************************************************************************
+#                                MAIN FUNCTION
+# *****************************************************************************
 start_time = time.time()
 
 if __name__ == "__main__":   # if multi files, 'input_file' not used 
@@ -176,8 +175,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
         # loop on groups (months or days)
         for ii in range(len(labels)): 
             i = index_to_label[ii]
-            aforc_filename = output_name(data_grouped[i],output_dir,output_filename,output_file_format)
-            
+
             print('\n-----------------------------------')
             if output_file_format.upper() == "DAILY":
                 print(' Processing Year %s - Month %02i - Day %02i' %(data_grouped[i]['time'].dt.year[0].item(),data_grouped[i]['time'].dt.month[0].item(),data_grouped[i]['time'].dt.day[0].item()))
@@ -209,7 +207,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
                 elif var == 'q':
                     data = r_calculation(data,data_grouped[i][variables.get_var('t2m')],croco_variables)
                 elif var == 'uswrf':
-                    data = ssr_calculation(data,data_grouped[i][variables.get_var('dswrf')],variables,croco_variables)
+                    data = ssr_calculation(data,data_grouped[i][variables.get_var('dswrf')],croco_variables)
                 else:
                     data = attr(data,var,variables,croco_variables)
                 data = time_origin(data,Yorig)
@@ -219,12 +217,13 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # -----------------------------------
 # PUT DATA IN OUTPUT FILE
 # -----------------------------------
-                data = create_netcdf(data,aforc_filename,output_file_format)
+                data = create_netcdf(data,output_dir,output_file_format)
 
 
 end_time = time.time()
 time_taken = end_time - start_time
 print("Computation time:", time_taken, "sec")
+
 
 
 

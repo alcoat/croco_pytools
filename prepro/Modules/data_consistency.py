@@ -11,6 +11,7 @@ import pylab as plt
 # -----------------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO CHECK DATA CONSISTENCY
 # -----------------------------------------------------------
+# data : xarray.DataArray of one variable
 def consistency(data):
             if data.dims['time']==0 :
                 print('\nData is missing - No Data for the subset')

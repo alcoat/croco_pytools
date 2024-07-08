@@ -9,15 +9,20 @@ import numpy as np
 import os
 import sys
 import glob
+from netCDF4 import num2date
 
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO FIND INPUTFILES
 # ---------------------------------------------------
 def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files):
-# -------------------------------------------------
-# Warning : only for path type /data_origin/file.nc or /data_origin/Y/M/file.nc
-# -------------------------------------------------
 # Finding input_file paths
+# -----------------------
+# variables : class of variables with the name of the variable, his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
+# input_dir : path to the data (if the path is '/data_folder/Year/Month/', just write '/data_folder/')
+# Ystart,Mstart,Yend,Mend : Year and month of start and end
+# multi_files : bool, if variables are separated in different files
+# -----------------------
+# Warning : only for path type /data_origin/file.nc or /data_origin/Y/M/file.nc
     if os.path.exists(input_dir + str(Ystart) + '/' + str(Mstart).zfill(2)):
         type_path = '/origin/Y/M/'
     else:
@@ -70,33 +75,80 @@ def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_fi
     return input_file
 
 
+def attr(data,var,variables,croco_variables):
+# data : xarray.DataArray of one variable
+# var : name of the variable
+# variables : class of variables with the name of the variable, \
+# his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
+# croco_variables : dictionary with long name and unity of the variable \
+# (see ../Readers/croco_variables.json)
+    data.attrs = { 'units': croco_variables[variables.get_var(var)][1], 'long_name': croco_variables[variables.get_var(var)][0] }
+    data.name = var.upper()
+    return data
 
+def time_origin(data,Yorig):
+# Time origin changement
+# ---------------------
+# data : xarray.DataArray of one variable
+# Yorigin : Year to the time origin
+    dt_origins = (np.datetime64(str(Yorig)+'-01-01T00:00:00.000000000') - np.datetime64('1900-01-01T00:00:00.000000000')) 
+    dt_old = ( data['time'] - np.datetime64('1900-01-01T00:00:00.000000000')) 
+    time_num = ((dt_old - dt_origins) / np.timedelta64(1, 's')) / (24 * 3600) # en jrs, precision sec
+    data['time']=time_num
+    data['time'].encoding['units'] = 'days since ' + str(Yorig) + '-1-1'
+    data['time'].attrs['units'] = 'days since ' + str(Yorig) + '-1-1'
+    return data
+
+def metadata(data):
+# data : xarray.DataArray of one variable
+    data['lon'].attrs['long_name'] = 'longitude of RHO-points'
+    data['lat'].attrs['long_name'] = 'latitude of RHO-points'
+    data['time'].attrs['long_name'] = 'Time'
+    data['lon'].attrs['units'] = 'degree_east'
+    data['lat'].attrs['units'] = 'degree_north'
+    return data
+
+def missing_data(data):
+# data : xarray.DataArray of one variable
+    data = data.fillna(9999.)
+    data.encoding['missing_value']=9999.
+    data.encoding['_FillValue']=9999.
+    return data
 
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO CREATE NETCDF
 # ---------------------------------------------------
-
-# subset_data : 
-# output_dir : 
-# output_filename : 
-# output_file_format : 
-
-def output_name(subset_data,output_dir,output_filename,output_file_format):
+def output_name(data,output_dir,output_file_format):
+# data : xarray.DataArray of one variable
+# output_dir : path to output files
+# output_file_format : DAILY or MONTHLY : indicate how output will be separate
+    time = num2date(data.time[0].values, data.time.encoding['units'])
     if output_file_format.upper() == "MONTHLY":
-        aforc_filename = output_dir+output_filename.replace('croco_aforc.nc', 'Y%sM%02i.nc' %(subset_data['time'].dt.year[0].item(),subset_data['time'].dt.month[0].item()))
+        aforc_filename = output_dir + f'{data.name.upper()}_Y%sM%02i.nc' %(time.year,time.month)
     elif output_file_format.upper() == "DAILY":
-        aforc_filename = output_dir+output_filename.replace('croco_aforc.nc', 'Y%sM%02iD%02i.nc' %(subset_data['time'].dt.year[0].item(),subset_data['time'].dt.month[0].item(),subset_data['time'].dt.day[0].item()))  
+        aforc_filename = output_dir + f"{data.name.upper()}_Y%sM%02iD%02i.nc"%(time.year,time.month,time.day)
     return aforc_filename
 
-# data :
-# aforc_filename : 
-# output_file_format :
-
-def create_netcdf(data,aforc_filename,output_file_format):
-    if output_file_format == 'MONTHLY':
-        filename_out = aforc_filename[:-11]+data.name+'_'+aforc_filename[-11:]
-    elif output_file_format == 'DAILY':
-        filename_out = aforc_filename[:-14]+data.name+'_'+aforc_filename[-14:]
+def create_netcdf(data,output_dir,output_file_format):
+# data : xarray.DataArray of one variable
+# output_dir : path to output files
+# output_file_format : DAILY or MONTHLY : indicate how output will be separate
+    filename_out = output_name(data,output_dir,output_file_format)
     data = data.astype(np.float32)
     data = data.to_netcdf(filename_out,engine='netcdf4',compute='False')
     return data  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
