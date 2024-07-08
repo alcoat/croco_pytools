@@ -37,7 +37,6 @@ def lookvar(data_origin):
     elif data_origin == 'era_ecmwf':
         var_info = [ ['lon'  ,'longitude'     ,1.           ,' '       ],\
                      ['lat'  ,'latitude'      ,1.           ,' '       ],\
-                     ['sst'  ,'sst'           ,1.           ,'SST'     ],\
                      ['tp'   ,'tp'            ,cff_tp       ,'TP'      ],\
                      ['ssr'  ,'ssr'           ,cff_heat     ,'SSR'     ],\
                      ['t2m'  ,'t2m'           ,cff_temp     ,'T2M'     ],\
