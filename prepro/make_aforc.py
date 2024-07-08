@@ -7,7 +7,6 @@ Created on Fri Jul  5 01:21:22 2024
 """
 #--- Dependencies ---------------------------------------------------------
 import xarray as xr
-import dask
 import pylab as plt
 import numpy as np
 import glob as glob
@@ -20,7 +19,6 @@ import sys
 sys.path.append("/Readers")
 from aforc_reader import lookvar
 from aforc_class import aforc_class, create_class
-# Extrapolation sst
 sys.path.append("/Modules")
 from interp_tools import make_xarray
 from aforc_netcdf import *

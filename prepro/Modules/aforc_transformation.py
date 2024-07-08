@@ -8,7 +8,7 @@ Created on Sat Jul  6 01:50:45 2024
 import pylab as plt
 import numpy as np
 import sys
-sys.path.append("/home/menkes/Documents/annelou/gitlab_release/croco_pytools/prepro/Modules")
+sys.path.append("/Modules")
 import scipy.interpolate as itp
 
 # -------------------------------------------------
