@@ -16,10 +16,10 @@ import time
 import os
 # Readers
 import sys
-sys.path.append("/Readers")
+sys.path.append("./Readers")
 from aforc_reader import lookvar
 from aforc_class import aforc_class, create_class
-sys.path.append("/Modules")
+sys.path.append("./Modules")
 from interp_tools import make_xarray
 from aforc_netcdf import *
 from data_consistency import consistency
@@ -34,23 +34,23 @@ import pyinterp.backends.xarray
 # -------------------------------------------------
 # INPUT :
 # -------------------------------------------------
-data_origin = 'era_dataref' # era_dataref, era_ecmwf, cfsr
+data_origin = 'era_ecmwf' # era_dataref, era_ecmwf, cfsr
 input_dir = '/path/in/'
-input_prefix = '*' # For multifiles, if the name of the file begin with the variable name, just write '*'
-multi_files = False # If one file per variable in input : True
+input_prefix = 'ERA5_ecmwf_*' # For multifiles, if the name of the file begin with the variable name, just write '*'
+multi_files = True # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '/path/out/'
-output_file_format = "DAILY" # How outputs are split (MONTHLY,DAILY)
+output_dir = '../../CONFIGS/BENGUELA/CROCO_FILES/'
+output_file_format = "MONTHLY" # How outputs are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
 # Grid size : 
-ownArea = 1 # 0 if area from croco_grd.nc +/- 5°
+ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
-    croco_grd = '../../CONFIGS/your_run_folder/CROCO_FILES/croco_grd.nc'
+    croco_grd = '../../CONFIGS/BENGUELA/CROCO_FILES/croco_grd.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 6,24,-40,-24
 
@@ -84,14 +84,14 @@ os.makedirs(output_dir,exist_ok=True)
 # python Dictionary from JSON file
 # -------------------------------------------------
 # with open('ERA5_variables.json', 'r') as jf:
-with open('/Readers/Aforc_variables.json', 'r') as jf:
+with open('croco_variables.json', 'r') as jf:
     croco_variables = json.load(jf)
 
 # -------------------------------------------------
 # Input files : find paths
 # Warning : only for path type /data_origin/file.nc or /data_origin/Y/M/file.nc
 # -------------------------------------------------
-input_file = find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files)
+input_file = find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files,READ_PATM)
 print(input_file)
 
 # -------------------------------------------------
@@ -111,20 +111,11 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # READ THE METADATA
 # -----------------------------------
     if multi_files: # Need to merge variable input files
-        ind = 0
-        for var in variables.raw_name: # Loop on variables
-            if var == 'lon' or var == 'lat':
-                continue
-            elif variables.get_filename('u10m') == variables.get_filename('v10m') and var == 'v10m':
-                continue
-            elif var == 'msl' and not READ_PATM:
-                continue 
-            #-------------------------
-            if ind == 0:
-                dataxr = xr.open_mfdataset(eval(var),combine='nested',concat_dim='time', engine='netcdf4', chunks={'time': 'auto',  variables.get_var('lon'): 'auto',  variables.get_var('lat'): 'auto'})
+        for var in range(len(input_file)): # Loop on variables
+            if var == 0:
+                dataxr = xr.open_mfdataset(input_file[var],combine='nested',concat_dim='time', engine='netcdf4', chunks={'time': 'auto',  variables.get_var('lon'): 'auto',  variables.get_var('lat'): 'auto'})
             else:
-                dataxr = xr.merge([dataxr,xr.open_mfdataset(eval(var),combine='nested',concat_dim='time', engine='netcdf4', chunks={'time': 'auto',  variables.get_var('lon'): 'auto',  variables.get_var('lat'): 'auto'})])
-            ind +=1
+                dataxr = xr.merge([dataxr,xr.open_mfdataset(input_file[var],combine='nested',concat_dim='time', engine='netcdf4', chunks={'time': 'auto',  variables.get_var('lon'): 'auto',  variables.get_var('lat'): 'auto'})])    
     else: # If not multi_files :
         dataxr = xr.open_mfdataset(input_file,combine='nested',concat_dim='time', engine='netcdf4', chunks={'time': 'auto',  variables.get_var('lon'): 'auto',  variables.get_var('lat'): 'auto'})
    

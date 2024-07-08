@@ -14,7 +14,7 @@ from netCDF4 import num2date
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO FIND INPUTFILES
 # ---------------------------------------------------
-def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files):
+def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files,READ_PATM):
 # Finding input_file paths
 # -----------------------
 # variables : class of variables with the name of the variable, his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
@@ -48,13 +48,15 @@ def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_fi
                         continue
                     elif variables.get_filename('u10m') == variables.get_filename('v10m') and var == 'v10m':
                         continue
+                    elif var == 'msl' and not READ_PATM:
+                        continue
                     else:
                         if type_path == '/origin/Y/M/':
                             eval(var).extend(glob.glob(input_dir + str(j) + '/' + str(i).zfill(2) + '/'+input_prefix +variables.get_filename(var)+'*.nc'))
                             input_file.extend(glob.glob(input_dir + str(j) + '/' + str(i).zfill(2) + '/'+input_prefix +variables.get_filename(var)+'*.nc'))
                         elif type_path == '/origin/':
                             eval(var).extend(sorted(glob.glob(input_dir + input_prefix +variables.get_filename(var)+'*.nc')))
-                            input_file.extend(sorted(glob.glob(input_dir + input_prefix +variables.get_filename(var)+'*.nc')))
+                            input_file.append(sorted(glob.glob(input_dir + input_prefix +variables.get_filename(var)+'*.nc')))
                             i = 100 # end of while loop
                         else:
                             print('Please put your data either in a single common file or with a path like DATA_TYPE/YEAR/MONTH/file.nc')
