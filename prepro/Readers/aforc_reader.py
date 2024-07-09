@@ -4,12 +4,12 @@ import sys
 # Variable names and conversion coefficients  
 # Unity wanted is written in croco_variables.json
 # TP: convert from accumlated m in a hour into   kg m-2 s-1
-cff_tp=1000./3600.*8640 # m in 1 hour -> kg m-2 s-1 -> cm/day
+cff_tp=1000./3600. #*8640 # m in 1 hour -> kg m-2 s-1 -> cm/day
 
 # Heat flux J m-2 in one hour into W m-2
 cff_heat=1./3600.   # J m-2 in 1 hour -> W m-2
 
-cff_temp = 1. -273.15 # Will be read data*cff_temp so data*1 - 273.15
+cff_temp = 1 # 273.15 # In that case, it will be data-cff_temp
 
 # Names, conversion coefficients and new units
 # List of possible variables : see reader_list.txt

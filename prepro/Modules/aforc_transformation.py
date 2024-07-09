@@ -34,13 +34,16 @@ def unit_conversion(data,var,variables):
 # var : name of the variable
 # variables : class of variables with the name of the variable, \
 # his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
-    data1 = data * variables.get_conv_cff(var)
+    if variables.get_conv_cff(var) == 273.15:
+        data1 = data - variables.get_conv_cff(var)
+    else:
+        data1 = data * variables.get_conv_cff(var)
     return data1
 
-def kelvin_2_celsius(data):
-# data : xarray.DataArray of one variable
-    data = data - 273.15
-    return data
+# def kelvin_2_celsius(data):
+# # data : xarray.DataArray of one variable
+#     data = data - 273.15
+#     return data
 
 def extrapolation(data,lon,lat):
 # Extrapolate data with the nearest neighbor method

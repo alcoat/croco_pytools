@@ -35,14 +35,14 @@ import pyinterp.backends.xarray
 # INPUT :
 # -------------------------------------------------
 data_origin = 'era_ecmwf' # era_dataref, era_ecmwf, cfsr
-input_dir = '/path/in/'
+input_dir = '/home/menkes/Documents/annelou/ERA5/ERA5_dwnld/'
 input_prefix = 'ERA5_ecmwf_*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 multi_files = True # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '../../CONFIGS/BENGUELA/CROCO_FILES/'
+output_dir = '/home/menkes/Documents/annelou/ERA5/ERA5_dwnld/ERA5_formatted/'
 output_file_format = "MONTHLY" # How outputs are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
@@ -57,7 +57,7 @@ else:
 # Dates limits
 Yorig = 2000                 # year defining the origin of time as: days since Yorig-01-01
 Ystart, Mstart = 2005,1   # Starting month
-Yend, Mend  = 2005,1    # Ending month
+Yend, Mend  = 2005,2    # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -188,13 +188,13 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # -----------------------------------
                 data = flip_data(data_grouped[i][variables.get_var(var)],data_origin)
                 data = unit_conversion(data,var,variables)
-                if var == 't2m':
-                    data = kelvin_2_celsius(data)
+                # if var == 't2m':
+                #     data = kelvin_2_celsius(data)
                 if var == 'str':
                     sst = extrapolation(data_grouped[i][variables.get_var('sst')].values,data_grouped[i].lon.values,data_grouped[i].lat.values)
                     data = strd_calculation(data,sst,variables,croco_variables)
-                elif var == 'q':
-                    data = r_calculation(data,data_grouped[i][variables.get_var('t2m')],croco_variables)
+                # elif var == 'q':
+                    # data = r_calculation(data,data_grouped[i][variables.get_var('t2m')],croco_variables)
                 elif var == 'uswrf':
                     data = ssr_calculation(data,data_grouped[i][variables.get_var('dswrf')],croco_variables)
                 else:
