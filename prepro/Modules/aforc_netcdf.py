@@ -110,12 +110,17 @@ def metadata(data):
     data['lat'].attrs['units'] = 'degree_north'
     return data
 
-def missing_data(data):
+def missing_data(data,var):
 # data : xarray.DataArray of one variable
-    data = data.fillna(9999.)
-    data.encoding['missing_value']=9999.
-    data.encoding['_FillValue']=9999.
-    return data
+# var : name of the variable
+    encoding = {'lat': {'_FillValue': None},
+            'lon': {'_FillValue': None},
+            'time': {'_FillValue': None},
+            var.upper(): {'_FillValue': 9999.0,
+                          'missing_value': 9999.0}
+            }
+    
+    return data,encoding
 
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO CREATE NETCDF
@@ -131,13 +136,14 @@ def output_name(data,output_dir,output_file_format):
         aforc_filename = output_dir + f"{data.name.upper()}_Y%sM%02iD%02i.nc"%(time.year,time.month,time.day)
     return aforc_filename
 
-def create_netcdf(data,output_dir,output_file_format):
+def create_netcdf(data,output_dir,output_file_format,encoding):
 # data : xarray.DataArray of one variable
 # output_dir : path to output files
 # output_file_format : DAILY or MONTHLY : indicate how output will be separate
+# encoding : give information to missing and fill values
     filename_out = output_name(data,output_dir,output_file_format)
     data = data.astype(np.float32)
-    data = data.to_netcdf(filename_out,engine='netcdf4',compute='False')
+    data = data.to_netcdf(filename_out,engine='netcdf4',encoding = encoding, compute='False')
     return data  
 
 

@@ -35,35 +35,42 @@ import pyinterp.backends.xarray
 # INPUT :
 # -------------------------------------------------
 data_origin = 'era_ecmwf' # era_dataref, era_ecmwf, cfsr
-input_dir = '/home/menkes/Documents/annelou/ERA5/ERA5_dwnld/'
-input_prefix = 'ERA5_ecmwf_*' # For multifiles, if the name of the file begin with the variable name, just write '*'
-multi_files = True # If one file per variable in input : True
+input_dir = '/path/in/'
+input_prefix = 'ERA5_ecmwf_Y*' # For multifiles, if the name of the file begin with the variable name, just write '*'
+multi_files = False # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '/home/menkes/Documents/annelou/ERA5/ERA5_dwnld/ERA5_formatted/'
-output_file_format = "MONTHLY" # How outputs are split (MONTHLY,DAILY)
+output_dir = '/path/out/'
+output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
 # Grid size : 
-ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
+ownArea = 1 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
-    croco_grd = '../../CONFIGS/BENGUELA/CROCO_FILES/croco_grd.nc'
+    croco_grd = '../../CONFIGS/your_config/CROCO_FILES/croco_grd.nc'
 else:
-    lon_min,lon_max,lat_min,lat_max = 6,24,-40,-24
+    lon_min,lon_max,lat_min,lat_max = 4,27,-40,-24
 
 # Dates limits
 Yorig = 2000                 # year defining the origin of time as: days since Yorig-01-01
 Ystart, Mstart = 2005,1   # Starting month
-Yend, Mend  = 2005,2    # Ending month
+Yend, Mend  = 2005,2   # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
 # -------------------------------------------------
 # To convert the atmospheric pressure : True
 READ_PATM = False
+
+# If there is no STRD variable in raw data, it will be calculated with STR and SST. 
+# SST may or may not be extrapolated to the coast. 
+# If it is not, this may result in temperature spike at the coast at certain points,
+# however, note that extrapolation increases pre-processing time.
+# If STRD is in raw data, extrapolation_sst will no be considered.
+extrapolation_sst = True
 
 # *****************************************************************************
 #                      E N D     U S E R  *  O P T I O N S
@@ -141,7 +148,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # ------------------------------------
 # SELECT AREA AND READ DATA OVER IT
 # ------------------------------------
-        if data_origin == 'era_ecmwf' or data_origin == 'cfsr': # latitudes are from lat_max to lat_min
+        if data_origin == 'era_ecmwf' or data_origin == 'cfsr' or data_origin == 'era_dwnld': # latitudes are from lat_max to lat_min
             dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
                                 lon = slice(lon_min,lon_max) ,\
                                 lat = slice(lat_max,lat_min) )
@@ -179,7 +186,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
             for var in variables.raw_name: 
                 if var == 'msl' and not READ_PATM:
                     continue
-                elif var == 'lon' or var == 'lat' or var == 'dswrf' or var == 'sst':
+                elif var == 'lon' or var == 'lat' or var == 'dswrf':
                     continue
                 print('  Processing variable: var/vname :'+var+'/'+variables.get_var(var))
 
@@ -188,25 +195,30 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # -----------------------------------
                 data = flip_data(data_grouped[i][variables.get_var(var)],data_origin)
                 data = unit_conversion(data,var,variables)
-                # if var == 't2m':
-                #     data = kelvin_2_celsius(data)
                 if var == 'str':
-                    sst = extrapolation(data_grouped[i][variables.get_var('sst')].values,data_grouped[i].lon.values,data_grouped[i].lat.values)
+                    sst = flip_data(data_grouped[i][variables.get_var('sst')],data_origin)
+                    if extrapolation_sst:
+                        sst = extrapolation(sst.values,sst.lon.values,sst.lat.values)
+                    else:
+                        sst = sst.values
                     data = strd_calculation(data,sst,variables,croco_variables)
-                # elif var == 'q':
-                    # data = r_calculation(data,data_grouped[i][variables.get_var('t2m')],croco_variables)
+                    var = 'strd'
+                elif var == 'q':
+                    data = r_calculation(data,data_grouped[i][variables.get_var('t2m')],croco_variables)
+                    var = 'r'
                 elif var == 'uswrf':
                     data = ssr_calculation(data,data_grouped[i][variables.get_var('dswrf')],croco_variables)
+                    var = 'ssr'
                 else:
                     data = attr(data,var,variables,croco_variables)
                 data = time_origin(data,Yorig)
                 data = metadata(data)
-                data = missing_data(data)
+                data,encoding = missing_data(data,var)
                 
 # -----------------------------------
 # PUT DATA IN OUTPUT FILE
 # -----------------------------------
-                data = create_netcdf(data,output_dir,output_file_format)
+                data = create_netcdf(data,output_dir,output_file_format,encoding)
 
 
 end_time = time.time()

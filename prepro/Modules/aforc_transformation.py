@@ -21,7 +21,7 @@ def flip_data(data,data_origin):
 # ---------------------
 # data : xarray.DataArray of one variable
 # data_origin : source of the data (example : 'era_ecmwf', 'era_dataref', 'cfsr')
-    if data_origin == 'era_ecmwf' or data_origin == 'cfsr':
+    if data_origin == 'era_ecmwf' or data_origin == 'cfsr' or data_origin == 'era_dwnld':
         data = data.isel(lat=slice(None,None,-1))
     else: data = data.isel(lat=slice(None,None,1))
     return data
@@ -39,11 +39,6 @@ def unit_conversion(data,var,variables):
     else:
         data1 = data * variables.get_conv_cff(var)
     return data1
-
-# def kelvin_2_celsius(data):
-# # data : xarray.DataArray of one variable
-#     data = data - 273.15
-#     return data
 
 def extrapolation(data,lon,lat):
 # Extrapolate data with the nearest neighbor method
