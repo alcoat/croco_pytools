@@ -186,7 +186,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
             for var in variables.raw_name: 
                 if var == 'msl' and not READ_PATM:
                     continue
-                elif var == 'lon' or var == 'lat' or var == 'dswrf':
+                elif var == 'lon' or var == 'lat' or var == 'dswrf' or var == 'sst':
                     continue
                 print('  Processing variable: var/vname :'+var+'/'+variables.get_var(var))
 
