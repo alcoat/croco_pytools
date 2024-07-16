@@ -105,7 +105,7 @@ def lookvar(data_origin):
 
 
     else:
-        sys.exit(print('No \'%s\' dico available in Modules/inputs_readers.py. Please add it an run the script' % data_origin))
+        sys.exit(print('No \'%s\' dico available in Modules/aforc_reader.py. Please add it an run the script' % data_origin))
 
     return var_info
 
