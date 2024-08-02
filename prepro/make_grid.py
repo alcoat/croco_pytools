@@ -5,11 +5,12 @@ os.environ['ETS_TOOLKIT'] = 'wx'
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
 sys.path.append("./Modules/graphicUI_tools/")
-from main_window import *
+#from main_window import *
 from croco_class import CROCO
 
 from tools_make_grid import *
-from tools_create_grid import create_classic_grid
+from tools_create_grids import create_classic_grid
+from tools_grid_inputs import *
 
 #---Code - body ----------------------------------------------------------
 
@@ -36,7 +37,7 @@ smooth_meth = config['smooth_meth']
 topofile = config['topofile']
 shp_file = config['shp_file']
 output_file = config['output_file']
-sgl_connect = [config['sgl_connect'], config['sgl_index1'], config['sgl_index2']
+sgl_connect = [config['sgl_connect'], config['sgl_index1'], config['sgl_index2']]
 
 # ============================
 # GRID CREATION
