@@ -44,7 +44,7 @@ sgl_connect = [config['sgl_connect'], config['sgl_index1'], config['sgl_index2']
 # ============================
                
 #Merging topo/bathy,coastline mask and grid size and mesh data
-grid= create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, output_file)
+grid= create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect)
 
 # --- Save netcdf -------------------------------------------------
 print('Writing Topography')

@@ -47,7 +47,7 @@ class Outputs:
 #---F U N C T I ON S -------------------------------------------------------
 
 def create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
-                  hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, output_file):
+                  hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect):
     """
     Processes data by creating grids, building masks, and saving the output in a NetCDF file.
 
