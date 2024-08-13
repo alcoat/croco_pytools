@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import distance
-from ipywidgets import widgets, FloatText, VBox, Button, interact_manual
+from ipywidgets import widgets, FloatText, VBox, Button, interact_manual, BoundedIntText #BoundedFloatText
 from IPython.display import display
 from matplotlib.widgets import RectangleSelector
 
@@ -49,6 +49,28 @@ def plot_topo_bis(outputs, figure, ax):
 
     pos_cax = figure.add_axes([pos_x, pos_y, cax_width, cax_height])
     cb = figure.colorbar(plotTopo, cax=pos_cax, orientation='horizontal')
+    ax.grid(True, which='both', linewidth=2, color='gray', alpha=0.5, linestyle='--')
+
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.1f}'))
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f'{y:.1f}'))
+
+    return ax, cb
+
+def plot_mask(outputs, figure, ax):
+    x_rho, y_rho = outputs.lon_rho, outputs.lat_rho
+
+    axpos = ax.get_position()
+    pos_x = axpos.x0
+    pos_y = axpos.y0 - 0.08
+    cax_width = axpos.width
+    cax_height = 0.04
+
+    # Plotting the entire mask_rho without any condition
+    plotMask = ax.pcolormesh(x_rho, y_rho, outputs.mask_rho, vmin=0, vmax=1, zorder=2, cmap=plt.cm.gray_r)
+
+    pos_cax = figure.add_axes([pos_x, pos_y, cax_width, cax_height])
+    cb = figure.colorbar(plotMask, cax=pos_cax, orientation='horizontal')
+    
     ax.grid(True, which='both', linewidth=2, color='gray', alpha=0.5, linestyle='--')
 
     ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{x:.1f}'))
@@ -204,3 +226,55 @@ class RectangleSelectorEdition:
 
             # Clear selection bounds
             del self.selection_bounds
+
+# -- Class for Mask edition --
+from ipywidgets import interactive, IntSlider, FloatText, VBox, Button
+
+class MaskUpdater:
+    def __init__(self, grid):
+        self.grid = grid
+        x_rho, y_rho = grid.lon_rho, grid.lat_rho
+        self.data = np.vstack((x_rho.flatten(), y_rho.flatten())).T
+        self.x_rho = x_rho
+        
+        self.figure, self.ax = plt.subplots(figsize=(8, 8))
+        self.plot_grid()
+
+        self.oldValue_widget = FloatText(value=0.0, description='Old value:', disabled=True)
+        self.new_value_widget = IntSlider(value=0, min=0, max=1, step=1, description='New value:')
+        self.update_button = Button(description='Update Value')
+
+        self.update_button.on_click(self.on_update_click)
+
+        # Display widgets
+        self.widget_box = VBox([self.oldValue_widget, self.new_value_widget, self.update_button])
+        display(self.widget_box)
+        
+        self.figure.canvas.mpl_connect('button_press_event', self.on_click)
+
+    def plot_grid(self):
+        self.ax.clear()
+        self.ax = plot_outline_ax(self.grid, self.ax)  # Assuming this function is defined
+        self.ax, self.cb = plot_mask(self.grid, self.figure, self.ax)  # Assuming this function is defined
+        self.ax.set_title("Mask Edit")
+        self.figure.canvas.draw_idle()
+
+    def closest_node(self, node, nodes):
+        closest_index = distance.cdist([node], nodes).argmin()
+        return closest_index, nodes[closest_index]
+
+    def on_click(self, event):
+        if event.inaxes == self.ax:
+            pt = (event.xdata, event.ydata)
+            prox_pt_id, prox_pt_value = self.closest_node(pt, self.data)
+            p, mod = divmod(prox_pt_id, self.x_rho.shape[1])
+            self.focusedPointX = p
+            self.focusedPointY = mod
+            self.oldValue_widget.value = self.grid.mask_rho[self.focusedPointX][self.focusedPointY]
+
+    def on_update_click(self, b):
+        if hasattr(self, 'focusedPointX') and hasattr(self, 'focusedPointY'):
+            new_value = self.new_value_widget.value
+            self.grid.mask_rho[self.focusedPointX][self.focusedPointY] = new_value
+            self.plot_grid()
+            self.figure.canvas.flush_events()
