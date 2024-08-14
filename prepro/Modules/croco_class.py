@@ -459,7 +459,7 @@ class CROCO():
                     grid_name='croco_grd.nc.1'
                 else:
                     grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
-                output_file=output_file+grid_name
+                output_file=output_file #+grid_name
 		 
         nc = netcdf.Dataset(output_file, 'w', format='NETCDF4')
 
@@ -489,7 +489,8 @@ class CROCO():
             nc.createVariable('el', 'f8', ('one'))
             nc.variables['el'].long_name = 'domain length in the ETA-direction'
             nc.variables['el'].units = 'meters'
-            nc.variables['el'][:] = inputs.ny
+            
+            # nc.variables['el'][:] = inputs.ny
 
         else: # Usual case
 
