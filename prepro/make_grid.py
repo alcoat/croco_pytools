@@ -1,7 +1,7 @@
 #--- Dependencies ---------------------------------------------------------
 import numpy as np
 import os,sys
-os.environ['ETS_TOOLKIT'] = 'wx'
+#os.environ['ETS_TOOLKIT'] = 'wx'
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
 sys.path.append("./Modules/graphicUI_tools/")

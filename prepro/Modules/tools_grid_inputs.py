@@ -171,8 +171,41 @@ def load_namelist_agrif(filename):
     
     return settings
 
+# ---
+def prepare_variables(config_dict):
+    variables = {}
+    # Ajouter les variables non sectionnées au dictionnaire
+    for key, value in config_dict.items():
+        if key not in ['Grid', 'Smoothing_params', 'Files', 'Single_Connect']:
+            variables[key] = value
+
+    # Ajouter les variables des sections en excluant 'output_file'
+    for section in ['Grid', 'Smoothing_params', 'Files', 'Single_Connect']:
+        if section in config_dict:
+            for key, value in config_dict[section].items():
+                if key != 'output_file' and key not in ['sgl_index1', 'sgl_index2']:  # Exclure 'output_file', 'sgl_index1', 'sgl_index2'
+                    variables[key] = value
+    
+    if 'Single_Connect' in config_dict:
+        variables['sgl_connect'] = [
+            config_dict['Single_Connect']['sgl_connect'],
+            config_dict['Single_Connect']['sgl_index1'],
+            config_dict['Single_Connect']['sgl_index2']
+        ]
+    else:
+        variables['sgl_connect'] = [
+            config_dict['sgl_connect'],
+            config_dict['sgl_index1'],
+            config_dict['sgl_index2']
+        ]
+        
+        variables.pop('sgl_index1', None)
+        variables.pop('sgl_index2', None)
+        variables.pop('output_file', None)
+    return variables
 
 #--- Widgets'stuff ---------------------------------------------------------
+
 def setup_widgets(parent_grid=False):
     """
     Widgets for notebook make_grid.ipynb user's changes section
@@ -213,6 +246,7 @@ def setup_widgets(parent_grid=False):
         nonlocal saved_config  # Allow modification of saved_config inside this function
 
         # Save to saved_config
+        
         saved_config = {
             'Grid': {
                 'tra_lon': tra_lon.value,
@@ -241,6 +275,7 @@ def setup_widgets(parent_grid=False):
                 'sgl_index2': sgl_index2.value,
             }
         }
+        
 
         # If parent_grid is True, save Open Boundary Conditions and parent_grid fields
         if parent_grid:
@@ -258,7 +293,7 @@ def setup_widgets(parent_grid=False):
                 directions.append('East')
 
             # Update Open_Boundary_Condition section
-            saved_config['Open_Boundary_Condition'] = {
+            saved_config['open_boundary'] = {
                 'NORTH': north_checkbox.value,
                 'SOUTH': south_checkbox.value,
                 'WEST': west_checkbox.value,
@@ -373,6 +408,10 @@ def setup_widgets(parent_grid=False):
 
     # Display the Accordion and save button
     display(VBox([accordion, save_button, output]))
+
+    # Return the function to get saved values
+    return lambda : saved_config
+
 
 # - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -583,3 +622,5 @@ def setup_widgets_agrif(parent_grid=False):
     # Display everything
     display(VBox([accordion, output, save_button]))
 
+    # Return the function to get saved values
+    return lambda: saved_config

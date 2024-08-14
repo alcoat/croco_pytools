@@ -46,7 +46,7 @@ open_boundary= {'NORTH': config['north'], 'SOUTH': config['south'],  'WEST': con
 # GRID CREATION
 # ============================
 
-chd_grid, inputs, prt= create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect[0], sgl_connect[1], sgl_connect[2], open_boundary, parent_grid)
+chd_grid, inputs, prt= create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, open_boundary, parent_grid)
 
 # --- Save netcdf -------------------------------------------------
 print('Writing Topography')

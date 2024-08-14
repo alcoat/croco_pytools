@@ -90,7 +90,7 @@ def create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
 ###########################################
 
 def create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
-                  hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, sgl_index1, sgl_index2, open_boundary, parent_grid):
+                  hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, open_boundary, parent_grid):
     """
     Processes data by creating grids, building masks, and saving the output in a NetCDF file.
 
@@ -126,9 +126,9 @@ def create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
     EasyGrid.easygrid(None, inputs_, outputs)
 
     # --- Build mask and topo -----------------------------------------
-    sgl_connect_grouped= [sgl_connect, sgl_index1, sgl_index2]
+    #sgl_connect_grouped= [sgl_connect, sgl_index1, sgl_index2]
     prt= topo_prt(parent_grid)
-    GetTopo.topo(None, outputs, topofile, shp_file, smooth=inputs_smth_, sgl_connect=sgl_connect_grouped, prt_grd=prt)
+    GetTopo.topo(None, outputs, topofile, shp_file, smooth=inputs_smth_, sgl_connect=sgl_connect, prt_grd=prt)
 
     # --- Match parent/child topo -------------------------------------
     obc= open_boundary
@@ -139,7 +139,7 @@ def create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
 
 ###########################################
 
-def create_child_grid_AGRIF(coef, imin, imax, jmin, jmax, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, sgl_index1, sgl_index2, open_boundary,parent_grid):
+def create_child_grid_AGRIF(coef, imin, imax, jmin, jmax, hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, open_boundary,parent_grid):
 
     """
     Processes data by creating grids, building masks, and saving the output in a NetCDF file.
@@ -178,9 +178,9 @@ def create_child_grid_AGRIF(coef, imin, imax, jmin, jmax, hmin, hmax, interp_rad
     EasyGrid.AGRIFgrid(None,prt,inputs,outputs)
 
     # --- Build mask and topo -----------------------------------------
-    sgl_connect_grouped= [sgl_connect, sgl_index1, sgl_index2]
+    #sgl_connect_grouped= [sgl_connect, sgl_index1, sgl_index2]
     GetTopo.topo(None,outputs, topofile, shp_file, smooth= inputs_smth, hmin=np.nanmin(prt.h),
-                  hmax=np.nanmax(prt.h), sgl_connect=sgl_connect_grouped, prt_grd=prt, coef= inputs.coef)
+                  hmax=np.nanmax(prt.h), sgl_connect=sgl_connect, prt_grd=prt, coef= inputs.coef)
 
     # --- Match parent/child topo -------------------------------------
     obc= open_boundary
