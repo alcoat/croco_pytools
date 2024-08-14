@@ -1,20 +1,19 @@
 #--- Dependencies ---------------------------------------------------------
+import os
 import configparser
-import ipywidgets as widgets
-from ipywidgets import VBox, Accordion, HTML
-from IPython.display import display
-import configparser
+from IPython.display import display, clear_output
+from ipywidgets import widgets, VBox, HBox, HTML, Accordion, Button, Output
 
 #--- Functions ------------------------------------------------------------
-import os
 
-def load_namelist(filename):
+def load_namelist(filename, parent_grid=False):
     """
     Load the namelist variables from the specified configuration file.
     
     Parameters:
     - filename (str): Path to the configuration file.
-    
+    - parent_grid (bool): Flag indicating if the Open_Boundary_Condition section should be read.
+
     Returns:
     - dict: A dictionary with the configuration parameters.
     """
@@ -59,6 +58,9 @@ def load_namelist(filename):
         params['topofile'] = files.get('topofile', '')
         params['shp_file'] = files.get('shp_file', '')
         params['output_file'] = files.get('output_file', '')
+
+        if parent_grid:
+            params['parent_grid'] = files.get('parent_grid', '')
     
     # Load Single Connect section
     if 'Single_Connect' in config:
@@ -69,18 +71,108 @@ def load_namelist(filename):
             params['sgl_index2'] = int(single_connect.get('sgl_index2', 0))
         except ValueError as e:
             raise ValueError(f"Error parsing 'Single_Connect' section: {e}")
+
+    # Load Open Boundary Condition section if parent_grid=True
+    if parent_grid and 'Open_Boundary_Condition' in config:
+        open_boundary = config['Open_Boundary_Condition']
+        try:
+            params['north'] = open_boundary.getboolean('north')
+            params['south'] = open_boundary.getboolean('south')
+            params['west'] = open_boundary.getboolean('west')
+            params['east'] = open_boundary.getboolean('east')
+            params['merging_area'] = int(open_boundary.get('merging_area', 5))
+            # Read and process 'dirs'
+            dirs_string = open_boundary.get('dirs', '')
+            params['dirs'] = [d.strip() for d in dirs_string.split(',') if d.strip()]  # Split by commas and strip whitespace
+
+        except ValueError as e:
+            raise ValueError(f"Error parsing 'Open_Boundary_Condition' section: {e}")
     
     return params
 
+# -- 
+
+def load_namelist_agrif(filename):
+    """
+    Load the AGRIF-related settings from the specified configuration file.
+
+    Parameters:
+    - filename (str): Path to the configuration file.
+
+    Returns:
+    - dict: A dictionary with the configuration parameters.
+    """
+    if not os.path.isfile(filename):
+        raise FileNotFoundError(f"The file '{filename}' does not exist.")
+    
+    config = configparser.ConfigParser()
+    config.read(filename)
+    
+    # Initialize the return dictionary
+    settings = {}
+    
+    # Load AGRIF section
+    if 'AGRIF' in config:
+        agrif = config['AGRIF']
+        try:
+            settings['coef'] = int(agrif.get('coef', 3))
+            settings['imin'] = int(agrif.get('imin', 10))
+            settings['imax'] = int(agrif.get('imax', 27))
+            settings['jmin'] = int(agrif.get('jmin', 8))
+            settings['jmax'] = int(agrif.get('jmax', 28))
+        except ValueError as e:
+            raise ValueError(f"Error parsing 'AGRIF' section: {e}")
+    
+    # Load Smoothing_params section
+    if 'Smoothing_params' in config:
+        smoothing = config['Smoothing_params']
+        try:
+            settings['hmin'] = float(smoothing.get('hmin', 50))
+            settings['hmax'] = float(smoothing.get('hmax', 6000))
+            settings['interp_rad'] = int(smoothing.get('interp_rad', 2))
+            settings['rfact'] = float(smoothing.get('rfact', 0.2))
+            settings['smooth_meth'] = smoothing.get('smooth_meth', 'lsmooth')
+        except ValueError as e:
+            raise ValueError(f"Error parsing 'Smoothing_params' section: {e}")
+    
+    # Load Files section
+    if 'Files' in config:
+        files = config['Files']
+        settings['topofile'] = files.get('topofile', '../../DATASETS_CROCOTOOLS/Topo/etopo2.nc')
+        settings['shp_file'] = files.get('shp_file', '../../DATASETS_CROCOTOOLS/gshhs/GSHHS_shp/i/GSHHS_i_L1.shp')
+        settings['output_file'] = files.get('output_file', '../../CROCO_FILES/croco_grd.nc')
+        settings['parent_grid'] = files.get('parent_grid', '')
+    
+    # Load Single_Connect section
+    if 'Single_Connect' in config:
+        single_connect = config['Single_Connect']
+        try:
+            settings['sgl_connect'] = single_connect.getboolean('sgl_connect', False)
+            settings['sgl_index1'] = int(single_connect.get('sgl_index1', 20))
+            settings['sgl_index2'] = int(single_connect.get('sgl_index2', 20))
+        except ValueError as e:
+            raise ValueError(f"Error parsing 'Single_Connect' section: {e}")
+    
+    # Load Open_Boundary_Condition section
+    if 'Open_Boundary_Condition' in config:
+        open_boundary = config['Open_Boundary_Condition']
+        try:
+            settings['north'] = open_boundary.getboolean('north', True)
+            settings['south'] = open_boundary.getboolean('south', True)
+            settings['west'] = open_boundary.getboolean('west', True)
+            settings['east'] = open_boundary.getboolean('east', True)
+            settings['merging_area'] = int(open_boundary.get('merging_area', 5))
+            # Read and process 'dirs'
+            dirs_string = open_boundary.get('dirs', 'North,South,West,East')
+            settings['dirs'] = [d.strip() for d in dirs_string.split(',') if d.strip()]  # Split by commas and strip whitespace
+
+        except ValueError as e:
+            raise ValueError(f"Error parsing 'Open_Boundary_Condition' section: {e}")
+    
+    return settings
+
+
 #--- Widgets'stuff ---------------------------------------------------------
-
-from ipywidgets import VBox, HBox, HTML, Accordion
-from IPython.display import clear_output
-
-from ipywidgets import widgets, VBox, HBox, HTML, Accordion, Button, Output
-from IPython.display import display, clear_output
-import configparser
-
 def setup_widgets(parent_grid=False):
     """
     Widgets for notebook make_grid.ipynb user's changes section
@@ -120,59 +212,76 @@ def setup_widgets(parent_grid=False):
     def save_values(b):
         nonlocal saved_config  # Allow modification of saved_config inside this function
 
+        # Save to saved_config
+        saved_config = {
+            'Grid': {
+                'tra_lon': tra_lon.value,
+                'tra_lat': tra_lat.value,
+                'size_x': size_x.value,
+                'size_y': size_y.value,
+                'nx': nx.value,
+                'ny': ny.value,
+                'rot': rot.value,
+            },
+            'Smoothing_params': {
+                'hmin': hmin.value,
+                'hmax': hmax.value,
+                'interp_rad': interp_rad.value,
+                'rfact': rfact.value,
+                'smooth_meth': smooth_meth.value,
+            },
+            'Files': {
+                'topofile': topofile.value,
+                'shp_file': shp_file.value,
+                'output_file': output_file.value,
+            },
+            'Single_Connect': {
+                'sgl_connect': sgl_connect.value,
+                'sgl_index1': sgl_index1.value,
+                'sgl_index2': sgl_index2.value,
+            }
+        }
+
+        # If parent_grid is True, save Open Boundary Conditions and parent_grid fields
         if parent_grid:
-            # Update settings with current values
-            settings = {
+            saved_config['Files']['parent_grid'] = parent_grid_field.value
+
+            # Compute directions based on checkboxes
+            directions = []
+            if north_checkbox.value:
+                directions.append('North')
+            if south_checkbox.value:
+                directions.append('South')
+            if west_checkbox.value:
+                directions.append('West')
+            if east_checkbox.value:
+                directions.append('East')
+
+            # Update Open_Boundary_Condition section
+            saved_config['Open_Boundary_Condition'] = {
                 'NORTH': north_checkbox.value,
                 'SOUTH': south_checkbox.value,
                 'WEST': west_checkbox.value,
                 'EAST': east_checkbox.value,
-                'MERGING_AREA': merging_area_text.value
+                'MERGING_AREA': merging_area_text.value,
+                'dirs': ','.join(directions)  # Convert list to comma-separated string
             }
-            # Convert settings to directions
-            directions = []
-            if settings['WEST']:
-                directions.append('West')
-            if settings['EAST']:
-                directions.append('East')
-            if settings['SOUTH']:
-                directions.append('South')
-            if settings['NORTH']:
-                directions.append('North')
-            settings['dirs'] = directions
-        else:
-            settings = {}
 
-        # Save to saved_config
-        saved_config = {
-            'tra_lon': tra_lon.value,
-            'tra_lat': tra_lat.value,
-            'size_x': size_x.value,
-            'size_y': size_y.value,
-            'nx': nx.value,
-            'ny': ny.value,
-            'rot': rot.value,
-            'hmin': hmin.value,
-            'hmax': hmax.value,
-            'interp_rad': interp_rad.value,
-            'rfact': rfact.value,
-            'smooth_meth': smooth_meth.value,
-            'topofile': topofile.value,
-            'shp_file': shp_file.value,
-            'output_file': output_file.value,
-            'sgl_connect': sgl_connect.value,
-            'sgl_index1': sgl_index1.value,
-            'sgl_index2': sgl_index2.value,
-            'open_boundary': settings,
-        }
-        
-        if parent_grid:
-            saved_config['parent_grid'] = parent_grid_field.value
-        
+        # Save configuration to .ini file
+        config = configparser.ConfigParser()
+
+        for section, params in saved_config.items():
+            config[section] = {key: str(value) for key, value in params.items()}
+
+        config_file_path = 'config_grid_offline_notebook.ini' if parent_grid else 'config_grid_notebook.ini'
+
+        with open(config_file_path, 'w') as configfile:
+            config.write(configfile)
+                
         # Display confirmation message
         with output:
             clear_output()
-            print("Settings have been saved.")
+            print(f"Settings have been saved to '{config_file_path}'.")
             print(saved_config)  # Display current settings for verification
 
     save_button.on_click(save_values)
@@ -189,7 +298,7 @@ def setup_widgets(parent_grid=False):
             'SOUTH': True,
             'WEST': True,
             'EAST': True,
-            'MERGING_AREA': 5  # Set default value to 5
+            'MERGING_AREA': 5,  # Set default value to 5
         }
     
         # Create checkboxes for each border
@@ -238,8 +347,11 @@ def setup_widgets(parent_grid=False):
     grid_rotation_box = create_section("Grid Rotation", rot)
     depth_params_box = create_section("Smoothing Parameters", hmin, hmax, interp_rad, rfact, smooth_meth)
     
-    file_params_box = create_section("Files", topofile, shp_file, output_file)
-    
+    if parent_grid:
+        file_params_box = create_section("Files", topofile, shp_file, output_file, parent_grid_field)
+    else:
+        file_params_box = create_section("Files", topofile, shp_file, output_file)
+        
     single_connect_box = create_section("Single Connect", sgl_connect, sgl_index1, sgl_index2)
 
     # Create the Accordion widget
@@ -261,9 +373,6 @@ def setup_widgets(parent_grid=False):
 
     # Display the Accordion and save button
     display(VBox([accordion, save_button, output]))
-    
-    # Return the function to get saved values
-    return lambda: saved_config
 
 # - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -334,11 +443,14 @@ def setup_widgets_agrif(parent_grid=False):
         merging_area_text
     ])
 
+    # Create an output area for displaying messages
+    output = widgets.Output()
+
     # Create a button to save the settings
     save_button = widgets.Button(description="Save Settings")
 
     # Function to handle saving values
-    def save_values(b):
+    def save_config(button):
         nonlocal saved_config  # Allow modification of saved_config inside this function
 
         # Update settings with current values
@@ -358,7 +470,7 @@ def setup_widgets_agrif(parent_grid=False):
             directions.append('South')
         if settings['NORTH']:
             directions.append('North')
-        settings['dirs'] = directions
+        settings['dirs'] = ','.join(directions)
         
         # Save to saved_config
         saved_config = {
@@ -379,84 +491,6 @@ def setup_widgets_agrif(parent_grid=False):
             'sgl_index1': sgl_index1.value,
             'sgl_index2': sgl_index2.value,
             'open_boundary': settings,
-        }
-        
-        if parent_grid:
-            saved_config['parent_grid'] = parent_grid_field.value
-        
-        # Display confirmation message
-        with output:
-            clear_output()
-            print("Settings have been saved.")
-            print(saved_config)  # Display current settings for verification
-
-    save_button.on_click(save_values)
-
-    # Simplified "Open Boundary Conditions" section if parent_grid=True
-    if parent_grid:
-        open_boundary_box = VBox([
-            north_checkbox, 
-            south_checkbox, 
-            west_checkbox, 
-            east_checkbox,
-            merging_area_box
-        ])
-        open_boundary_box.layout.border = ''
-        open_boundary_box.layout.padding = ''
-        open_boundary_box.layout.border_radius = ''
-        open_boundary_box.layout.margin = '0px'
-        # Do not add save button here; use the global save button
-    else:
-        # Create a box around the widgets with custom styling
-        border_box = widgets.VBox(children=[
-            north_checkbox, 
-            south_checkbox, 
-            west_checkbox, 
-            east_checkbox,
-            merging_area_box,
-            save_button
-        ])
-        
-        # Apply CSS styles to the box
-        border_box.layout.border = '2px solid #007bff'
-        border_box.layout.padding = '10px'
-        border_box.layout.border_radius = '5px'
-        border_box.layout.margin = '10px'
-        border_box.layout.width = '400px'  # Increase width to ensure full visibility
-
-        # Adjust width of individual widgets
-        north_checkbox.layout.width = '100%'
-        south_checkbox.layout.width = '100%'
-        west_checkbox.layout.width = '100%'
-        east_checkbox.layout.width = '100%'
-        merging_area_text.layout.width = '100px'  # Set a specific width for the input field
-
-        # Create an output area for displaying messages
-        output = widgets.Output()
-
-        # Add save button to the border_box
-        border_box.children += (save_button,)
-
-    # Define the save function
-    def save_config(button):
-        nonlocal saved_config  # Allow modification of saved_config inside this function
-        saved_config = {
-            'coef': coef.value,
-            'imin': imin.value,
-            'imax': imax.value,
-            'jmin': jmin.value,
-            'jmax': jmax.value,
-            'hmin': hmin.value,
-            'hmax': hmax.value,
-            'interp_rad': interp_rad.value,
-            'rfact': rfact.value,
-            'smooth_meth': smooth_meth.value,
-            'topofile': topofile.value,
-            'shp_file': shp_file.value,
-            'output_file': output_file.value,
-            'sgl_connect': sgl_connect.value,
-            'sgl_index1': sgl_index1.value,
-            'sgl_index2': sgl_index2.value,
         }
         
         if parent_grid:
@@ -487,23 +521,37 @@ def setup_widgets_agrif(parent_grid=False):
             'output_file': saved_config['output_file'],
         }
         
+        if parent_grid:
+            config['Files']['parent_grid'] = saved_config['parent_grid']
+        
         config['Single_Connect'] = {
             'sgl_connect': str(saved_config['sgl_connect']),
             'sgl_index1': str(saved_config['sgl_index1']),
             'sgl_index2': str(saved_config['sgl_index2']),
         }
 
-        if parent_grid:
-            config['Parent_Grid'] = {
-                'parent_grid': saved_config['parent_grid'],
-            }
+        config['Open_Boundary_Condition'] = {
+            'north': str(settings['NORTH']),
+            'south': str(settings['SOUTH']),
+            'west': str(settings['WEST']),
+            'east': str(settings['EAST']),
+            'merging_area': str(settings['MERGING_AREA']),
+            'dirs': settings['dirs'],
+        }
         
+        # Write to file
         with open('config_grid_agrif_notebook.ini', 'w') as configfile:
             config.write(configfile)
         
-        print("Configuration saved to 'config_grid_notebook.ini'")
+        # Display confirmation message
+        with output:
+            clear_output()
+            print("Configuration saved to 'config_grid_agrif_notebook.ini'")
+            print(saved_config)  # Display current settings for verification
 
-    # Define sections with HTML for separation and titles
+    save_button.on_click(save_config)
+
+    # Create boxes for different sections
     def create_section(title, *widgets):
         section = VBox([HTML(f"<h3>{title}</h3>")] + list(widgets))
         return section
@@ -514,30 +562,24 @@ def setup_widgets_agrif(parent_grid=False):
     
     if parent_grid:
         file_params_box = create_section("Files", topofile, shp_file, output_file, parent_grid_field)
-        open_boundary_box = create_section("Open Boundary Conditions", open_boundary_box)
+        open_boundary_box = create_section("Open Boundary Conditions", north_checkbox, south_checkbox, west_checkbox, east_checkbox, merging_area_box)
     else:
         file_params_box = create_section("Files", topofile, shp_file, output_file)
-        open_boundary_box = create_section("Open Boundary Conditions", border_box)
+        open_boundary_box = create_section("Open Boundary Conditions", north_checkbox, south_checkbox, west_checkbox, east_checkbox, merging_area_box)
     
     single_connect_box = create_section("Single Connect", sgl_connect, sgl_index1, sgl_index2)
 
     # Create the Accordion widget
-    children = [agrif_params_box, depth_params_box, file_params_box]
-    if open_boundary_box:
-        children.append(open_boundary_box)  # Append Open Boundary Conditions if present
-    children.append(single_connect_box)
-
+    children = [agrif_params_box, depth_params_box, file_params_box, open_boundary_box, single_connect_box]
+    
     accordion = Accordion(children=children)
     
     accordion.set_title(0, 'AGRIF Parameters')
     accordion.set_title(1, 'Smoothing Parameters')
     accordion.set_title(2, 'Files')
-    if open_boundary_box:
-        accordion.set_title(3, 'Open Boundary Conditions')
-    accordion.set_title(len(children) - 1, 'Single Connect')
+    accordion.set_title(3, 'Open Boundary Conditions')
+    accordion.set_title(4, 'Single Connect')
 
-    # Display the Accordion and save button
-    display(VBox([accordion, save_button]))
-    
-    # Return the function to get saved values
-    return lambda: saved_config
+    # Display everything
+    display(VBox([accordion, output, save_button]))
+

@@ -85,7 +85,7 @@ def create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
     GetTopo.topo(None, outputs, topofile, shp_file, smooth=inputs_smth_, sgl_connect=sgl_connect)
     
     # Return the outputs variable
-    return outputs, inputs
+    return outputs, inputs_
 
 ###########################################
 

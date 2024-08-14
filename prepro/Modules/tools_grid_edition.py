@@ -1,7 +1,8 @@
+#--- Dependencies ---------------------------------------------------------
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import distance
-from ipywidgets import widgets, FloatText, VBox, Button, interact_manual, BoundedIntText #BoundedFloatText
+from ipywidgets import widgets, FloatText, VBox, Button, interact_manual, BoundedIntText, interactive, IntSlider
 from IPython.display import display
 from matplotlib.widgets import RectangleSelector
 
@@ -228,7 +229,6 @@ class RectangleSelectorEdition:
             del self.selection_bounds
 
 # -- Class for Mask edition --
-from ipywidgets import interactive, IntSlider, FloatText, VBox, Button
 
 class MaskUpdater:
     def __init__(self, grid):
