@@ -81,14 +81,18 @@ class getdata():
                                 hu=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
                                 hv=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
                             except:
-                                sys.exit('Need either a grid file or topo in tpxo file to correct transport.') 
-                self.ncglo['u_part1']=self.ncglo['u_part1']/coef**2/hu.values
+                                sys.exit('Need either a grid file or topo in tpxo file to correct transport.')
+
+                hu =np.ma.masked_where(hu==0,hu)
+                hv =np.ma.masked_where(hv==0,hv)
+ 
+                self.ncglo['u_part1']=self.ncglo['u_part1']/coef**2/hu
                 self.ncglo['u_part1'].attrs['units']='meter/sec'
-                self.ncglo['u_part2']=self.ncglo['u_part2']/coef**2/hu.values
+                self.ncglo['u_part2']=self.ncglo['u_part2']/coef**2/hu
                 self.ncglo['u_part2'].attrs['units']='meter/sec'
-                self.ncglo['v_part1']=self.ncglo['v_part1']/coef**2/hv.values
+                self.ncglo['v_part1']=self.ncglo['v_part1']/coef**2/hv
                 self.ncglo['v_part1'].attrs['units']='meter/sec'
-                self.ncglo['v_part2']=self.ncglo['v_part2']/coef**2/hv.values
+                self.ncglo['v_part2']=self.ncglo['v_part2']/coef**2/hv
                 self.ncglo['v_part2'].attrs['units']='meter/sec'                    
         # If all waves are in one file, reads period along record dimension 
         if len(inputfile)==1 and self.ncglo['ssh_part1'].ndim ==3:
