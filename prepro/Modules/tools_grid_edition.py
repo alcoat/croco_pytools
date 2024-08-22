@@ -228,7 +228,7 @@ class RectangleSelectorEdition:
             # Clear selection bounds
             del self.selection_bounds
 
-# -- Class for Mask edition --
+# -- Classes for Mask edition --
 
 class MaskUpdater:
     def __init__(self, grid):
@@ -254,8 +254,8 @@ class MaskUpdater:
 
     def plot_grid(self):
         self.ax.clear()
-        self.ax = plot_outline_ax(self.grid, self.ax)  # Assuming this function is defined
-        self.ax, self.cb = plot_mask(self.grid, self.figure, self.ax)  # Assuming this function is defined
+        self.ax = plot_outline_ax(self.grid, self.ax)  
+        self.ax, self.cb = plot_mask(self.grid, self.figure, self.ax) 
         self.ax.set_title("Mask Edit")
         self.figure.canvas.draw_idle()
 
@@ -278,3 +278,99 @@ class MaskUpdater:
             self.grid.mask_rho[self.focusedPointX][self.focusedPointY] = new_value
             self.plot_grid()
             self.figure.canvas.flush_events()
+
+
+from ipywidgets import IntText
+
+class RectangleSelectorMaskUpdater:
+    def __init__(self, grid):
+        self.grid = grid
+        self.x_rho = grid.lon_rho
+        self.y_rho = grid.lat_rho
+
+        plt.close('all')  # Close any existing figures
+
+        # Create a new figure
+        self.figure, self.ax = plt.subplots(figsize=(8, 8))
+
+        # Initial plot
+        self.ax, self.cb = plot_mask(self.grid, self.figure, self.ax)
+        self.ax = plot_outline_ax(self.grid, self.ax)
+        self.ax.set_title("Mask Edition")
+
+        # Set limits to fit the data
+        self.ax.set_xlim(self.x_rho.min(), self.x_rho.max())
+        self.ax.set_ylim(self.y_rho.min(), self.y_rho.max())
+
+        # Create and display widgets
+        self.create_widgets()
+
+        # Add Rectangle Selector
+        self.rect_selector = RectangleSelector(
+            self.ax,
+            self.on_select,
+            drawtype='box',
+            useblit=True,
+            button=[1],  # Left mouse button
+            minspanx=5,
+            minspany=5,
+            spancoords='pixels',
+            interactive=True
+        )
+
+        plt.show()
+
+    def create_widgets(self):
+        """Create and display widgets."""
+        self.old_value_widget = IntText(value=0, description='Old value:', disabled=True)
+        self.new_value_widget = IntSlider(value=0, min=0, max=1, step=1, description='New value:')
+        self.update_button = Button(description='Update Mask')
+        self.update_button.on_click(self.on_update_click)
+
+        widget_box = VBox([self.old_value_widget, self.new_value_widget, self.update_button])
+        display(widget_box)
+
+    def on_select(self, eclick, erelease):
+        """Handle rectangle selection."""
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+
+        # Ensure x1 < x2 and y1 < y2
+        x_min, x_max = min(x1, x2), max(x1, x2)
+        y_min, y_max = min(y1, y2), max(y1, y2)
+
+        # Store selection bounds
+        self.selection_bounds = (x_min, x_max, y_min, y_max)
+
+        # Update old value widget with the value in the selected region
+        mask_x = (self.x_rho >= x_min) & (self.x_rho <= x_max)
+        mask_y = (self.y_rho >= y_min) & (self.y_rho <= y_max)
+        mask = mask_x & mask_y
+        selected_values = self.grid.mask_rho[mask]
+
+        if selected_values.size > 0:
+            old_value = selected_values[0]  # Assuming you want the first value
+            self.old_value_widget.value = old_value
+
+    def on_update_click(self, b):
+        """Handle the update button click event."""
+        if hasattr(self, 'selection_bounds'):
+            x_min, x_max, y_min, y_max = self.selection_bounds
+
+            # Find indices within the rectangle
+            mask_x = (self.x_rho >= x_min) & (self.x_rho <= x_max)
+            mask_y = (self.y_rho >= y_min) & (self.y_rho <= y_max)
+            mask = mask_x & mask_y
+
+            # Update the grid mask within the selected region
+            self.grid.mask_rho[mask] = self.new_value_widget.value
+
+            # Redraw the figure
+            self.ax.clear()
+            self.ax, self.cb = plot_mask(self.grid, self.figure, self.ax)
+            self.ax = plot_outline_ax(self.grid, self.ax)
+            self.ax.set_title("Mask Edition")
+            self.figure.canvas.draw()  # Force a redraw of the figure
+
+            # Clear selection bounds
+            del self.selection_bounds
