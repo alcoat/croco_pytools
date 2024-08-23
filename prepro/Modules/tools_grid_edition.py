@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial import distance
-from ipywidgets import widgets, FloatText, VBox, Button, interact_manual, BoundedIntText, interactive, IntSlider
+from ipywidgets import widgets, FloatText, VBox, Button, interact_manual, BoundedIntText, interactive, IntSlider, IntText
 from IPython.display import display
 from matplotlib.widgets import RectangleSelector
 
@@ -279,8 +279,6 @@ class MaskUpdater:
             self.plot_grid()
             self.figure.canvas.flush_events()
 
-
-from ipywidgets import IntText
 
 class RectangleSelectorMaskUpdater:
     def __init__(self, grid):
