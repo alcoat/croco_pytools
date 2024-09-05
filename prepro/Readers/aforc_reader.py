@@ -3,8 +3,11 @@ import sys
 #
 # Variable names and conversion coefficients  
 # Unity wanted is written in croco_variables.json
-# TP: convert from accumlated m in a hour into   kg m-2 s-1
-cff_tp=1000./3600. *8640 # m in 1 hour -> kg m-2 s-1 -> cm/day
+
+# TP: convert from accumlated m in a hour into cm/day
+cff_tp=1000./3600. *8640 # m in 1 hour (-> kg m-2 s-1 ->) cm/day
+# TP: convert from accumlated kg m-2 s-1 into cm/day
+cff_tp2=8640
 
 # Heat flux J m-2 in one hour into W m-2
 cff_heat=1./3600.   # J m-2 in 1 hour -> W m-2
@@ -64,7 +67,7 @@ def lookvar(data_origin):
         var_info = [ ['sst'  ,'SST'           ,1.           ],\
                      ['tp'   ,'TP'            ,1.           ],\
                      ['ssr'  ,'SSR'           ,1.           ],\
-                     ['t2m'  ,'T2M'           ,cff_temp     ],\
+                     ['t2m'  ,'T2M'           ,1.           ],\
                      ['u10m' ,'U10M'          ,1.           ],\
                      ['v10m' ,'V10M'          ,1.           ],\
                      ['strd' ,'STRD'          ,1.           ],\
@@ -72,6 +75,19 @@ def lookvar(data_origin):
                      ['msl'  ,'MSL'           ,1.           ] \
                    ]
 
+    elif data_origin == 'output_hanh':
+        var_info = [ ['lon'  ,'lon'           ,1.           ,' '      ],\
+                     ['lat'  ,'lat'           ,1.           ,' '      ],\
+                     ['sst'  ,'ts'            ,1.           ,'ts'     ],\
+                     ['tp'   ,'pr'            ,cff_tp2      ,'pr'     ],\
+                     ['dswrf','rlus'          ,1.           ,'rlus'   ],\
+                     ['uswrf','rsus'          ,1.           ,'rsus'   ],\
+                     ['t2m'  ,'tas'           ,cff_temp     ,'tas'    ],\
+                     ['u10m' ,'uas'           ,1.           ,'uas'    ],\
+                     ['v10m' ,'vas'           ,1.           ,'vas'    ],\
+                     ['strd' ,'rlds'          ,1.           ,'rlds'   ],\
+                     ['q'    ,'hus950'        ,1.           ,'hus950' ],\
+                   ]
     elif data_origin == 'arome':
         var_info = [ ['tp'   ,'rain'          ,1.           ],\
                      ['ssr'  ,'swhf'          ,1.           ],\
