@@ -118,7 +118,7 @@ def nine_points_max_iter(Vin,Maskin):
 
 
 
-def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_pos=None):
+def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_pos=None,geolim=None):
     '''
     Read rivers in a netcdf files depending on what is given in Qmin,lon_pos,lat_pos.
     
@@ -238,15 +238,35 @@ def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_po
         return plt.num2date(time[interm]),Q,np.array([lon_pos]),np.array([lat_pos])
 
     elif Qmin is not None: # Reading netcdf with 2D data
-        lon=np.squeeze(np.unique(eval(''.join(('data.',lon_var,'.values')))))
-        lat=np.squeeze(np.unique(eval(''.join(('data.',lat_var,'.values')))))
+        if geolim is not None:
+            for coord in data[lon_var].coords:
+                coord_lon = coord
+            lon = np.squeeze(np.unique(data[lon_var].sel(
+				{coord_lon:slice(geolim[0],geolim[1])})))
+            for coord in data[lat_var].coords:
+                coord_lat = coord
+            if flip_lat==1:
+                slice_lat = slice(geolim[3],geolim[2])
+            else:
+                slice_lat=slice(geolim[2],geolim[3])
+            lat = np.squeeze(np.unique(data[lat_var].sel(
+                             {coord_lat:slice_lat})))
+        else:
+            lon=np.squeeze(np.unique(data[lon_var]))
+            lat=np.squeeze(np.unique(data[lat_var]))
         (Lon,Lat)=np.meshgrid(lon,lat)
 
         def_Fillval=False
         if "_FillValue" not in eval(''.join(('data.',dbt_var))).encoding:
             def_Fillval=True
 
-        Q=eval(''.join(('data.',dbt_var,'[interm[0],:].values')))
+        if geolim is not None:
+            Q = data[dbt_var].sel({
+			coord_lon:slice(geolim[0],geolim[1]),
+			coord_lat:slice_lat})[interm[0]].values
+        else:
+            Q = data[dbt_var][interm[0],:].values
+
         if flip_lat==1:
             Q=Q[:,::-1,:]
         if flip_lon==1:
@@ -336,7 +356,7 @@ def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_po
 
 
 
-def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units):
+def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units,geolim=None):
     ''' 
     Read river flows files. It handle netcdf,.txt or .dat files
     
@@ -348,6 +368,7 @@ def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units):
       rstr                 Starting date
       rend                 Ending date
       time_units           Reference time expressed as 'days since YYYY-MM-DD HH:mm:ss'
+      geolim               Bound of the area
 
     Outputs:
       river                Dictionnary with all river intels. Each river dictionnary has
@@ -362,14 +383,14 @@ def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units):
         if '.nc' in fic:
             if np.isnan(lon_inp[ific])  and np.isnan(lat_inp[ific]):
             # Case of a netcdf with multiple station
-                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units)
+                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,geolim=geolim)
             elif np.isnan(lon_inp[ific]):
             # case of a 2D map 
                 print('Script will look for rivers with flow >',lat_inp[ific],'m3/s')
-                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,Qmin=lat_inp[ific])
+                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,Qmin=lat_inp[ific],geolim=geolim)
             else:
             # Case of a netcdf for 1 river with lon/lat specified
-                time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,lon_pos=lon_inp[ific],lat_pos=lat_inp[ific])
+                time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,lon_pos=lon_inp[ific],lat_pos=lat_inp[ific],geolim=geolim)
 
             for k in range(Nriv): 
                 river['river_'+str(riv_cnt)]=dict()
