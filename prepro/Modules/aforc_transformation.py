@@ -21,9 +21,10 @@ def flip_data(data,data_origin):
 # ---------------------
 # data : xarray.DataArray of one variable
 # data_origin : source of the data (example : 'era_ecmwf', 'era_dataref', 'cfsr')
-    if data_origin == 'era_ecmwf' or data_origin == 'cfsr' or data_origin == 'era_dwnld':
-        data = data.isel(lat=slice(None,None,-1))
-    else: data = data.isel(lat=slice(None,None,1))
+    if len(data['lat'].dims) == 1: # Regular grid
+        if data['lat'][1].values > data['lat'][0].values:
+            data = data.isel(lat=slice(None,None,-1))
+        else: data = data.isel(lat=slice(None,None,1))
     return data
 
 def unit_conversion(data,var,variables):

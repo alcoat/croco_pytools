@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  5 01:21:22 2024
+Created on Fri Sep  6 14:47:46 2024
 
-@author: menkes
+@author: annelou
 """
 #--- Dependencies ---------------------------------------------------------
 import xarray as xr
@@ -34,30 +34,32 @@ import pyinterp.backends.xarray
 # -------------------------------------------------
 # INPUT :
 # -------------------------------------------------
-data_origin = 'era_ecmwf' # era_dataref, era_ecmwf, cfsr
-input_dir = '/path/in/'
-input_prefix = 'ERA5_ecmwf_Y*' # For multifiles, if the name of the file begin with the variable name, just write '*'
+data_origin = 'era_dataref' # era_dataref, era_ecmwf, output_hanh
+input_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/'
+# input_prefix = 'ERA5_ecmwf_*'
+input_prefix = 'ERA5_dataref_*'
+#input_prefix = 'ERA5_ecmwf_Y*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 multi_files = False # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '/path/out/'
+output_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/FORMATTED_TEST/'
 output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
 # Grid size : 
-ownArea = 1 # 0 if area from croco_grd.nc +/- 5°
+ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
-    croco_grd = '../../CONFIGS/your_config/CROCO_FILES/croco_grd.nc'
+    croco_grd = '/Users/annelou/Documents/croco/croco_grd/croco_grd_roms.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 4,27,-40,-24
 
 # Dates limits
-Yorig = 2000                 # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 2005,1   # Starting month
-Yend, Mend  = 2005,2   # Ending month
+Yorig = 1950                # year defining the origin of time as: days since Yorig-01-01
+Ystart, Mstart = 1980,1   # Starting month
+Yend, Mend  = 1980,1   # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -131,6 +133,30 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
         dataxr = dataxr.rename({variables.get_var('lon') : 'lon'})
         dataxr = dataxr.rename({variables.get_var('lat') : 'lat'})
     
+    # Il y aura toujours lon et lat en variable mais pas forcement en dim (peut etre x,y notamment pour grille irreg et coord 2D)
+    lon_dim = dataxr['lon'].dims
+    lat_dim = dataxr['lat'].dims
+    
+    
+    # Script to know if irregular/regular grid
+    if len(lon_dim) == 2 and len(lat_dim) == 2:
+        irreg = 1
+        # Find the indices to cut longitudes and latitudes
+        # Only need the first time
+        var_temp = list(variables.raw_name.items())[2]
+        if var_temp[0] != 'lon' and var_temp[0] != 'lat':
+            ix_min,ix_max,iy_min,iy_max = ind_irreg_grid(dataxr.isel(time=0),var_temp[1],lon_min,lon_max,lat_min,lat_max)
+            
+        else:
+            print('Please put the longitude and the latitude in the 1st and 2nd place in Readers/aforc_reader.py')
+            sys.exit()
+    else:
+        
+        irreg = 0
+
+
+        
+        
     # loop on years
     for year_inprocess in range(Ystart,Yend+1): 
         
@@ -148,15 +174,26 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # ------------------------------------
 # SELECT AREA AND READ DATA OVER IT
 # ------------------------------------
-        if data_origin == 'era_ecmwf' or data_origin == 'cfsr' or data_origin == 'era_dwnld': # latitudes are from lat_max to lat_min
-            dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
-                                lon = slice(lon_min,lon_max) ,\
-                                lat = slice(lat_max,lat_min) )
-        else:
-            dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
-                                lon = slice(lon_min,lon_max) ,\
-                                lat = slice(lat_min,lat_max) )
+
+        if irreg == 0: # Regular grid : Coords = 1D array
+        # The selection is made by values
+        # First, will check if latitudes are inversed
         
+        
+            if dataxr['lat'][1].values > dataxr['lat'][0].values: # from lat_min to lat_max
+                dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
+                                    lon = slice(lon_min,lon_max) ,\
+                                    lat = slice(lat_min,lat_max) )
+            else:
+                dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
+                                    lon = slice(lon_min,lon_max) ,\
+                                    lat = slice(lat_max,lat_min) )                        
+        else: # Irregular grid : Coords = 2D array
+        # The selection is made by indices
+        # For now, suppose latitudes are from lat_min to lat_max
+            sel_args = {lon_dim[0]: slice(iy_min,iy_max),lon_dim[1]:slice(ix_min,ix_max)}
+            dataxr_inprocess = dataxr.sel(time=slice(start_date,end_date)).isel(**sel_args)
+            
         
         if output_file_format == 'MONTHLY':
             data_grouped = dataxr_inprocess.groupby('time.month')

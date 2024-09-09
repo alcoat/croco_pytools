@@ -77,6 +77,55 @@ def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_fi
     return input_file
 
 
+# -----------------------------------------------------------------------------
+# FUNCTIONS USED BY make_aforc.py TO FIND LON/LAT INDICES TO CUT IRREGULAR GRID
+# -----------------------------------------------------------------------------
+def ind_irreg_grid(dataxr,var,lonmin,lonmax,latmin,latmax):
+# dataxr : xarray.DataArray of one frame
+# var : any variable
+# lonmin,lonmax,latmin,latmax : values of wanted grid limits
+    data_mask = dataxr.where((dataxr.lat < latmax) & (dataxr.lat > latmin) & (dataxr.lon > lonmin) & (dataxr.lon < lonmax))
+    a = np.squeeze(data_mask[var].values)
+    # Find longitude min :
+    for i in range(len(a[0,:])):
+        if np.where(~np.isnan(a[:,i]))[0].size > 0:
+            print(str(i),'not empty')
+            xmin = i
+            if xmin != 0:
+                xmin = i -1
+            break
+    # Find longitude max :
+    for i in range(len(a[0,:])-1,-1,-1):
+        if np.where(~np.isnan(a[:,i]))[0].size > 0:
+            print(str(i),'not empty')
+            xmax = i +1
+            break
+    # Find latitude min :
+    for i in range(len(a[:,0])):
+        if np.where(~np.isnan(a[i,:]))[0].size > 0:
+            print(str(i),'not empty')
+            ymin = i
+            if ymin != 0:
+                ymin = i -1
+            break
+    # Find latitude max :
+    for i in range(len(a[:,0])-1,-1,-1):
+        if np.where(~np.isnan(a[i,:]))[0].size > 0:
+            print(str(i),'not empty')
+            ymax = i +1
+            break
+    try:
+        xmin,xmax,ymin,ymax
+    except NameError:
+        print("The croco_grid does not appear to be included in the atmospheric forcing grid.")
+        sys.exit()
+    
+    return xmin,xmax,ymin,ymax
+
+
+# ------------------------------------------------------
+# FUNCTIONS USED BY make_aforc.py TO PREPARE NEW NETCDF
+# ------------------------------------------------------
 def attr(data,var,variables,croco_variables):
 # data : xarray.DataArray of one variable
 # var : name of the variable
@@ -84,7 +133,7 @@ def attr(data,var,variables,croco_variables):
 # his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
 # croco_variables : dictionary with long name and unity of the variable \
 # (see ../Readers/croco_variables.json)
-    data.attrs = { 'units': croco_variables[variables.get_var(var)][1], 'long_name': croco_variables[variables.get_var(var)][0] }
+    data.attrs = { 'units': croco_variables[var][1], 'long_name': croco_variables[var][0] }
     data.name = var.upper()
     return data
 
