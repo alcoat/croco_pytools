@@ -53,7 +53,7 @@ import ibc_class as Inp
 
 # Dates
 # starting date
-Yini, Mini, Dini  = '2013','01','01' # Month and days need to be 2-digits format
+Yini, Mini, Dini, Hini  = '2013', '01', '01', '12' # Month and days need to be 2-digits format
 # reference time (default = ini time)
 Yorig, Morig, Dorig = Yini, Mini, Dini # Month and days need to be 2-digits format
 
@@ -112,8 +112,8 @@ if __name__ == '__main__':
                               tracers=tracers)
 
     # --- Handle initial time ---------------------------------------------
-    ini_date_num = datetime(int(Yini), int(Mini), int(Dini))
-    ini_date_num = plt.date2num(ini_date_num) + 0.5
+    ini_date_num = datetime(int(Yini), int(Mini), int(Dini),int(Hini))
+    ini_date_num = plt.date2num(ini_date_num)
 
     day_zero_num = datetime(int(Yorig), int(Morig), int(Dorig))
     day_zero_num = plt.date2num(day_zero_num)
