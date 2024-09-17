@@ -99,8 +99,8 @@ rend = plt.datetime.datetime(Yend,Mend,1,12,0,0)\
 # --- Load croco_grd --------------------------------------------------
 
 crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)))
-
-
+geolim = [crocogrd.lonmin()-0.1,crocogrd.lonmax()+0.1,
+          crocogrd.latmin()-0.1,crocogrd.latmax()+0.1]
 # --- Read input_data file --------------------------------------------
 data=np.genfromtxt(input_file,dtype=str,comments='#')
 if data.ndim==1:
@@ -134,7 +134,7 @@ for x in data:
             lat_river=np.append(lat_river,np.nan)
 
 # --- Read rivers data ------------------------------------------------
-river_obs=riv_tools.read_river(list_river_files,lon_river,lat_river,rstr,rend,time_units)
+river_obs=riv_tools.read_river(list_river_files,lon_river,lat_river,rstr,rend,time_units, geolim=geolim)
 
 # --- Get river default indexes on crocogrd ---------------------------
 river_obs=riv_tools.get_river_index(river_obs,crocogrd)
@@ -156,22 +156,22 @@ if river_file_format.upper() == "MONTHLY":
     endloc= startloc+relativedelta(months=1)
 elif river_file_format.upper() == "YEARLY":
     if plt.datetime.datetime.strptime(str(startloc), "%Y-%m-%d %H:%M:%S").year == int(Yend) :
-        endloc=plt.num2date(dtend).replace(tzinfo=None)
+        endloc=rend.replace(tzinfo=None)
     else:
         endloc= plt.datetime.datetime(int(start_date[:4])+1,1,1,0)
 elif river_file_format.upper() == "FULL":
-    endloc=plt.num2date(dtend).replace(tzinfo=None)
+    endloc=rend.replace(tzinfo=None)
 else:
     print("\n Output file format \"%s\" is not setup. Please change it to MONTHLY, YEARLY or FULL")
     sys.exit()
     # --- Loop on monthly/yearly/full data ----------------------------
-while plt.date2num(endloc) <= plt.date2num(rend)+0.5:
+while plt.date2num(endloc) <= plt.date2num(rend):
     loc_time=river_ext[list(river_ext.keys())[0]]['time']
     # find index for the time range
     ind= np.where((loc_time>=cftime.date2num(startloc,time_units)) & (loc_time<=cftime.date2num(endloc,time_units)))
 
     if len(ind[0])==0 :
-            print('\nData is missing for range %s to %s' % (startloc ,endloc))
+#            print('\nData is missing for range %s to %s' % (startloc ,endloc))
             sys.exit()
 
     [dtmin,dtmax]=np.min(ind),np.max(ind)
@@ -182,7 +182,7 @@ while plt.date2num(endloc) <= plt.date2num(rend)+0.5:
         river_outname = croco_dir+river_filename.replace('.nc', '_Y%sM%02i.nc' %(tmp_date.year,tmp_date.month))
     elif river_file_format.upper() == "YEARLY":
         river_outname = croco_dir+river_filename.replace('.nc', '_Y%s.nc' %(tmp_date.year))
-    elif output_file_format.upper() == "FULL":
+    elif river_file_format.upper() == "FULL":
         river_outname = croco_dir+river_filename
     Croco.CROCO.create_river_nc(None,river_outname,crocogrd,len(river_ext.keys()),add_ts)
 
@@ -215,12 +215,15 @@ while plt.date2num(endloc) <= plt.date2num(rend)+0.5:
         endloc= startloc+relativedelta(months=1)
     elif river_file_format.upper() == "YEARLY":
         yearloc=plt.datetime.datetime.strptime(str(startloc), "%Y-%m-%d %H:%M:%S")
-        if yearloc.year == int(Yend) :
-            endloc=plt.num2date(dtend).replace(tzinfo=None)
+        if startloc == rend:
+            endloc=startloc+relativedelta(days=1)
+        elif yearloc.year == int(Yend) :
+            endloc=rend.replace(tzinfo=None)
         else:
             endloc= plt.datetime.datetime(int(yearloc.year)+1, 1,1,0)
     elif river_file_format.upper() == "FULL":
-        endloc=startloc
+        endloc=startloc+relativedelta(days=1)
+    print('end')
 
 # --- Write runoff file for croco.in ----------------------------------
 riv_tools.write_croco_in(river_ext,croco_dir,river_filename)
