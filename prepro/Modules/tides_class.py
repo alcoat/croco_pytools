@@ -12,44 +12,44 @@ class getdata():
  
         self.var=dico.lookvar(inputdata) # Dictionary to find the names of the input variables
         if file_format =='Amp_Phase':
-            part1_suf='a'
-            part2_suf='p'
+            part1_suf = 'a'
+            part2_suf = 'p'
         elif file_format =='Re_Im':
-            part1_suf='r'
-            part2_suf='i'
+            part1_suf = 'r'
+            part2_suf = 'i'
         else:
             sys.exit('input_type must be Amp_Phase or Re_Im depending on what is in your input file(s)')
 
-        xr_list_ssh=[]
+        xr_list_ssh = []
         for inpt in inputfile:
             xr_list_ssh+=[xr.open_dataset(inpt)]
-        dataxr_ssh=xr.concat(xr_list_ssh,dim='ntides',data_vars='different')
+        dataxr_ssh = xr.concat(xr_list_ssh,dim='ntides',data_vars='different')
         
-        self.ncglo={'ssh_part1':eval(''.join(("dataxr_ssh."+self.var['H_'+part1_suf]))),\
+        self.ncglo = {'ssh_part1':eval(''.join(("dataxr_ssh."+self.var['H_'+part1_suf]))),\
                     'ssh_part2':eval(''.join(("dataxr_ssh."+self.var['H_'+part2_suf])))
                    }
         
         # Handling current variables
         if currentu is not None: 
-            xr_list_u=[]
-            xr_list_v=[]
+            xr_list_u = []
+            xr_list_v = []
             for inpt in currentu:
                 xr_list_u+=[xr.open_dataset(inpt)]
-            dataxr_u=xr.concat(xr_list_u,dim='ntides',data_vars='different')
+            dataxr_u = xr.concat(xr_list_u,dim='ntides',data_vars='different')
             for inpt in currentv:
                 xr_list_v+=[xr.open_dataset(inpt)]
-            dataxr_v=xr.concat(xr_list_v,dim='ntides',data_vars='different')
+            dataxr_v = xr.concat(xr_list_v,dim='ntides',data_vars='different')
      
-            self.ncglo['u_part1']=eval(''.join(("dataxr_u."+self.var['U_'+part1_suf])))
-            self.ncglo['u_part2']=eval(''.join(("dataxr_u."+self.var['U_'+part2_suf])))
-            self.ncglo['v_part1']=eval(''.join(("dataxr_v."+self.var['V_'+part1_suf])))
-            self.ncglo['v_part2']=eval(''.join(("dataxr_v."+self.var['V_'+part2_suf])))
+            self.ncglo['u_part1'] = eval(''.join(("dataxr_u."+self.var['U_'+part1_suf])))
+            self.ncglo['u_part2'] = eval(''.join(("dataxr_u."+self.var['U_'+part2_suf])))
+            self.ncglo['v_part1'] = eval(''.join(("dataxr_v."+self.var['V_'+part1_suf])))
+            self.ncglo['v_part2'] = eval(''.join(("dataxr_v."+self.var['V_'+part2_suf])))
             
             if 'tpxo' in inputdata and \
                'transport' in self.ncglo['u_part1'].long_name:
             # set transport to velocity           
                 print('Looking for grid file')
-                grd_file=glob.glob(
+                grd_file = glob.glob(
                              currentu[0].replace(currentu[0].split('/')[-1],
                              'grid*'))
                 # check transport units to change to m2/s
@@ -65,34 +65,37 @@ class getdata():
                 try:
 #                   if len(grd_file)>0 and os.path.exists(grd_file[0]):
                     print('Found '+grd_file[0]+' for grid file')
-                    xar=xr.open_dataset(grd_file[0])
-                    hu=eval(''.join((f"xar.{self.var['topou']}")))
-                    hv=eval(''.join((f"xar.{self.var['topov']}")))
+                    xar = xr.open_dataset(grd_file[0])
+                    hu = eval(''.join((f"xar.{self.var['topou']}")))
+                    hv = eval(''.join((f"xar.{self.var['topov']}")))
                 except:
                     try:
-                        hu=eval(''.join((f"dataxr_u.{self.var['topou']}")))
-                        hv=eval(''.join((f"dataxr_v.{self.var['topov']}")))
+                        hu = eval(''.join((f"dataxr_u.{self.var['topou']}")))
+                        hv = eval(''.join((f"dataxr_v.{self.var['topov']}")))
                     except:
                         try:
-                            hu=eval(''.join((f"dataxr_u.{self.var['topor']}")))
-                            hv=eval(''.join((f"dataxr_v.{self.var['topor']}")))
+                            hu = eval(''.join((f"dataxr_u.{self.var['topor']}")))
+                            hv = eval(''.join((f"dataxr_v.{self.var['topor']}")))
                         except:
                             try:
-                                hu=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
-                                hv=eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
+                                hu = eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
+                                hv = eval(''.join((f"dataxr_ssh.{self.var['topor']}")))
                             except:
                                 sys.exit('Need either a grid file or topo in tpxo file to correct transport.') 
-                self.ncglo['u_part1']=self.ncglo['u_part1']/coef**2/hu.values
-                self.ncglo['u_part1'].attrs['units']='meter/sec'
-                self.ncglo['u_part2']=self.ncglo['u_part2']/coef**2/hu.values
-                self.ncglo['u_part2'].attrs['units']='meter/sec'
-                self.ncglo['v_part1']=self.ncglo['v_part1']/coef**2/hv.values
-                self.ncglo['v_part1'].attrs['units']='meter/sec'
-                self.ncglo['v_part2']=self.ncglo['v_part2']/coef**2/hv.values
-                self.ncglo['v_part2'].attrs['units']='meter/sec'                    
+
+                hu = np.ma.masked_where(hu==0,hu)
+                hv = np.ma.masked_where(hv==0,hv)
+                self.ncglo['u_part1'] = self.ncglo['u_part1']/coef**2/hu
+                self.ncglo['u_part1'].attrs['units'] = 'meter/sec'
+                self.ncglo['u_part2'] = self.ncglo['u_part2']/coef**2/hu
+                self.ncglo['u_part2'].attrs['units'] = 'meter/sec'
+                self.ncglo['v_part1'] = self.ncglo['v_part1']/coef**2/hv
+                self.ncglo['v_part1'].attrs['units'] = 'meter/sec'
+                self.ncglo['v_part2'] = self.ncglo['v_part2']/coef**2/hv
+                self.ncglo['v_part2'].attrs['units'] = 'meter/sec'                    
         # If all waves are in one file, reads period along record dimension 
         if len(inputfile)==1 and self.ncglo['ssh_part1'].ndim ==3:
-            rcd_dim=self.ncglo['ssh_part1'].dims[0]
+            rcd_dim = self.ncglo['ssh_part1'].dims[0]
             self.ntides = np.array((eval(''.join(("dataxr_ssh."+rcd_dim+".data")))))
        
         # If len(inputfile)==1 and wave dimension is 2-d, need to add a dummy dimension   
@@ -108,45 +111,45 @@ class getdata():
                 if 'part2' in key:
                     if file_format =='Amp_Phase':
                         print('looking at Phase. Assume it is in degree')
-                        uni='degrees'
+                        uni = 'degrees'
                     else:
                         if 'u' in self.ncglo[key] or 'v' in self.ncglo[key]: 
                             print('looking at velocity Imaginary part. Assume it is in meter.second-1')
-                            uni='meter.second-1'
+                            uni = 'meter.second-1'
                         else:
                             print('looking at Imaginary part. Assume it is in meter')
-                            uni='meter'
+                            uni = 'meter'
                 elif 'part1' in key:
                     if file_format =='Amp_Phase':
                         if 'u' in self.ncglo[key] or 'v' in self.ncglo[key]:
                             print('looking at a velocity amplitude. Assume it is in meter.second-1')
-                            uni='meter.second-1'
+                            uni = 'meter.second-1'
                         elif 'ssh' in self.ncglo[key]:
                             print('looking at an Elevation. Assume it is in meter')
-                            uni='meter'
+                            uni = 'meter'
                     else:
                         if 'u' in self.ncglo[key] or 'v' in self.ncglo[key]:
                             print('looking at velocity Real part. Assume it is in meter.second-1')
-                            uni='meter.second-1'
+                            uni = 'meter.second-1'
                         else:
                             print('looking at Real part. Assume it is in meter')
-                            uni='meter'
+                            uni = 'meter'
 
             if uni.lower() in ['millimeters','millimeter','mm']:
                 print('converting %s to meter' % uni)
-                self.ncglo[key]=self.ncglo[key]/1000
+                self.ncglo[key] = self.ncglo[key]/1000
             elif uni.lower() in ['centimeters','centimeter','cm']:
                 print('converting %s to meter' % uni)
-                self.ncglo[key]=self.ncglo[key]/100
+                self.ncglo[key] = self.ncglo[key]/100
             elif uni.lower() in ['degrees','degree']:
                 print('converting %s to radian' % uni)
-                self.ncglo[key]=self.ncglo[key]*np.pi/180
+                self.ncglo[key] = self.ncglo[key]*np.pi/180
             elif uni.lower() in ['centimeter.second-1', 'cm.s-1','centimeters/second','cm/s','centimeter/sec','centimeters/sec']:
                 print('converting %s to meter.second-1' % uni)
-                self.ncglo[key]=self.ncglo[key]/100
+                self.ncglo[key] = self.ncglo[key]/100
             elif uni.lower() in ['millimeter.second-1', 'mm.s-1','millimeters/second','mm/s','milliimeter/sec','millimeters/sec']:
                 print('converting %s to meter.second-1' % uni)
-                self.ncglo[key]=self.ncglo[key]/1000
+                self.ncglo[key] = self.ncglo[key]/1000
          
 
         [self.lonT ,self.latT ,self.idmin ,self.idmax ,self.jdmin ,self.jdmax ,self.period ]  = self.handle_periodicity(crocogrd,dataxr_ssh,'r')
@@ -158,26 +161,26 @@ class getdata():
         # Checking that var in format [ntides,lat,lon] 
         for key in self.ncglo:
             if 'u' in self.ncglo[key]:
-                nx=eval(''.join(("dataxr_u."+self.var['lonu']))).shape[0]
-                ny=eval(''.join(("dataxr_u."+self.var['latu']))).shape[-1]
+                nx = eval(''.join(("dataxr_u."+self.var['lonu']))).shape[0]
+                ny = eval(''.join(("dataxr_u."+self.var['latu']))).shape[-1]
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
-                    dim=self.ncglo[key].dims
-                    self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])
+                    dim = self.ncglo[key].dims
+                    self.ncglo[key] = self.ncglo[key].transpose(dim[0],dim[2],dim[1])
             elif 'v' in self.ncglo[key]:
-                nx=eval(''.join(("dataxr_v."+self.var['lonv']))).shape[0]
-                ny=eval(''.join(("dataxr_v."+self.var['latv']))).shape[-1]
+                nx = eval(''.join(("dataxr_v."+self.var['lonv']))).shape[0]
+                ny = eval(''.join(("dataxr_v."+self.var['latv']))).shape[-1]
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
-                    dim=self.ncglo[key].dims
-                    self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])
+                    dim = self.ncglo[key].dims
+                    self.ncglo[key] = self.ncglo[key].transpose(dim[0],dim[2],dim[1])
             else:
-                nx=eval(''.join(("dataxr_ssh."+self.var['lonr']))).shape[0]
-                ny=eval(''.join(("dataxr_ssh."+self.var['latr']))).shape[-1]
+                nx = eval(''.join(("dataxr_ssh."+self.var['lonr']))).shape[0]
+                ny = eval(''.join(("dataxr_ssh."+self.var['latr']))).shape[-1]
                 if (self.ncglo[key][:].shape[1] != ny and self.ncglo[key][:].shape[2] != nx ) and (self.ncglo[key][:].shape[1] == nx and self.ncglo[key][:].shape[2] == ny):
                     print('%s in format [ntides,Lon,Lat], switching Lon/Lat axes' % key)
-                    dim=self.ncglo[key].dims
-                    self.ncglo[key]=self.ncglo[key].transpose(dim[0],dim[2],dim[1])       
+                    dim = self.ncglo[key].dims
+                    self.ncglo[key] = self.ncglo[key].transpose(dim[0],dim[2],dim[1])       
         
     def ap2ep(self,Au, PHIu, Av, PHIv):
         '''
@@ -242,27 +245,27 @@ class getdata():
         """
         Conversion of fortran tools indx_bound
         """
-        n=x.shape[0]
+        n = x.shape[0]
         if x0 < x[0] :
-            i=-1                     # if x0 is outside the full range
+            i = -1                     # if x0 is outside the full range
         elif x0 > x[-1] :            # of x(1) ... x(n), then return
-            i=n                      # i=0 or i=n.
+            i = n                      # i=0 or i=n.
         else:
             i=int( ( x[-1]-x0 +(n-1)*(x0-x[0]) )/(x[-1]-x[0]) )
             if x[i+1]<x0 :
                 while x[i+1] <x0 :  # This algorithm computes "i" as
-                    i=i+1           # linear interpolation between x(1)
+                    i = i+1           # linear interpolation between x(1)
                                     # and x(n) which should yield the
             elif x[i] > x0 :        # correct value for "i" right a way
                 while x[i] > x0 :   # because array elements x(i) are
-                    i=i-1           # equidistantly spaced.  The while
+                    i = i-1           # equidistantly spaced.  The while
                                     # loops are here merely to address
                                     # possible roundoff errors.
 
             if x[i+1]-x0 < 0 or x0-x[i] < 0 :
                 print('### ERROR: indx_bound :: ',x[i], x0, x[i+1], x0-x[i], x[i+1]-x0)
                 sys.exit()
-        indx_bound=i
+        indx_bound = i
         return indx_bound
 
 
@@ -300,43 +303,43 @@ class getdata():
                 
         for i in range(1,lon.shape[0]): # Fix discontinuity
             if lon[i]<lon[i-1]:        # between 180/-180 in the
-                lon[i]=lon[i]+360      # middle
+                lon[i] = lon[i]+360      # middle
         ####
-        geolim=[crocogrd.lonmin(),crocogrd.lonmax(),crocogrd.latmin(),crocogrd.latmax()]
+        geolim = [crocogrd.lonmin(),crocogrd.lonmax(),crocogrd.latmin(),crocogrd.latmax()]
 
-        jmin=self.indx_bound(lat.data, geolim[2])
-        jmax=self.indx_bound(lat.data, geolim[-1])
+        jmin = self.indx_bound(lat.data, geolim[2])
+        jmax = self.indx_bound(lat.data, geolim[-1])
         
         if -1<jmin and jmin<lat.shape[0] and \
            -1<jmax and jmax<lat.shape[0] :
             if jmin > 1 :
-                jmin=jmin-1
-            jmax=jmax+2
+                jmin = jmin-1
+            jmax = jmax+2
         else:
             print('North-south extents of the dataset ',lat.data[0],lat.data[-1],' are not sufficient to cover the entire model grid.')
             sys.exit()
         ####
-        imin=self.indx_bound(lon, geolim[0])
-        imax=self.indx_bound(lon, geolim[1])
+        imin = self.indx_bound(lon, geolim[0])
+        imax = self.indx_bound(lon, geolim[1])
 
         if -1<imin and imin<lon.shape[0] and \
            -1<imax and imax<lon.shape[0] :
             if imin > 0:
-                imin=imin-1
-            imax=imax+1
-            shft_west=0 ; shft_east=0 ; period=0
+                imin = imin-1
+            imax = imax+1
+            shft_west = 0 ; shft_east = 0 ; period = 0
             print('Single region dataset imin/imax=',imin,imax)
         else:
         ######
-            ptest=lon[-1]-lon[0]-360
-            dx=(lon[-1]-lon[0])/(lon.shape[0]-1)
-            epsil=0.01*abs(dx)
+            ptest = lon[-1]-lon[0]-360
+            dx = (lon[-1]-lon[0])/(lon.shape[0]-1)
+            epsil = 0.01*abs(dx)
             if abs(ptest) < epsil :
-                period=lon.shape[0]-1
+                period = lon.shape[0]-1
             elif abs(ptest+dx) < epsil :
-                period=lon.shape[0]
+                period = lon.shape[0]
             else:
-                period=0
+                period = 0
 
             if period>0:
                 print('Identified periodicity domain in data of ', period,' points out of', lon.shape[0])
@@ -346,95 +349,95 @@ class getdata():
         ##
             shft_west=0
             if imin==-1 :
-                shft_west=-1
+                shft_west = -1
                 imin=self.indx_bound(lon, geolim[0]+360)
                 if imin == lon.shape[0]: imin = lon.shape[0]-1
             elif imin==lon.shape[0] :
-                shft_west=+1
+                shft_west = +1
                 imin=self.indx_bound(lon, geolim[0]-360)
                 if imin == -1: imin = lon.shape[0]-1
         ##
             shft_east=0
             if imax == -1:
-                shft_east=-1
+                shft_east = -1
                 imax=self.indx_bound(lon, geolim[1]+360)
                 if imax == lon.shape[0]: imax = 0
             elif imax == lon.shape[0]:
-                shft_east=+1
+                shft_east = +1
                 imax=self.indx_bound(lon, geolim[1]-360)
                 if imax == -1: imax = 0
     
             if -1<imin and imin<lon.shape[0] and \
                -1<imax and imax<lon.shape[0] :
                 if imin>0:
-                    imin=imin-1
-                imax=imax+1
+                    imin = imin-1
+                imax = imax+1
             else:
                 print('ERROR: Data longitude covers 360 degrees, but still cannot find  starting and ending indices.')
                 sys.exit()
 
         print('Bounding indices of the relevant part to be extracted from the entire dataset:\n', 
               'imin,imax =', imin,imax,'out of', lon.shape[0],'jmin,jmax =',jmin,jmax, 'out of',lat.shape[0])
-        ny_lat=jmax-jmin+1
-        start2=jmin ; end2=start2+ny_lat; count2=ny_lat
-        lat_tmp=np.zeros([ny_lat])
+        ny_lat = jmax-jmin+1
+        start2 = jmin ; end2 = start2+ny_lat; count2 = ny_lat
+        lat_tmp = np.zeros([ny_lat])
         for j in range(0,ny_lat):
-            lat_tmp[j]=lat[j+jmin]
+            lat_tmp[j] = lat[j+jmin]
         #####
         if imin < imax :
-            nx_lon=imax-imin+1
-            start1=imin ; end1=start1+nx_lon ; count1=nx_lon
+            nx_lon = imax-imin+1
+            start1 = imin ; end1 = start1+nx_lon ; count1 = nx_lon
 
-            ishft=imin
-            lon_tmp=np.zeros([nx_lon])
+            ishft = imin
+            lon_tmp = np.zeros([nx_lon])
             if shft_west>0 and shft_east>0:
                 for i in range(0,nx_lon):
-                    lon_tmp[i]=lon[i+ishft] +360
+                    lon_tmp[i] = lon[i+ishft] +360
             elif shft_west<0 and shft_east<0:
                 for i in range(0,nx_lon):
-                     lon_tmp[i]=lon[i+ishft]-360
-            elif shft_west== 0 and shft_east==0:
+                     lon_tmp[i] = lon[i+ishft]-360
+            elif shft_west==0 and shft_east==0:
                 for i in range(0,nx_lon) :
-                    lon_tmp[i]=lon[i+ishft]
+                    lon_tmp[i] = lon[i+ishft]
             else:
                 print('Error in shifting algoritm')
                 sys.exit()
-            (lon,lat)=np.meshgrid(lon_tmp,lat_tmp)
+            (lon,lat) = np.meshgrid(lon_tmp,lat_tmp)
         ###
         elif imin>imax:
             print('Reading topography in two separate parts adjacent through 360-degree periodicity\n First...' )
-            nx_lon=imax+period-imin+1
+            nx_lon = imax+period-imin+1
             xtmp  = np.zeros([nx_lon])
-            start1=0 ; end1=start1+nx_lon; count1=imax
-            ishft=nx_lon-count1-1
+            start1 = 0 ; end1 = start1+nx_lon; count1 = imax
+            ishft = nx_lon-count1-1
             if shft_east>0:
                 for i in range(0,count1):
-                    xtmp[i+ishft]=lon[i] +360
+                    xtmp[i+ishft] = lon[i] +360
             elif shft_east<0:
                 for i in range(0,count1):
-                    xtmp[i+ishft]=lon[i] -360
+                    xtmp[i+ishft] = lon[i] -360
             else:
                 for i in range(0,count1):
-                    xtmp[i+ishft]=lon[i]
+                    xtmp[i+ishft] = lon[i]
 
             print('Second...')
-            start1=imin ; count1=period-imin; end1=start1+count1
-            ishft=imin
+            start1 = imin ; count1 = period-imin; end1 = start1+count1
+            ishft = imin
             if shft_west>0:
                 for i in range(0,count1):
-                    xtmp[i]=lon[i+ishft] +360
+                    xtmp[i] = lon[i+ishft] +360
             elif shft_west<0 :
                 for i in range(0,count1):
-                    xtmp[i]=lon[i+ishft] -360
+                    xtmp[i] = lon[i+ishft] -360
             else:
                 for i in range(0,count1):
-                    xtmp[i]=lon[i+ishft]
-            lon_tmp=np.zeros([xtmp.shape[0]])
+                    xtmp[i] = lon[i+ishft]
+            lon_tmp = np.zeros([xtmp.shape[0]])
             for i in range(0,nx_lon):
-                lon_tmp[i]=xtmp[i]
+                lon_tmp[i] = xtmp[i]
 
             del lon,lat
-            (lon,lat)=np.meshgrid(lon_tmp,lat_tmp)
+            (lon,lat) = np.meshgrid(lon_tmp,lat_tmp)
     
         return lon,lat,imin,imax,jmin,jmax,period
 
@@ -445,78 +448,78 @@ class getdata():
         by runing 
         '''
         if vname in ['u','u_part1','u_part2']:
-            imin=eval(''.join(("self.idminU"+bdy))) ; imax=eval(''.join(("self.idmaxU"+bdy)))
-            jmin=eval(''.join(("self.jdminU"+bdy))) ; jmax=eval(''.join(("self.jdmaxU"+bdy)))
-            period=eval(''.join(("self.periodU"+bdy))); grdid='u'
+            imin = eval(''.join(("self.idminU"+bdy))) ; imax = eval(''.join(("self.idmaxU"+bdy)))
+            jmin = eval(''.join(("self.jdminU"+bdy))) ; jmax = eval(''.join(("self.jdmaxU"+bdy)))
+            period = eval(''.join(("self.periodU"+bdy))); grdid = 'u'
         elif vname in ['v','v_part1','v_part2']:
-            imin=eval(''.join(("self.idminV"+bdy))) ; imax=eval(''.join(("self.idmaxV"+bdy)))
-            jmin=eval(''.join(("self.jdminV"+bdy))) ; jmax=eval(''.join(("self.jdmaxV"+bdy)))
-            period=eval(''.join(("self.periodV"+bdy)));grdid='v'
+            imin = eval(''.join(("self.idminV"+bdy))) ; imax = eval(''.join(("self.idmaxV"+bdy)))
+            jmin = eval(''.join(("self.jdminV"+bdy))) ; jmax = eval(''.join(("self.jdmaxV"+bdy)))
+            period = eval(''.join(("self.periodV"+bdy)));grdid = 'v'
         else:
-            imin=eval(''.join(("self.idmin"+bdy))) ; imax=eval(''.join(("self.idmax"+bdy)))
-            jmin=eval(''.join(("self.jdmin"+bdy))) ; jmax=eval(''.join(("self.jdmax"+bdy)))
-            period=eval(''.join(("self.period"+bdy)));grdid='r'
+            imin = eval(''.join(("self.idmin"+bdy))) ; imax = eval(''.join(("self.idmax"+bdy)))
+            jmin = eval(''.join(("self.jdmin"+bdy))) ; jmax = eval(''.join(("self.jdmax"+bdy)))
+            period = eval(''.join(("self.period"+bdy)));grdid = 'r'
         
         try:
-            mintime=min(l);maxtime=max(l)+1
+            mintime = min(l);maxtime = max(l)+1
         except:
-            mintime=l;maxtime=l+1
+            mintime = l;maxtime = l+1
 
-        ny_lat=jmax-jmin+1
-        start2=jmin ; end2=start2+ny_lat; count2=ny_lat
+        ny_lat = jmax-jmin+1
+        start2 = jmin ; end2 = start2+ny_lat; count2 = ny_lat
 
         if imin < imax :
-            nx_lon=imax-imin+1
-            start1=imin ; end1=start1+nx_lon ; count1=nx_lon
+            nx_lon = imax-imin+1
+            start1 = imin ; end1 = start1+nx_lon ; count1 = nx_lon
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
         elif imin>imax:    
-            nx_lon=imax+period-imin+1
+            nx_lon = imax+period-imin+1
             try:
-                lent=l.shape[0]
+                lent = l.shape[0]
                 ftmp = np.zeros([lent,ny_lat,nx_lon])
             except:
                 ftmp = np.zeros([ny_lat,nx_lon])
             # First
-            start1=0 ; end1=start1+nx_lon; count1=imax 
+            start1 = 0 ; end1 = start1+nx_lon; count1 = imax 
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
                     for i in range(0,count1):
-                        ftmp[j,nx_lon-imax+i-1]=field[j,i]
+                        ftmp[j,nx_lon-imax+i-1] = field[j,i]
             else:
                 for j in range(0,count2):
                     for i in range(0,count1):
-                        ftmp[:,j,nx_lon-imax+i-1]=field[:,j,i]
+                        ftmp[:,j,nx_lon-imax+i-1] = field[:,j,i]
 
             del field
 
             # Second
-            start1=imin ; count1=period-imin; end1=start1+count1
+            start1 = imin ; count1 = period-imin; end1 = start1+count1
             if k==-1:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,start2:end2,start1:end1]))
             else:
-                field=np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
+                field = np.array(np.squeeze(self.ncglo[vname][mintime:maxtime,k,start2:end2,start1:end1]))
 
             if len(ftmp.shape)<3:
                 for j in range(0,count2):
                     for i in range(0,count1):
-                        ftmp[j,i]=field[j,i]
+                        ftmp[j,i] = field[j,i]
             else:
                 for j in range(0,count2):
                     for i in range(0,count1):
-                        ftmp[:,j,i]=field[:,j,i]
+                        ftmp[:,j,i] = field[:,j,i]
 
             del field
 
-            field=np.copy(ftmp)
+            field = np.copy(ftmp)
 
         return field
 
@@ -546,8 +549,8 @@ class getdata():
                 3.463115091,1.731557546,1.499093481,5.194672637,\
                 6.926230184,1.904561220,0.000000000,4.551627762,\
                 3.809122439,0.,3.913707,5.738991])
-            cbt=0
-            fwav=['m2','s2','k1','o1','n2','p1','k2','q1','_2n2','mu2','nu2','l2',\
+            cbt = 0
+            fwav = ['m2','s2','k1','o1','n2','p1','k2','q1','_2n2','mu2','nu2','l2',\
                   't2','j1','m1','oo1','rho1','mf','mm','ssa','m4','ms4','mn4','m6',\
                   'm8','mk3','s6','_2sm2','_2mk3','s1','_2q1','m3']
 
@@ -558,7 +561,7 @@ class getdata():
         # Time in Modified Julian Date
         # To compute lunar position time should be in days relatively Jan 1 2000 12:00:00
 #        timetemp=cftime.date2num(date_ini,'days since 2000-01-01:12:00:00')
-        timetemp=cftime.date2num(date_ini,'days since 1858-11-17:00:00:00')-51544.4993
+        timetemp = cftime.date2num(date_ini,'days since 1858-11-17:00:00:00')-51544.4993
         # mean longitude of lunar perigee
         P =  83.3535 +  0.11140353 * timetemp;
         P = np.mod(P,360.0)
@@ -672,16 +675,16 @@ class getdata():
            pu = np.arctan(-(.203*sinn+.040*sin2n)/(one+.203*cosn+.040*cos2n))
         else:
             print('No phase correction for wave %s' % input_wav)        
-            pu=0
+            pu = 0
         
         try:
-            mkb=eval(''.join(('phase_mkb.',input_wav.lower())))
+            mkb = eval(''.join(('phase_mkb.',input_wav.lower())))
         except:
             try:
-                mkb=eval(''.join(('phase_mkb._',input_wav.lower())))
+                mkb = eval(''.join(('phase_mkb._',input_wav.lower())))
             except:
                 print('No phase_mkB defined for wave %s' % input_wav)
-                mkb=0
+                mkb = 0
 
         return pf,pu,mkb
 
@@ -697,7 +700,7 @@ class getdata():
             
         '''
 
-        amp=np.array([0.242334,0.112743,0.141565,0.100661,\
+        amp = np.array([0.242334,0.112743,0.141565,0.100661,\
                       0.046397,0.046848,0.030684,0.019273,\
                       0.006141,0.007408,0.008811,0.006931,\
                       0.006608,0.007915,0.007915,0.004338,\
@@ -706,7 +709,7 @@ class getdata():
                       0.,0.,0.,0.,\
                       0.,7.6464e-04,0.002565,0.003192])
 
-        elas=np.array([0.693,0.693,0.736,0.695,\
+        elas = np.array([0.693,0.693,0.736,0.695,\
                        0.693,0.706,0.693,0.695,\
                        0.693,0.693,0.693,0.693,\
                        0.693,0.695,0.695,0.695,\
@@ -716,7 +719,7 @@ class getdata():
                        0.693,0.693,0.693,0.802])
 
         cbt=0
-        fwav=['m2','s2','k1','o1','n2','p1','k2','q1','_2n2','mu2','nu2','l2',\
+        fwav = ['m2','s2','k1','o1','n2','p1','k2','q1','_2n2','mu2','nu2','l2',\
               't2','j1','m1','oo1','rho1','mf','mm','ssa','m4','ms4','mn4','m6',\
               'm8','mk3','s6','_2sm2','_2mk3','s1','_2q1','m3']
 

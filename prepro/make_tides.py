@@ -49,7 +49,7 @@ import tides_class as Inp
 
 # Dates
 # Origin year
-Yorig = 2000 # 1900 if TIDES_MAS defined in cppdef.h
+Yorig, Morig, Dorig = 2000, 1, 1 # 1900,1,1 if TIDES_MAS OR ANA_INITIAL+USE_CALENDAR defined in cppdef.h
 # Initial date
 Yini, Mini, Dini = 2013, 1, 1
 
@@ -63,7 +63,7 @@ Yini, Mini, Dini = 2013, 1, 1
 inputdata = 'tpxo7_croco' # Input data dictionnary as defined in the Readers/tides_reader.py
 input_dir = '../../DATASETS_CROCOTOOLS/TPXO7/'
 input_file = 'TPXO7.nc' # Leave empty if you have multiple files
-input_type = 'Re_Im' # Format of the input data 'Amp_phase'or 'Re_Im'
+input_type = 'Re_Im' # Format of the input data 'Amp_Phase'or 'Re_Im'
 multi_files  = False # Set to True if several input files
 if multi_files: 
     waves_separated = True # Set to True if input files waves are separated
@@ -163,7 +163,7 @@ Croco.CROCO.create_tide_nc(None,''.join((croco_dir+croco_filename)),crocogrd,cur
 
 if Correction_ssh or Correction_uv:
     date=cftime.datetime(Yini,Mini,Dini)
-    date_orig=cftime.datetime(Yorig,1,1)
+    date_orig=cftime.datetime(Yorig,Morig,Dorig)
 
 todo=['H']
 
