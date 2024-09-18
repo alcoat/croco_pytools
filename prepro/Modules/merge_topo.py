@@ -62,7 +62,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
 
 
 # ──────────────────────────────────────────────────────────
-# ▶ SECTION 1: Récupération des données◀
+# ▶ SECTION 1: Data recovery and conversion◀
 # ──────────────────────────────────────────────────────────
 
     # Open the datasets
@@ -129,9 +129,9 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
 
 
 
-# ──────────────────────────────────────────────────────────
-# ▶ SECTION 2: INTERPOLATION DE LA GRILLE 2 A lA RESOLUTION DE LA GRILLE 1 ◀
-# ──────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
+# ▶ SECTION 2: INTERPOLATION OF GRID 2 TO THE RESOLUTION OF GRID 1  ◀
+# ────────────────────────────────────────────────────────────────────
 
     # Switching the resolution of grid 2 to match the high-resolution grid (grid 1)
     
@@ -159,8 +159,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Interpolate ds2 data onto the new grid
     z2_interp = griddata((lon_flat_2, lat_flat_2), z_flat_2, (new_lon_grid_2, new_lat_grid_2), method='nearest')
 
-# ──────────────────────────────────────────────────────────
-# ▶ SECTION 3: INTEGRATION DES DONNEES HATE RESOLUTION DANS LA GRILLE 2 INTERPOLEE◀
+# ───────────────────────────────────────────────────────────────
+# ▶ SECTION 3: HIGH RESOLUTION DATA INTEGRATION IN NEW GRID◀
 # ──────────────────────────────────────────────────────────
 
     # Extract lon, lat, and z data from the high-resolution grid (ds1)
@@ -199,7 +199,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     z2_interp[mask_overlap] = z1_interp_on_z2_overlap
 
 # ──────────────────────────────────────────────────────────
-# ▶ SECTION 4: REMPLACER NAN DANS LA ZONE HAUTE RESOLUTION PAR DATA DE LA GRILLE BASSE RESOLUTION + LISSAGE ◀
+# ▶ SECTION 4: REPLACE NAN IN THE HIGH-RESOLUTION ZONE WITH DATA FROM THE LOW-RESOLUTION GRID + SMOOTHING ◀
 # ──────────────────────────────────────────────────────────
 
     #Function used to catch NaNs in high_res wich can be filled and smooth thanks to low_res data, and do that
@@ -292,7 +292,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
 
 
 # ──────────────────────────────────────────────────────────
-# ▶ SECTION 5: COMBLER LES NANs RESTANTS ◀
+# ▶ SECTION 5: FILLING THE REMAINING NANs◀
 # ──────────────────────────────────────────────────────────
 
     # Create axes for the coordinates
