@@ -398,8 +398,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     coords_buffer = np.array(np.where(mask_buffer)).T
     
     # Get values from z2_interp at the border points
-    values_inner = z_less_nan_bis[border_buffer_inner]
-    values_outer = z_less_nan_bis[border_buffer_ext]
+    values_inner = z[border_buffer_inner]
+    values_outer = z[border_buffer_ext]
     
     # Build KDTree for inner and outer borders
     tree_border_inner = cKDTree(coords_border_inner)
@@ -487,14 +487,17 @@ def mblend_smoothing(high_res, low_res, far_edge, output_file, gisbase, EPSG_num
                     sits on the middle of the low resolution DEM) a lower number may produce a more regular blend.
     
     """
-    
-    import subprocess
-    import shutil
-    import binascii
-    import tempfile
-    import grass.script as gscript
-    import grass.script.setup as gsetup
-    
+
+    try:
+        import subprocess
+        import shutil
+        import binascii
+        import tempfile
+        import grass.script as gscript
+        import grass.script.setup as gsetup
+    except ImportError as e:
+        print(f"Required module is missing: {e}. Please install GRASS GIS and related dependencies.")
+
     # Configuration paths for GRASS GIS
     gisdbase = tempfile.mkdtemp()  # Create a temporary directory for the GRASS GIS database
     
