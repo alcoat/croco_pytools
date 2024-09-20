@@ -10,6 +10,7 @@ import pyinterp
 import pyinterp.backends.xarray
 # Module that handles the filling of undefined values.
 import pyinterp.fill
+import gc
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
@@ -254,6 +255,10 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Replace the values in z2_interp (low-res grid) with those from grid 1 in the overlapping region
     z2_interp[mask_overlap] = z1_interp_on_z2_overlap
 
+    #---> Clean memory:
+    del z1_interp_on_z2_overlap, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
+    gc.collect()
+
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 4: REPLACE NAN IN THE HIGH-RESOLUTION ZONE WITH DATA FROM THE LOW-RESOLUTION GRID + SMOOTHING ◀
 # ──────────────────────────────────────────────────────────
@@ -263,16 +268,21 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     def nan_buffer_linear_pond(blended_data, low_res_interp, buffer_width):
         # Create a mask for NaN values in blended_data where low_res_interp has values
         mask_nan = np.isnan(blended_data) & ~np.isnan(low_res_interp)
-        new_z = blended_data.copy()
+        new_z = blended_data
         
         # Create a structuring element of size buffer_width x buffer_width
-        structure = np.ones((buffer_width, buffer_width), dtype=bool)  # Structuring element for erosion and dilation
-        
-        # Apply binary erosion to the NaN mask
+        structure = np.ones((3, 3), dtype=bool)  # Structuring element for erosion and dilation
         mask_eroded = binary_erosion(mask_nan, structure=structure)
+
+        for i in range(0,buffer_width-1):
+            mask_eroded = binary_erosion(mask_eroded, structure=structure)
         
         # Apply binary dilation to the eroded mask
         mask_dilated = binary_dilation(mask_eroded, structure=structure)
+        
+        for i in range(0,buffer_width-1):
+            mask_eroded = binary_erosion(mask_eroded, structure=structure)
+        
         
         # Compute the transition mask as the difference between dilated and eroded masks
         mask_transition = mask_dilated & ~mask_eroded
@@ -346,20 +356,31 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Apply buffer with width 2
     z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=2)
 
+    print('Group of Nans in the high resolution grid have been filled with lower resolution grid data and smoothed')
+
+    #---> Clean memory:
+    del z2_save, z2_interp
+    gc.collect()
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 5: FILLING THE REMAINING NANs◀
 # ──────────────────────────────────────────────────────────
 
     # Create axes for the coordinates
-    lon_axis = pyinterp.Axis(np.unique(np.ravel(new_lon_grid_2)))
-    lat_axis = pyinterp.Axis(np.unique(np.ravel(new_lat_grid_2)))
+    lon_axis = pyinterp.Axis(np.ravel(new_lon_2))
+    lat_axis = pyinterp.Axis(np.ravel(new_lat_2))
     
     # Create a Grid2D object with the axes
     data = pyinterp.Grid2D(lat_axis, lon_axis, z_less_nan)
     
     # Apply LOESS interpolation with a 3x3 grid
     z = pyinterp.fill.loess(data, nx=3, ny=3)
+
+    print('The ponctual Nans have been filled with loess interpolation method')
+
+    #---> Clean memory:
+    del data, lon_axis, lat_axis
+    gc.collect()
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 6: BUFFER ZONE SMOOTHING ◀
@@ -442,6 +463,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Exclude the overlap area from the buffer
     mask_buffer[mask_overlap] = False
 
+    print('The buffer mask around high resolution grid has been created')
+
     # BUFFER's BORDERS MASKS
     dilated_mask_buffer= binary_dilation(mask_buffer)
     border_buffer_ext = dilated_mask_buffer & ~mask_buffer & ~mask_overlap
@@ -488,6 +511,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
             interpolated_values_buffer[i] = weight_inner * value_inner + weight_outer * value_outer
             
     z[mask_buffer] = interpolated_values_buffer
+    
+    print('The mask_buffer have been smoothed with linear ponderation')
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 7: SAVING TO NETCDF FORMAT ◀
