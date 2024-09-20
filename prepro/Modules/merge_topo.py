@@ -136,8 +136,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Switching the resolution of grid 2 to match the high-resolution grid (grid 1)
     
     # Calculating the resolution in the latitude and longitude directions
-    resolution_lon= np.diff(ds1[lon_coord_ds1]).mean()
-    resolution_lat= np.diff(ds1[lat_coord_ds1]).mean()
+    resolution_lon= np.abs(np.diff(ds1[lon_coord_ds1]).mean())
+    resolution_lat= np.abs(np.diff(ds1[lat_coord_ds1]).mean())
     
     lon2= ds2[lon_coord_ds2].values
     lat2= ds2[lat_coord_ds2].values
@@ -155,9 +155,36 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     new_lon_2 = np.arange(lon2.min(), lon2.max(), resolution_lon)
     new_lat_2 = np.arange(lat2.min(), lat2.max(), resolution_lat)
     new_lon_grid_2, new_lat_grid_2 = np.meshgrid(new_lon_2, new_lat_2)
-    
+
+    ### OLD WAY TO INTERPOLATE ##################################################################################
     # Interpolate ds2 data onto the new grid
-    z2_interp = griddata((lon_flat_2, lat_flat_2), z_flat_2, (new_lon_grid_2, new_lat_grid_2), method='nearest')
+    #z2_interp = griddata((lon_flat_2, lat_flat_2), z_flat_2, (new_lon_grid_2, new_lat_grid_2), method='nearest')
+    #############################################################################################################
+
+    ### NEW WAY TO INTERPOLATE ##################################################################################
+    # Create a DataArray for z2 with unique 1D latitude and longitude coordinates
+    z2_dataarray = xr.DataArray(
+        z2,
+        coords={
+            'latitude': lat2,  # 1D array of latitudes
+            'longitude': lon2    # 1D array of longitudes
+        },
+        dims=['latitude', 'longitude']  # Dimensions should match the DataArray shape
+    )
+    
+    # Initialize the grid interpolator for z2
+    interpolator_2 = pyinterp.backends.xarray.RegularGridInterpolator(z2_dataarray, geodetic=False)
+    
+    # Prepare new coordinates for interpolation
+    new_coords_2 = {
+        'longitude': new_lon_grid_2.flatten(),  # Flattened array of new longitudes
+        'latitude': new_lat_grid_2.flatten()     # Flattened array of new latitudes
+    }
+    
+    # Perform interpolation using the nearest method
+    z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
+    #############################################################################################################
+
 
 # ───────────────────────────────────────────────────────────────
 # ▶ SECTION 3: HIGH RESOLUTION DATA INTEGRATION IN NEW GRID◀
@@ -183,14 +210,43 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     # Create a mask on the resampled grid of ds2 that only covers the area of ds1
     mask_overlap = (new_lon_grid_2 >= lon_min_1) & (new_lon_grid_2 <= lon_max_1) & \
                    (new_lat_grid_2 >= lat_min_1) & (new_lat_grid_2 <= lat_max_1)
-    
+
+    ### OLD WAY TO INTERPOLATE ##################################################################################
     # Interpolate the high-resolution data (ds1) onto the overlapping area of ds2
-    z1_interp_on_z2_overlap = griddata(
-        (lon_flat_1, lat_flat_1),  # Source points (grid 1)
-        z_flat_1,                  # Source values (grid 1)
-        (new_lon_grid_2[mask_overlap], new_lat_grid_2[mask_overlap]),  # Target points (overlapping region in grid 2)
-        method='nearest'           # Interpolation method (nearest neighbor)
+    #z1_interp_on_z2_overlap = griddata(
+        #(lon_flat_1, lat_flat_1),  # Source points (grid 1)
+        #z_flat_1,                  # Source values (grid 1)
+        #(new_lon_grid_2[mask_overlap], new_lat_grid_2[mask_overlap]),  # Target points (overlapping region in grid 2)
+        #method='nearest'           # Interpolation method (nearest neighbor)
+    #)
+    #############################################################################################################
+
+    ### NEW WAY TO INTERPOLATE ##################################################################################
+    # Create a DataArray for z1
+    z1_dataarray = xr.DataArray(
+        z1,  # The values to be interpolated
+        coords={
+            'lat': lat1,  # 1D array of latitudes corresponding to z1
+            'lon': lon1   # 1D array of longitudes corresponding to z1
+        },
+        dims=['lat', 'lon']  # Define the dimensions of the DataArray
     )
+    
+    # Create the interpolator for z1
+    interpolator = pyinterp.backends.xarray.RegularGridInterpolator(z1_dataarray, geodetic=False)
+    
+    # Prepare new coordinates for interpolation within the overlap region
+    new_coords_1 = {
+        'lon': new_lon_grid_2[mask_overlap].flatten(),  # Flattened longitudes from the overlap region
+        'lat': new_lat_grid_2[mask_overlap].flatten()    # Flattened latitudes from the overlap region
+    }
+    
+    # Apply the interpolator to the new coordinates
+    z1_interp_on_z2_overlap = interpolator(new_coords_1, method='nearest')
+    
+    # Reshape the result to match the shape of the grid 2
+    z1_interp_on_z2_overlap = z1_interp_on_z2_overlap.reshape(new_lon_grid_2[mask_overlap].shape)
+    #############################################################################################################
 
     # Save the original interpolated ds2 grid for later use
     z2_save = z2_interp.copy()
