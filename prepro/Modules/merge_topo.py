@@ -20,7 +20,7 @@ import gc
 # FUNCTION FOR MERGING - LINEAR PONDERATION METHOD
 # ================================================
 
-def merge_smooth(high_res, low_res, buffer_width, output_file):
+def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale_bounds=None, output_file):
 
     """
     Process high and low resolution grids by interpolating missing values and creating a blended output.
@@ -35,17 +35,12 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
 
     Parameters:
     ----------
-    high_res : xarray.DataArray
-        The high resolution grid containing the primary data to be processed.
-        
-    low_res : xarray.DataArray
-        The low resolution grid used for interpolating values in the buffer area of `input1`.
-        
-    buffer_width : int
-        The width of the buffer to be applied around the high resolution grid. This determines the extent of the dilation.
-        
-    output_file : str
-        The path to the output NetCDF file where the processed grid will be saved.
+    - high_res : (file for xarray.DataArray) The high resolution grid containing the primary data to be processed.
+    - low_res : (file for xarray.DataArray) The low resolution grid used for interpolating values in the buffer area of `input1`.
+    - buffer_width : (int) The width of the buffer to be applied around the high resolution grid. This determines the extent of the dilation. 
+    - output_file : (str) The path to the output NetCDF file where the processed grid will be saved.
+    - coarsen_factor: (int) Resolution reduction factor for high-resolution grid. OPTION
+    - downscale_bounds: (List) [lon_min, lon_max, lat_min, lat_max] for downscaling the low-resolution grid. OPTION
 
     Returns:
     -------
@@ -70,13 +65,34 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
     ds1 = xr.open_dataset(high_res)
     ds2 = xr.open_dataset(low_res)
     
-    # If high_res is a TIFF file, select the first band
-    if high_res[-4:] == 'tiff':
+   # If high_res is a TIFF file, select the first band
+    if high_res.endswith('.tiff') or high_res.endswith('.tif'):
         ds1 = ds1.sel(band=1, drop=True)
-        
-    # If input2 is a TIFF file, select the first band
-    if low_res[-4:] == 'tiff':
+
+    # If low_res is a TIFF file, select the first band
+    if low_res.endswith('.tiff') or low_res.endswith('.tif'):
         ds2 = ds2.sel(band=1, drop=True)
+
+    # Check for CRS
+    if 'spatial_ref' in ds1.coords:
+        proj_high_res = ds1.rio.crs
+    else:
+        proj_high_res = None
+    
+    if 'spatial_ref' in ds2.coords:
+        proj_low_res = ds2.rio.crs
+    else:
+        proj_low_res = None
+
+    # Compare projections if both are defined
+    if proj_high_res and proj_low_res:
+        if proj_high_res != proj_low_res:
+            raise ValueError("The high resolution and low resolution datasets are in different projections.")
+    else:
+        if proj_high_res is None:
+            print("Warning: High resolution dataset does not have a defined CRS.")
+        if proj_low_res is None:
+            print("Warning: Low resolution dataset does not have a defined CRS.")
     
     # Identify the variable containing bathymetry data in ds1
     # Assuming the bathymetry variable is the only one with numerical values
@@ -87,7 +103,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
             z_ds1 = var_name
             break
     else:
-        print("No bathymetry variable found in ds1")
+        raise ValueError("No valid bathymetry variable found in the high resolution dataset (ds1)")
     
     # Identify the variable containing bathymetry data in ds2
     # Assuming the bathymetry variable is the only one with numerical values
@@ -98,7 +114,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
             z_ds2 = var_name
             break
     else:
-        print("No bathymetry variable found in ds2")
+        raise ValueError("No valid bathymetry variable found in the low resolution dataset (ds2)")
     
     # Identify the coordinate names for latitude/longitude in ds1
     for coord_name in ds1.coords:
@@ -128,7 +144,21 @@ def merge_smooth(high_res, low_res, buffer_width, output_file):
             if 'y' in coord_data.dims:
                 lat_coord_ds2 = coord_name
 
+    # Apply resolution reduction with coarsen if specified
+    if coarsen_factor:
+        ds1 = ds1.coarsen({lat_coord_ds1: coarsen_factor, lon_coord_ds1: coarsen_factor}, boundary='trim').mean()
 
+    # Apply downsample if limits are specified in the list
+    # Validation des bornes de downscale_bounds
+    if downscale_bounds:
+        if len(downscale_bounds) != 4:
+            raise ValueError("downscale_bounds must be a list of four elements [lon_min, lon_max, lat_min, lat_max]")
+        
+        lon_min, lon_max, lat_min, lat_max = downscale_bounds
+        if lon_min >= lon_max or lat_min >= lat_max:
+            raise ValueError("Longitude/Latitude bounds are not valid: ensure lon_min < lon_max and lat_min < lat_max")
+
+        ds2 = ds2.sel({lat_coord_ds2: slice(lat_min, lat_max), lon_coord_ds2: slice(lon_min, lon_max)})
 
 # ────────────────────────────────────────────────────────────────────
 # ▶ SECTION 2: INTERPOLATION OF GRID 2 TO THE RESOLUTION OF GRID 1  ◀
