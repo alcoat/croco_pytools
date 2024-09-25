@@ -312,7 +312,7 @@ class getdata():
         
         if -1<jmin and jmin<lat.shape[0] and \
            -1<jmax and jmax<lat.shape[0] :
-            if jmin > 1 :
+            if jmin > 0 :
                 jmin = jmin-1
             jmax = jmax+2
         else:
@@ -402,14 +402,13 @@ class getdata():
             else:
                 print('Error in shifting algoritm')
                 sys.exit()
-            (lon,lat) = np.meshgrid(lon_tmp,lat_tmp)
         ###
         elif imin>imax:
             print('Reading topography in two separate parts adjacent through 360-degree periodicity\n First...' )
             nx_lon = imax+period-imin+1
             xtmp  = np.zeros([nx_lon])
-            start1 = 0 ; end1 = start1+nx_lon; count1 = imax
-            ishft = nx_lon-count1-1
+            start1 = 0 ; end1 = start1+imax+1; count1 = imax+1
+            ishft = nx_lon-count1
             if shft_east>0:
                 for i in range(0,count1):
                     xtmp[i+ishft] = lon[i] +360
