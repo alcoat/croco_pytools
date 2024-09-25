@@ -160,7 +160,21 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
         if lon_min >= lon_max or lat_min >= lat_max:
             raise ValueError("❌ Longitude/Latitude bounds are not valid: ensure lon_min < lon_max and lat_min < lat_max")
 
-        ds2 = ds2.sel({lat_coord_ds2: slice(lat_min, lat_max), lon_coord_ds2: slice(lon_min, lon_max)})
+        #ds2 = ds2.sel({lat_coord_ds2: slice(lat_min, lat_max), lon_coord_ds2: slice(lon_min, lon_max)})
+
+        # Reverse latitude bounds if necessary (for descending latitudes)
+        if ds2[lat_coord_ds2].values[0] > ds2[lat_coord_ds2].values[-1]:
+            ds2 = ds2.sel({lat_coord_ds2: slice(lat_max, lat_min)})
+        else:
+            ds2 = ds2.sel({lat_coord_ds2: slice(lat_min, lat_max)})
+        
+        # Reverse longitude bounds if necessary (for descending longitudes)
+        if ds2[lon_coord_ds2].values[0] > ds2[lon_coord_ds2].values[-1]:
+            ds2 = ds2.sel({lon_coord_ds2: slice(lon_max, lon_min)})
+        else:
+            ds2 = ds2.sel({lon_coord_ds2: slice(lon_min, lon_max)})
+
+        
         print("✅ Downscaling completed. The low-resolution grid has been successfully cropped to the specified bounds.")
 
 # ────────────────────────────────────────────────────────────────────
