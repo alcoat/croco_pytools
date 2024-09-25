@@ -11,6 +11,7 @@ import pyinterp.backends.xarray
 # Module that handles the filling of undefined values.
 import pyinterp.fill
 import gc
+import rasterio
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
@@ -20,7 +21,7 @@ import gc
 # FUNCTION FOR MERGING - LINEAR PONDERATION METHOD
 # ================================================
 
-def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale_bounds=None, output_file):
+def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=None, downscale_bounds=None):
 
     """
     Process high and low resolution grids by interpolating missing values and creating a blended output.
@@ -87,12 +88,12 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Compare projections if both are defined
     if proj_high_res and proj_low_res:
         if proj_high_res != proj_low_res:
-            raise ValueError("The high resolution and low resolution datasets are in different projections.")
+            raise ValueError("❌ The high resolution and low resolution datasets are in different projections.")
     else:
         if proj_high_res is None:
-            print("Warning: High resolution dataset does not have a defined CRS.")
+            print("⚠️ Warning: High resolution dataset does not have a defined CRS.")
         if proj_low_res is None:
-            print("Warning: Low resolution dataset does not have a defined CRS.")
+            print("⚠️ Warning: Low resolution dataset does not have a defined CRS.")
     
     # Identify the variable containing bathymetry data in ds1
     # Assuming the bathymetry variable is the only one with numerical values
@@ -103,7 +104,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
             z_ds1 = var_name
             break
     else:
-        raise ValueError("No valid bathymetry variable found in the high resolution dataset (ds1)")
+        raise ValueError("❌ No valid bathymetry variable found in the high resolution dataset (ds1)")
     
     # Identify the variable containing bathymetry data in ds2
     # Assuming the bathymetry variable is the only one with numerical values
@@ -114,7 +115,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
             z_ds2 = var_name
             break
     else:
-        raise ValueError("No valid bathymetry variable found in the low resolution dataset (ds2)")
+        raise ValueError("❌ No valid bathymetry variable found in the low resolution dataset (ds2)")
     
     # Identify the coordinate names for latitude/longitude in ds1
     for coord_name in ds1.coords:
@@ -147,18 +148,20 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Apply resolution reduction with coarsen if specified
     if coarsen_factor:
         ds1 = ds1.coarsen({lat_coord_ds1: coarsen_factor, lon_coord_ds1: coarsen_factor}, boundary='trim').mean()
+        print("✅ Coarsening completed. The high-resolution grid has been successfully downsampled.")
 
     # Apply downsample if limits are specified in the list
     # Validation des bornes de downscale_bounds
     if downscale_bounds:
         if len(downscale_bounds) != 4:
-            raise ValueError("downscale_bounds must be a list of four elements [lon_min, lon_max, lat_min, lat_max]")
+            raise ValueError("❌ downscale_bounds must be a list of four elements [lon_min, lon_max, lat_min, lat_max]")
         
         lon_min, lon_max, lat_min, lat_max = downscale_bounds
         if lon_min >= lon_max or lat_min >= lat_max:
-            raise ValueError("Longitude/Latitude bounds are not valid: ensure lon_min < lon_max and lat_min < lat_max")
+            raise ValueError("❌ Longitude/Latitude bounds are not valid: ensure lon_min < lon_max and lat_min < lat_max")
 
         ds2 = ds2.sel({lat_coord_ds2: slice(lat_min, lat_max), lon_coord_ds2: slice(lon_min, lon_max)})
+        print("✅ Downscaling completed. The low-resolution grid has been successfully cropped to the specified bounds.")
 
 # ────────────────────────────────────────────────────────────────────
 # ▶ SECTION 2: INTERPOLATION OF GRID 2 TO THE RESOLUTION OF GRID 1  ◀
@@ -214,6 +217,8 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     
     # Perform interpolation using the nearest method
     z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
+
+    print("✅ Low-resolution grid interpolation completed.")
     #############################################################################################################
 
 
@@ -284,6 +289,8 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     
     # Replace the values in z2_interp (low-res grid) with those from grid 1 in the overlapping region
     z2_interp[mask_overlap] = z1_interp_on_z2_overlap
+
+    print("✅ High-resolution grid interpolation completed.")
 
     #---> Clean memory:
     del z1_interp_on_z2_overlap, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
@@ -386,7 +393,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Apply buffer with width 2
     z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=2)
 
-    print('Group of Nans in the high resolution grid have been filled with lower resolution grid data and smoothed')
+    print('✅ Groups of Nans in the high resolution grid have been filled with lower resolution grid data and smoothed')
 
     #---> Clean memory:
     del z2_save, z2_interp
@@ -406,7 +413,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Apply LOESS interpolation with a 3x3 grid
     z = pyinterp.fill.loess(data, nx=3, ny=3)
 
-    print('The ponctual Nans have been filled with loess interpolation method')
+    print('✅ The ponctual Nans have been filled with loess interpolation method')
 
     #---> Clean memory:
     del data, lon_axis, lat_axis
@@ -439,10 +446,10 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Function to create a buffer if the distance from the edge is sufficient
     def create_buffer_on_side(start_idx, end_idx, buffer_limit, buffer_width, max_limit, side):
         if buffer_limit <= min_buffer_width:  # Not enough space for a proper buffer
-            print(f"Warning: Not enough space for a buffer on the {side} side. No smoothing applied.")
+            print(f"⚠️ Warning: Not enough space for a buffer on the {side} side. No smoothing applied.")
             return 0
         elif buffer_limit < buffer_width:  # Reduce buffer size
-            print(f"Warning: The buffer on the {side} side has been reduced to {buffer_limit} cells.")
+            print(f"⚠️ Warning: The buffer on the {side} side has been reduced to {buffer_limit} cells.")
             buffer_width = buffer_limit
         return buffer_width
     
@@ -493,7 +500,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # Exclude the overlap area from the buffer
     mask_buffer[mask_overlap] = False
 
-    print('The buffer mask around high resolution grid has been created')
+    print('✅ The buffer mask around high resolution grid has been created')
 
     # BUFFER's BORDERS MASKS
     dilated_mask_buffer= binary_dilation(mask_buffer)
@@ -531,7 +538,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
         total_distance = dist_inner + dist_outer
         if total_distance == 0:
             # Handle the case where total distance is zero
-            print(f"Warning: Total distance is zero for point {coord}")
+            print(f"⚠️ Warning: Total distance is zero for point {coord}")
             interpolated_values_buffer[i] = np.nan
         else:
             weight_inner = dist_outer / total_distance
@@ -542,7 +549,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
             
     z[mask_buffer] = interpolated_values_buffer
     
-    print('The mask_buffer have been smoothed with linear ponderation')
+    print('✅ The mask_buffer has been smoothed with linear ponderation')
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 7: SAVING TO NETCDF FORMAT ◀
@@ -567,6 +574,7 @@ def merge_smooth(high_res, low_res, buffer_width, coarsen_factor=None, downscale
     # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
     ds_to_save.to_netcdf(output_file, encoding={'z': {'chunksizes': (100, 100)}})
 
+    print(f"📂 The merged grid has been saved as: {output_file}")
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
