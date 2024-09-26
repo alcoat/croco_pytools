@@ -12,6 +12,9 @@ import pyinterp.backends.xarray
 import pyinterp.fill
 import gc
 import rasterio
+#Configure import paths
+sys.path.extend(["./../Readers/"])
+import topo_reader
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
@@ -596,14 +599,21 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
         coords=[('lat', new_lat_unique), ('lon', new_lon_unique)],  # Add coordinates
         dims=['lat', 'lon']  # Specify dimensions
     )
+
+    # Checking source of grid 2
+    try:
+        topo_type= topo_reader.lookvar(low_res)['topo']
+
+    except:
+        topo_type='topo'
     
     # Create a Dataset to organize the variables
     ds_to_save = xr.Dataset({
-        'topo': ds_interpolated  # Add the interpolated variable
+        topo_type: ds_interpolated  # Add the interpolated variable
     })
     
     # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
-    ds_to_save.to_netcdf(output_file, encoding={'topo': {'chunksizes': (100, 100), 'dtype': 'float32'}})
+    ds_to_save.to_netcdf(output_file, encoding={topo_type: {'chunksizes': (100, 100), 'dtype': 'float32'}})
 
 
     print(f"📂 The merged grid has been saved as: {output_file}")
