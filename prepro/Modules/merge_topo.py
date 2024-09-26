@@ -582,11 +582,11 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
     
     # Create a Dataset to organize the variables
     ds_to_save = xr.Dataset({
-        'z': ds_interpolated  # Add the interpolated variable
+        'topo': ds_interpolated  # Add the interpolated variable
     })
     
     # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
-    ds_to_save.to_netcdf(output_file, encoding={'z': {'chunksizes': (100, 100)}})
+    ds_to_save.to_netcdf(output_file, encoding={'topo': {'chunksizes': (100, 100)}})
 
     print(f"📂 The merged grid has been saved as: {output_file}")
 #-------------------------------------------------------------------------------------
