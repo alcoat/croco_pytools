@@ -572,10 +572,27 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
     # Get unique coordinates
     new_lon_unique = np.unique(new_lon_grid_2)
     new_lat_unique = np.unique(new_lat_grid_2)
-    
+
+    ### OLD WAY TO SAVE DATA AS DOUBLE ##########################################################################
     # Create a DataArray for the interpolated data
+    #ds_interpolated = xr.DataArray(
+    #    z, 
+    #    coords=[('lat', new_lat_unique), ('lon', new_lon_unique)],  # Add coordinates
+    #    dims=['lat', 'lon']  # Specify dimensions
+    #)
+    
+    # Create a Dataset to organize the variables
+    #ds_to_save = xr.Dataset({
+    #    'topo': ds_interpolated  # Add the interpolated variable
+    #})
+    
+    # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
+    #ds_to_save.to_netcdf(output_file, encoding={'topo': {'chunksizes': (100, 100)}})
+    #############################################################################################################
+
+    # Create a DataArray for the interpolated data and cast it to float32
     ds_interpolated = xr.DataArray(
-        z, 
+        z.astype('float32'),  # Cast to float32
         coords=[('lat', new_lat_unique), ('lon', new_lon_unique)],  # Add coordinates
         dims=['lat', 'lon']  # Specify dimensions
     )
@@ -586,7 +603,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
     })
     
     # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
-    ds_to_save.to_netcdf(output_file, encoding={'topo': {'chunksizes': (100, 100)}})
+    ds_to_save.to_netcdf(output_file, encoding={'topo': {'chunksizes': (100, 100), 'dtype': 'float32'}})
+
 
     print(f"📂 The merged grid has been saved as: {output_file}")
 #-------------------------------------------------------------------------------------
