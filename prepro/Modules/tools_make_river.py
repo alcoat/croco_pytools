@@ -6,6 +6,7 @@ import xarray as xr
 import _pickle as pickle
 import scipy.signal as ss
 from scipy.interpolate import interp1d
+import shapely.geometry as shpg
 import matplotlib.pyplot as py
 import sys,os
 import copy
@@ -118,7 +119,7 @@ def nine_points_max_iter(Vin,Maskin):
 
 
 
-def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_pos=None,geolim=None):
+def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_pos=None,geolim=None,Crange=None):
     '''
     Read rivers in a netcdf files depending on what is given in Qmin,lon_pos,lat_pos.
     
@@ -290,7 +291,7 @@ def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_po
         (mx,my)=np.gradient(mask)
         coast=mask*np.sqrt(mx*mx+my*my)
         coast[np.where(coast!=0.)]=1.
-        for i in range(1):
+        for i in range(Crange):
             # Broaden the coast mask to be sure to have all the rivers...
             coast[1:-1,1:-1]=ss.convolve(coast[1:-1,1:-1],np.ones((3,3)), mode='same')
             coast[np.where(coast>=1)]=1
@@ -356,7 +357,7 @@ def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_po
 
 
 
-def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units,geolim=None):
+def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units,geolim=None,Crange=None):
     ''' 
     Read river flows files. It handle netcdf,.txt or .dat files
     
@@ -387,7 +388,7 @@ def read_river(list_river_files,lon_inp,lat_inp,rstr,rend,time_units,geolim=None
             elif np.isnan(lon_inp[ific]):
             # case of a 2D map 
                 print('Script will look for rivers with flow >',lat_inp[ific],'m3/s')
-                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,Qmin=lat_inp[ific],geolim=geolim)
+                Nriv,time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,Qmin=lat_inp[ific],geolim=geolim,Crange=Crange)
             else:
             # Case of a netcdf for 1 river with lon/lat specified
                 time,flw,lon,lat = read_river_netcdf(fic,rstr,rend,time_units,lon_pos=lon_inp[ific],lat_pos=lat_inp[ific],geolim=geolim)
@@ -576,7 +577,13 @@ def get_river_index(river, croco_class):
     '''    
     # Keep rivers in domain and exclude others
     river_out=dict()
+    lonr = croco_class.lon
+    latr = croco_class.lat
+    ctr_croco= np.array(( np.hstack([lonr[:,0],lonr[-1,:],lonr[::-1,-1],lonr[0,::-1]]),
+                          np.hstack([latr[:,0],latr[-1,:],latr[::-1,-1],latr[0,::-1]]))).T
+    dom_croco = shpg.Polygon(ctr_croco)
     geolim=[croco_class.lonmin(),croco_class.lonmax(),croco_class.latmin(),croco_class.latmax()]
+
     for ll in river.keys():
         # Eventually need to adapt lon/lat format (-180,180)/(0,360)      
         if (river[ll]['longitude']>=(geolim[0]-360)) & (river[ll]['longitude']<=(geolim[1]-360)):
@@ -586,13 +593,13 @@ def get_river_index(river, croco_class):
 
         lor = river[ll]['longitude']
         lar = river[ll]['latitude']
-        if (lor >= geolim[0] ) & (lor <= geolim[1]) &\
-           (lar >= geolim[-2]) & (lar <= geolim[-1]):
+        pt_riv = shpg.Point(lor,lar)
+        if pt_riv.within(dom_croco):
             river_out[ll]=river[ll]
 
             dist = lonlat_to_m(croco_class.lon,croco_class.lat,lor,lar)
             [jpos,ipos]=np.where(dist == np.min(dist))
-            jpos,ipos=int(jpos),int(ipos) 
+            jpos,ipos=int(jpos),int(ipos)
                                          # Init Kernel of shape
             kernel=np.arange(9)%2        #  0 1 0
             kernel=kernel.reshape((3,3)) #  1 0 1
@@ -659,7 +666,10 @@ def get_river_index(river, croco_class):
             elif (land == np.array([1,0,1,1])).all(): # Bay oriented westward
                 river_out[ll]['dsrc']=0
                 river_out[ll]['qbardir']=1
-                
+            else:
+                print(f'WARNING: {ll} seems located in water change position with GUI !!!')
+                river_out[ll]['dsrc']=0
+                river_out[ll]['qbardir']=1
 
 
      
