@@ -70,7 +70,7 @@ Yend,   Mend   = 2013,3   # Ending month
 # Input data informations
 input_dir = './' # where .txt file can be found
 input_file = 'river_list.txt' # txt file name
-
+Crange = 3 # only used in 2D reanalysis, number of iterations to broaden the coast mask
 # CROCO path and filename informations
 croco_dir = '../../CROCO_FILES/'
 croco_grd = 'croco_grd.nc'
@@ -99,8 +99,8 @@ rend = plt.datetime.datetime(Yend,Mend,1,12,0,0)\
 # --- Load croco_grd --------------------------------------------------
 
 crocogrd = Croco.CROCO_grd(''.join((croco_dir, croco_grd)))
-geolim = [crocogrd.lonmin()-0.1,crocogrd.lonmax()+0.1,
-          crocogrd.latmin()-0.1,crocogrd.latmax()+0.1]
+geolim = [crocogrd.lonmin(),crocogrd.lonmax(),
+          crocogrd.latmin(),crocogrd.latmax()]
 # --- Read input_data file --------------------------------------------
 data=np.genfromtxt(input_file,dtype=str,comments='#')
 if data.ndim==1:
@@ -134,7 +134,10 @@ for x in data:
             lat_river=np.append(lat_river,np.nan)
 
 # --- Read rivers data ------------------------------------------------
-river_obs=riv_tools.read_river(list_river_files,lon_river,lat_river,rstr,rend,time_units, geolim=geolim)
+river_obs=riv_tools.read_river(list_river_files,lon_river,lat_river,rstr,rend,
+                               time_units,
+                               geolim=geolim,
+                               Crange=Crange)
 
 # --- Get river default indexes on crocogrd ---------------------------
 river_obs=riv_tools.get_river_index(river_obs,crocogrd)
