@@ -331,26 +331,17 @@ def interp(inputfile,vname,Nzgoodmin,z_rho,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy
     depth= inputfile.depth
     [Nz]=np.shape(depth)
 
-    comp_horzinterp = 1 # if 1 compute horizontal interpolations - 0 use saved matrices (for debugging)
-    if comp_horzinterp==1:
-        print('Horizontal interpolation over z levels')
-        t4d=np.zeros((T,Nz,M,L))
-        kgood=-1
-        for k in progressbar(range(Nz),vname+': ', 40):#range(Nz)
-            (t3d,Nzgood) = interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
-            if Nzgood>Nzgoodmin:
-                kgood=kgood+1
-                t4d[:,kgood,:,:]=t3d
-                
-        t4d=t4d[:,0:kgood,:,:]
-        depth=depth[0:kgood]
-        np.savez('t4d.npz',t4d=t4d,depth=depth)
-
-    else:
-        print('Load matrix...')
-        data=np.load('t4d.npz')
-        t3d = data['t4d']
-        depth = data['depth']
+    print('Horizontal interpolation over z levels')
+    t4d=np.zeros((T,Nz,M,L))
+    kgood=-1
+    for k in progressbar(range(Nz),vname+': ', 40):#range(Nz)
+        (t3d,Nzgood) = interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
+        if Nzgood>Nzgoodmin:
+            kgood=kgood+1
+            t4d[:,kgood,:,:]=t3d
+          
+    t4d=t4d[:,0:kgood,:,:]
+    depth=depth[0:kgood]
 
     [Nz]=np.shape(depth)
     if depth[0]<0:
@@ -410,49 +401,38 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
     depth=inputfile.depth
     dz=np.gradient(depth)
     [Nz]=np.shape(depth)
-    comp_horzinterp = 1 # if 1 compute horizontal interpolations - 0 use saved matrices (for debugging)
-    if comp_horzinterp==1:
-        print('Horizontal interpolation of u and v over z levels')
-        u4d=np.zeros((T,Nz,M,L-1))
-        v4d=np.zeros((T,Nz,M-1,L))
-        ubar=np.zeros((T,M,L-1))
-        vbar=np.zeros((T,M-1,L))
-        zu  =ubar
-        zv  =vbar
-        kgood=-1
-        for k in progressbar(range(Nz),' uv : ', 40):
-            (u3d,Nzgood_u) = interp_tracers(inputfile,'u',k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
-            (v3d,Nzgood_v) = interp_tracers(inputfile,'v',k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
-            Nzgood=np.min((Nzgood_u,Nzgood_v))
-            if Nzgood>Nzgoodmin:
-                kgood=kgood+1
+        
+    print('Horizontal interpolation of u and v over z levels')
+    u4d=np.zeros((T,Nz,M,L-1))
+    v4d=np.zeros((T,Nz,M-1,L))
+    ubar=np.zeros((T,M,L-1))
+    vbar=np.zeros((T,M-1,L))
+    zu  =ubar
+    zv  =vbar
+    kgood=-1
+    for k in progressbar(range(Nz),' uv : ', 40):
+        (u3d,Nzgood_u) = interp_tracers(inputfile,'u',k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
+        (v3d,Nzgood_v) = interp_tracers(inputfile,'v',k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
+        Nzgood=np.min((Nzgood_u,Nzgood_v))
+        if Nzgood>Nzgoodmin:
+            kgood=kgood+1
 #
 # Rotation and put to u-points and v-points 
 #
-                u4d[:,kgood,:,:]=grd_tools.rho2u(u3d*cosa3d+v3d*sina3d)
-                v4d[:,kgood,:,:]=grd_tools.rho2v(v3d*cosa3d-u3d*sina3d)
+            u4d[:,kgood,:,:]=grd_tools.rho2u(u3d*cosa3d+v3d*sina3d)
+            v4d[:,kgood,:,:]=grd_tools.rho2v(v3d*cosa3d-u3d*sina3d)
 
-                ubar = ubar + grd_tools.rho2u((u3d*dz[kgood])*cosa3d+(v3d*dz[kgood])*sina3d)
-                zu   = zu   + dz[kgood]*np.ones(ubar.shape)
-                vbar = vbar + grd_tools.rho2v((v3d*dz[kgood])*cosa3d-(u3d*dz[kgood])*sina3d)
-                zv   = zv   + dz[kgood]*np.ones(vbar.shape)
+            ubar = ubar + grd_tools.rho2u((u3d*dz[kgood])*cosa3d+(v3d*dz[kgood])*sina3d)
+            zu   = zu   + dz[kgood]*np.ones(ubar.shape)
+            vbar = vbar + grd_tools.rho2v((v3d*dz[kgood])*cosa3d-(u3d*dz[kgood])*sina3d)
+            zv   = zv   + dz[kgood]*np.ones(vbar.shape)
 
 
-        u4d=u4d[:,0:kgood,:,:]
-        v4d=v4d[:,0:kgood,:,:]
-        ubar=ubar/zu
-        vbar=vbar/zv
-        depth=depth[0:kgood]
-        np.savez('u4d.npz',u4d=u4d,v4d=v4d,depth=depth,ubar=ubar,vbar=vbar)
-
-    else:
-        print('Load matrices...')
-        data=np.load('u4d.npz')
-        u4d = data['u4d']
-        v4d = data['v4d']
-        depth = data['depth']
-        ubar = data['ubar']
-        vbar = data['vbar']
+    u4d=u4d[:,0:kgood,:,:]
+    v4d=v4d[:,0:kgood,:,:]
+    ubar=ubar/zu
+    vbar=vbar/zv
+    depth=depth[0:kgood]
 
     [Nz]=np.shape(depth)
     if depth[0]<0:
