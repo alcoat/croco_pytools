@@ -38,17 +38,12 @@ data_origin = 'era_dataref' # era_dataref, era_ecmwf, cfsr
 input_dir = '/path/in/'
 input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 #input_prefix = '*' # For multifiles, if the name of the file begin with the variable name, just write '*'
-data_origin = 'era_dataref' # era_dataref, era_ecmwf, output_hanh
-input_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/'
-# input_prefix = 'ERA5_ecmwf_*'
-input_prefix = 'ERA5_dataref_*'
-#input_prefix = 'ERA5_ecmwf_Y*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 multi_files = False # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/FORMATTED_TEST/'
+output_dir = '/path/out/'
 output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
