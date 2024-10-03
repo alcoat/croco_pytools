@@ -34,6 +34,10 @@ import pyinterp.backends.xarray
 # -------------------------------------------------
 # INPUT :
 # -------------------------------------------------
+data_origin = 'era_dataref' # era_dataref, era_ecmwf, cfsr
+input_dir = '/path/in/'
+input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, just write '*'
+#input_prefix = '*' # For multifiles, if the name of the file begin with the variable name, just write '*'
 data_origin = 'era_dataref' # era_dataref, era_ecmwf, output_hanh
 input_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/'
 # input_prefix = 'ERA5_ecmwf_*'
@@ -52,14 +56,14 @@ output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
-    croco_grd = '/Users/annelou/Documents/croco/croco_grd/croco_grd_roms.nc'
+    croco_grd = '/pathin/to/your/croco/grid/croco_grd.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 4,27,-40,-24
 
 # Dates limits
-Yorig = 1950                # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 1980,1   # Starting month
-Yend, Mend  = 1980,1   # Ending month
+Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
+Ystart, Mstart = 1980,3   # Starting month
+Yend, Mend  = 1981,1  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -72,7 +76,7 @@ READ_PATM = False
 # If it is not, this may result in temperature spike at the coast at certain points,
 # however, note that extrapolation increases pre-processing time.
 # If STRD is in raw data, extrapolation_sst will no be considered.
-extrapolation_sst = True
+extrapolation_sst = True # /!\ if sst = ts (surf temp) no need
 
 # *****************************************************************************
 #                      E N D     U S E R  *  O P T I O N S

@@ -75,14 +75,7 @@ def lookvar(data_origin):
                      ['msl'  ,'MSL'           ,1.           ] \
                    ]
 
-
-    elif data_origin == 'test_hanh':
-        var_info = [ ['lon'  ,'lon'           ,1.           ,' '      ],\
-                     ['lat'  ,'lat'           ,1.           ,' '      ],\
-                     ['v10m' ,'vas'           ,1.           ,'vas'    ],\
-
-
-    elif data_origin == 'output_hanh':
+    elif data_origin == 'output_MF':
         var_info = [ ['lon'  ,'lon'           ,1.           ,' '      ],\
                      ['lat'  ,'lat'           ,1.           ,' '      ],\
                      ['sst'  ,'ts'            ,1.           ,'ts'     ],\
