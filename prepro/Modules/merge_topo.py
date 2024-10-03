@@ -15,16 +15,61 @@ import rasterio
 #Configure import paths
 sys.path.extend(["./../Readers/"])
 import topo_reader
+from pyproj import Transformer
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
 #--- Functions ---------------------------------------------------------
 
 # ================================================
+# FUNCTION FOR FINDING COORDINATES'NAMES (NETCDF)
+# ================================================
+
+def find_coords(ds):
+    """
+    Find the coordinate names for longitude and latitude in the given dataset (ds).
+    
+    It checks if common variations of longitude and latitude ('lon', 'lat', 'longitude', 
+    'latitude', 'x', 'y', etc.) are contained in the coordinate names, even if they have 
+    additional characters (e.g., 'longitude025').
+    
+    Parameters:
+    ds (xarray.Dataset): The dataset in which to find longitude and latitude coordinates.
+    
+    Returns:
+    lon_coord, lat_coord (str, str): The names of the longitude and latitude coordinates.
+    """
+    possible_lon_names = {'lon', 'longitude', 'x'}
+    possible_lat_names = {'lat', 'latitude', 'y'}
+    
+    lon_coord = None
+    lat_coord = None
+
+    # Loop through the coordinates and check for known substrings of longitude and latitude names
+    for coord_name in ds.coords:
+        coord_lower = coord_name.lower()  # Convert the coordinate name to lowercase for comparison
+        
+        # Check if any known longitude or latitude substrings are contained in the coordinate name
+        if any(lon in coord_lower for lon in possible_lon_names):
+            lon_coord = coord_name
+        if any(lat in coord_lower for lat in possible_lat_names):
+            lat_coord = coord_name
+        
+        # If both lon and lat are found, no need to continue
+        if lon_coord and lat_coord:
+            break
+
+    # Final fallback: if no match found, raise an error
+    if lon_coord is None or lat_coord is None:
+        raise ValueError(f"❌ Could not find valid longitude/latitude coordinates in the dataset.")
+
+    return lon_coord, lat_coord
+
+# ================================================
 # FUNCTION FOR MERGING - LINEAR PONDERATION METHOD
 # ================================================
 
-def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=None, downscale_bounds=None):
+def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG:4326', coarsen_factor=None, downscale_bounds=None):
 
     """
     Process high and low resolution grids by interpolating missing values and creating a blended output.
@@ -43,8 +88,12 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
     - low_res : (file for xarray.DataArray) The low resolution grid used for interpolating values in the buffer area of `input1`.
     - buffer_width : (int) The width of the buffer to be applied around the high resolution grid. This determines the extent of the dilation. 
     - output_file : (str) The path to the output NetCDF file where the processed grid will be saved.
+    - target_epsg : (str, optional) The EPSG code of the target coordinate reference system (CRS) to which the datasets will be reprojeted.
+                    If both datasets have undefined CRS, they will be assumed to be in the specified `target_epsg` CRS. Defaults to 'EPSG:4326'.
     - coarsen_factor: (int) Resolution reduction factor for high-resolution grid. OPTION
     - downscale_bounds: (List) [lon_min, lon_max, lat_min, lat_max] for downscaling the low-resolution grid. OPTION
+    - target_epsg: (str) The EPSG code of the target CRS. Defaults to 'EPSG:4326' (WGS84).
+    
 
     Returns:
     -------
@@ -53,7 +102,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
 
     Notes:
     ------
-    - The buffer area is created around the high resolution grid with a 'mergin_area' extent which can be lowered if high_res borders too close from the border of low_res ones
+    - The buffer area is created around the high resolution grid with a 'mergin_area' extent which can be lowered if high_res borders too close from the border of low_res 
+    ones
     - The function performs linear ponderation within this buffer using the high/low resolution grids.
     - /!\ Ensure that the input grids are compatible in terms of coordinate systems and dimensions.
     - The output file will be in NetCDF format with the processed data.
@@ -89,15 +139,48 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
         proj_low_res = None
 
     # Compare projections if both are defined
+    # Reproject using pyproj if CRS is defined and different
     if proj_high_res and proj_low_res:
         if proj_high_res != proj_low_res:
-            raise ValueError("❌ The high resolution and low resolution datasets are in different projections.")
-    else:
-        if proj_high_res is None:
-            print("⚠️ Warning: High resolution dataset does not have a defined CRS.")
-        if proj_low_res is None:
-            print("⚠️ Warning: Low resolution dataset does not have a defined CRS.")
+            print(f"⚠️ The datasets are in different projections. Checking for necessary reprojections to {target_epsg}...")
+        
+            # Set the target CRS (EPSG code provided or WGS84 by default)
+            target_crs = CRS.from_user_input(target_epsg)
+        
+            # Reproject high resolution dataset only if not already in the target CRS
+            if proj_high_res != target_crs:
+                print(f"🔄 Reprojecting high resolution dataset to {target_epsg}...")
+                transformer_high_to_target = Transformer.from_crs(proj_high_res, target_crs, always_xy=True)
+                high_res_coords = transformer_high_to_target.transform(ds1['lon'].values, ds1['lat'].values)
+                ds1['lon'], ds1['lat'] = high_res_coords
+            else:
+                print(f"✅ High resolution dataset is already in {target_epsg}, no reprojection needed.")
+        
+            # Reproject low resolution dataset only if not already in the target CRS
+            if proj_low_res != target_crs:
+                print(f"🔄 Reprojecting low resolution dataset to {target_epsg}...")
+                transformer_low_to_target = Transformer.from_crs(proj_low_res, target_crs, always_xy=True)
+                low_res_coords = transformer_low_to_target.transform(ds2['lon'].values, ds2['lat'].values)
+                ds2['lon'], ds2['lat'] = low_res_coords
+            else:
+                print(f"✅ Low resolution dataset is already in {target_epsg}, no reprojection needed.")
+        
+            print(f"✅ Both datasets are now aligned to {target_epsg}.")
+        else:
+            print("✅ Both datasets are already in the same projection.")
     
+    # Handle cases where one or both datasets lack a CRS
+    else:
+        if proj_high_res is None and proj_low_res is None:
+            print("⚠️ Warning: Both high and low resolution datasets lack a defined CRS.")
+            print(f"➡️ Assuming both datasets are in CRS {target_epsg}.")
+        elif proj_high_res is None:
+            print("⚠️ Warning: High resolution dataset lacks a defined CRS.")
+            print(f"➡️ Assuming it matches the low resolution dataset CRS and is in {target_epsg}.")
+        elif proj_low_res is None:
+            print("⚠️ Warning: Low resolution dataset lacks a defined CRS.")
+            print(f"➡️ Assuming it matches the high resolution dataset CRS and is in {target_epsg}.")
+
     # Identify the variable containing bathymetry data in ds1
     # Assuming the bathymetry variable is the only one with numerical values
     for var_name in ds1.data_vars:
@@ -121,32 +204,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
         raise ValueError("❌ No valid bathymetry variable found in the low resolution dataset (ds2)")
     
     # Identify the coordinate names for latitude/longitude in ds1
-    for coord_name in ds1.coords:
-        coord_data = ds1[coord_name]
-        # Assume lon and lat are typically coordinates with geographic values
-        if coord_name.lower() in {'lon', 'longitude'}:
-            lon_coord_ds1 = coord_name
-        elif coord_name.lower() in {'lat', 'latitude'}:
-            lat_coord_ds1 = coord_name
-        elif coord_data.dims == ('x',) or coord_data.dims == ('y',):
-            if 'x' in coord_data.dims:
-                lon_coord_ds1 = coord_name
-            if 'y' in coord_data.dims:
-                lat_coord_ds1 = coord_name
-    
-    # Identify the coordinate names for latitude/longitude in ds2
-    for coord_name in ds2.coords:
-        coord_data = ds2[coord_name]
-        # Assume lon and lat are typically coordinates with geographic values
-        if coord_name.lower() in {'lon', 'longitude'}:
-            lon_coord_ds2 = coord_name
-        elif coord_name.lower() in {'lat', 'latitude'}:
-            lat_coord_ds2 = coord_name
-        elif coord_data.dims == ('x',) or coord_data.dims == ('y',):
-            if 'x' in coord_data.dims:
-                lon_coord_ds2 = coord_name
-            if 'y' in coord_data.dims:
-                lat_coord_ds2 = coord_name
+    lon_coord_ds1, lat_coord_ds1 = find_coords(ds1)
+    lon_coord_ds2, lat_coord_ds2 = find_coords(ds2)
 
     # Apply resolution reduction with coarsen if specified
     if coarsen_factor:
@@ -398,19 +457,20 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
         return new_z
     #----------------
 
-    # Apply buffer with width 10
-    z_less_nan = nan_buffer_linear_pond(z2_interp, z2_save, buffer_width=10)
-    
-    # Apply buffer with width 5
-    z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=5)
-    
-    # Apply buffer with width 3
-    z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=3)
-    
-    # Apply buffer with width 2
-    z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=2)
+    # List of buffer withs to apply
+    buffer_widths = [10, 5, 3, 2]
 
-    print('✅ Groups of Nans in the high resolution grid have been filled with lower resolution grid data and smoothed')
+    # Initialize the variable with the initial high-resolution grid
+    z_less_nan = z2_interp
+    
+    # Apply buffers of decreasing widths
+    for width in buffer_widths:
+        print(f'⚙️ Filling NaN areas with lower-resolution data and smoothing the buffer of {width} cells...')
+        z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=width)
+        print(f'✅ Successfully created a {width}-cell buffer, enhancing data quality around NaN areas.')
+    
+    print('🎉 Groups of NaNs in the high-resolution grid have been filled with lower-resolution grid data and smoothed.')
+
 
     #---> Clean memory:
     del z2_save, z2_interp
@@ -426,8 +486,9 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, coarsen_factor=No
     
     # Create a Grid2D object with the axes
     data = pyinterp.Grid2D(lat_axis, lon_axis, z_less_nan)
-    
+
     # Apply LOESS interpolation with a 3x3 grid
+    print('⚙️ Applying LOESS interpolation to fill punctual NaN ...')
     z = pyinterp.fill.loess(data, nx=3, ny=3)
 
     print('✅ The ponctual Nans have been filled with loess interpolation method')
