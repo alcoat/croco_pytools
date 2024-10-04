@@ -12,14 +12,136 @@ import pyinterp.backends.xarray
 import pyinterp.fill
 import gc
 import rasterio
+import rioxarray
 #Configure import paths
 sys.path.extend(["./../Readers/"])
 import topo_reader
 from pyproj import Transformer
+#Dependencies for interpolatig .txt file
+import pandas as pd
+import geopandas as gpd
+import matplotlib.tri as tri
+from shapely import vectorized
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
 #--- Functions ---------------------------------------------------------
+
+# ================================================
+# FUNCTION FOR CREATING BATHY GRID WITH .TXT FILE
+# ================================================
+
+def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lon_bounds, epsg_int, grid_resolution, output_file=None):
+        """
+    Create a 2D grid of interpolated depth values from depth data points and geographical boundaries specified by a shapefile.
+    
+    This function reads depth data from a specified text file, filters it based on provided latitude and longitude bounds,
+    and performs cubic triangulation interpolation to generate a grid. The function also masks the grid to exclude areas 
+    not covered by specified geographical boundaries.
+    
+    Parameters:
+    - data_file_path (str): Path to the text file containing depth data in three columns (latitude, longitude, depth).
+    - shapefile_path (str): Path to the shapefile containing the geographical boundaries to mask the grid.
+    - lat_bounds (list): A list containing the minimum and maximum latitude [min_lat, max_lat].
+    - lon_bounds (list): A list containing the minimum and maximum longitude [min_lon, max_lon].
+    - epsg_int (int): EPSG code for the coordinate reference system (CRS) of the depth data.
+    - grid_resolution (float): Desired resolution for the interpolated grid, expressed in the units of the EPSG.
+    - output_file (str, optional): Path to save the output NetCDF file containing the depth grid.
+    
+    Returns:
+    - xarray.Dataset: A dataset containing the interpolated depth grid with dimensions of latitude and longitude.
+                      If `output_file` is specified, the dataset is also saved to a NetCDF file.
+    
+    Raises:
+    - ValueError: If the shapefile's CRS is not defined or if no depth data falls within the specified bounds.
+    """
+    
+    print("🗃️ Reading depth data from the text file...")
+    
+    # Read the data from the text file (no header)
+    df = pd.read_csv(data_file_path, sep='\s+', header=None, names=['lat', 'lon', 'depth'])
+    
+    # Remove duplicates and sort the data
+    df = df.drop_duplicates().sort_values(by=['lat', 'lon'])
+    
+    print("🔍 Filtering data within specified bounds...")
+    # Filter data within the specified latitude and longitude bounds
+    filtered_data = df[(df['lat'] >= lat_bounds[0]) & (df['lat'] <= lat_bounds[1]) &
+                       (df['lon'] >= lon_bounds[0]) & (df['lon'] <= lon_bounds[1])]
+    
+    # Extract longitude, latitude, and depth from the filtered data
+    lon = filtered_data['lon'].values
+    lat = filtered_data['lat'].values
+    depth = filtered_data['depth'].values
+    
+    print("📜 Reading the shapefile...")
+    # Read the shapefile
+    gdf = gpd.read_file(shapefile_path)
+    
+    # Check and ensure that the CRS of the shapefile is defined
+    if gdf.crs is None:
+        print("❌ Error: Shapefile CRS is not defined.")
+        return None
+    
+    # If the CRS of the shapefile and the text data are different, we need to reproject the shapefile
+    if gdf.crs.to_epsg() != epsg_int:
+        print("🔄 Reprojecting shapefile to match text data EPSG...")
+        gdf = gdf.to_crs(epsg=epsg_int)  # Reproject the shapefile to match text data EPSG
+    
+    # Filter the shapefile to keep only geometries within the specified bounds
+    gdf = gdf.cx[lon_bounds[0]:lon_bounds[1], lat_bounds[0]:lat_bounds[1]]
+    
+    print("📏 Defining grid for interpolation...")
+    # Define the grid for interpolation using the specified resolution in degrees
+    num_points_lon = int((lon_bounds[1] - lon_bounds[0]) / grid_resolution)
+    num_points_lat = int((lat_bounds[1] - lat_bounds[0]) / grid_resolution)
+    grid_lon, grid_lat = np.mgrid[lon_bounds[0]:lon_bounds[1]:num_points_lon*1j, 
+                                   lat_bounds[0]:lat_bounds[1]:num_points_lat*1j]
+    
+    print("⚙️ Performing interpolation using cubic triangulation...")
+    # Interpolation using Matplotlib's Triangulation
+    triang = tri.Triangulation(lon, lat)
+    grid_depth = tri.CubicTriInterpolator(triang, depth)(grid_lon, grid_lat)
+    
+    print("🏝️ Creating mask for grid points covering terrestrial areas...")
+    # Create a mask for the grid points based on the polygons in the shapefile
+    mask = np.zeros_like(grid_depth, dtype=bool)
+    
+    # Extract x and y coordinates from the grid
+    grid_lon_flat = grid_lon.ravel()
+    grid_lat_flat = grid_lat.ravel()
+    
+    # Apply vectorized contains for each polygon in the GeoDataFrame
+    for poly in gdf.geometry:
+        mask |= vectorized.contains(poly, grid_lon_flat, grid_lat_flat).reshape(grid_depth.shape)
+    
+    # Apply the mask to set depths inside polygons to NaN
+    grid_depth_masked = np.where(mask, np.nan, grid_depth)
+    
+    #ds = xr.Dataset({"depth": (["lon", "lat"], grid_depth_masked)}, coords={"lon": (["lon"], grid_lon[:, 0]), "lat": (["lat"], grid_lat[0, :])})
+    ds = xr.Dataset(
+        {
+            "depth": (["lon", "lat"], grid_depth_masked)
+        },
+        coords={
+            "lon": (["lon"], grid_lon[:, 0]),
+            "lat": (["lat"], grid_lat[0, :]))
+        }
+    )
+    
+    # Add spatial reference attribute (optional)
+    ds.rio.write_crs(CRS.from_epsg(epsg_int), inplace=True)
+
+    print("✅ Depth grid created successfully from textfile!")
+    
+    # Save the grid_depth to a NetCDF file if output_file is specified
+    if output_file:
+        print("💾 Saving the depth grid to NetCDF file...")
+        ds.to_netcdf(output_file)
+        print("✅ Depth grid saved successfully!")
+    
+    return ds
+
 
 # ================================================
 # FUNCTION FOR FINDING COORDINATES'NAMES (NETCDF)
@@ -69,7 +191,7 @@ def find_coords(ds):
 # FUNCTION FOR MERGING - LINEAR PONDERATION METHOD
 # ================================================
 
-def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG:4326', coarsen_factor=None, downscale_bounds=None):
+def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG:4326', coarsen_factor=None, downscale_bounds=None, params=None):
 
     """
     Process high and low resolution grids by interpolating missing values and creating a blended output.
@@ -92,7 +214,15 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
                     If both datasets have undefined CRS, they will be assumed to be in the specified `target_epsg` CRS. Defaults to 'EPSG:4326'.
     - coarsen_factor: (int) Resolution reduction factor for high-resolution grid. OPTION
     - downscale_bounds: (List) [lon_min, lon_max, lat_min, lat_max] for downscaling the low-resolution grid. OPTION
-    - target_epsg: (str) The EPSG code of the target CRS. Defaults to 'EPSG:4326' (WGS84).
+    - params (dict, optional): 
+        A dictionary containing parameters for `create_depth_grid_from_points` when high_res is a .txt file.
+        The dictionary must include the following keys:
+        - shapefile_path (str): Path to the shapefile containing geographical boundaries.
+        - lat_bounds (list): Latitude bounds [min_lat, max_lat].
+        - lon_bounds (list): Longitude bounds [min_lon, max_lon].
+        - epsg_int (int): EPSG code for the coordinate reference system.
+        - grid_resolution (float): Desired grid resolution.
+        - output_file (str, optional): Path to save the output NetCDF file. If not provided, will default to None.
     
 
     Returns:
@@ -116,7 +246,24 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
 # ──────────────────────────────────────────────────────────
 
     # Open the datasets
-    ds1 = xr.open_dataset(high_res)
+     if high_res.endswith('.txt'):
+        if params is None:
+            raise ValueError("params must be provided when high_res is a .txt file.")
+        print("🔄 Loading high resolution data from text file...")
+        
+        ds1 = create_depth_grid_from_points(
+            high_res,
+            params['shapefile_path'],
+            params['lat_bounds'],
+            params['lon_bounds'],
+            params['epsg_int'],
+            params['grid_resolution'],
+            params.get('output_file', None)
+        )
+
+    else:
+        ds1 = xr.open_dataset(high_res)
+        
     ds2 = xr.open_dataset(low_res)
     
    # If high_res is a TIFF file, select the first band
