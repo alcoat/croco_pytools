@@ -76,9 +76,13 @@ There are several parts in it:
 
   # Dates
   # starting date
-  Yini, Mini, Dini  = '2013','01','01' # Month and days need to be 2-digits format
+  Yini, Mini, Dini, Hini  = '2013','01','01','12' # Month and days need to be 2-digits format
   # reference time (default = ini time)
   Yorig, Morig, Dorig = Yini, Mini, Dini # Month and days need to be 2-digits format
+
+.. note::
+
+    To start your simulation at midnight when the input data is at noon, simply set ``Hini`` to ``'00'``. This will not interpolate the solution to the given time, but simply change the start time to midnight.
 
 .. note:: 
 
