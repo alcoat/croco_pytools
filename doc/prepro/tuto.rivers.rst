@@ -77,6 +77,7 @@ There are several parts in it:
     # Input data informations
     input_dir = './' # where .txt file can be found
     input_file = 'river_list.txt' # txt file name
+    Crange = 3 # only used in 2D reanalysis, number of iterations to broaden the coast mask
   
     # CROCO path and filename informations
     croco_dir = '../../CROCO_FILES/'
@@ -92,6 +93,10 @@ Origin year, along with starting and ending date are defined.
 
 Informations on the location and name of the text file containing rivers to 
 consider.
+
+.. note::
+
+    The ``Crange`` variable is only used in the case of two-dimensional data and allows the user to widen the land/sea interface zone to take into account more rivers (some of which are not connected to the sea, as they should be, due to the resolution of the data).
 
 Informations on where to find CROCO grid.
 

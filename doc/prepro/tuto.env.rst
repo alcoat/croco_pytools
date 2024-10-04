@@ -31,17 +31,9 @@ Installation with conda and using the "install" script
     Do you want to install conda environment? [y,[n]]: y
     Do you want to compile fortran tools? y,[n]: y
 
-If envrionment installation is selected, you will be asked an additional 
-question:
-
-::
-
-  Do you want use mamba to create the environnemnt? [y,[n]]:
-
 .. note::
 
-  To use this option you need to have 
-  `mamba <https://mamba.readthedocs.io/en/latest/>`_ package. you can install it
+  ``install.py`` automatically uses `mamba <https://mamba.readthedocs.io/en/latest/>`_ package if it exists within conda. You can install it
   with the command:
 
   ::
