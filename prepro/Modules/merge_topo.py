@@ -22,6 +22,8 @@ import pandas as pd
 import geopandas as gpd
 import matplotlib.tri as tri
 from shapely import vectorized
+from itertools import product
+import regionmask
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
@@ -32,7 +34,7 @@ from shapely import vectorized
 # ================================================
 
 def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lon_bounds, epsg_int, grid_resolution, output_file=None):
-        """
+    """
     Create a 2D grid of interpolated depth values from depth data points and geographical boundaries specified by a shapefile.
     
     This function reads depth data from a specified text file, filters it based on provided latitude and longitude bounds,
@@ -55,6 +57,10 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     Raises:
     - ValueError: If the shapefile's CRS is not defined or if no depth data falls within the specified bounds.
     """
+
+# ──────────────────────────────────────────────────────────
+# ▶ SECTION 1: Reading bathy text file + filtering◀
+# ──────────────────────────────────────────────────────────
     
     print("🗃️ Reading depth data from the text file...")
     
@@ -73,11 +79,32 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     lon = filtered_data['lon'].values
     lat = filtered_data['lat'].values
     depth = filtered_data['depth'].values
+
+# ──────────────────────────────────────────────────────────
+# ▶ SECTION 2: Shapefile data local extraction◀
+# ──────────────────────────────────────────────────────────
     
     print("📜 Reading the shapefile...")
-    # Read the shapefile
-    gdf = gpd.read_file(shapefile_path)
+    # Load shapefile metadata to get its CRS (loading only one row to retrieve CRS)
+    shapefile_meta = gpd.read_file(shapefile_path, rows=1)
+    shapefile_crs = shapefile_meta.crs
     
+    # Check if the shapefile has a defined CRS
+    if shapefile_crs is None:
+        raise ValueError("❌ No CRS found in the shapefile")
+        
+    # Reproject lon_bounds and lat_bounds to the shapefile's CRS (epsg_int -> shapefile CRS)
+    transformer = Transformer.from_crs(f"EPSG:{epsg_int}", shapefile_crs, always_xy=True)
+    min_lon, min_lat = transformer.transform(lon_bounds[0], lat_bounds[0])
+    max_lon, max_lat = transformer.transform(lon_bounds[1], lat_bounds[1])
+
+    # Use the reprojected bounding box to load only the necessary data
+    gdf = gpd.read_file(shapefile_path, bbox=(min_lon, min_lat, max_lon, max_lat))
+
+# ───────────────────────────────────────────────────────────
+# ▶ SECTION 3: Shapefile CRS conversion to match bathy's one◀
+# ───────────────────────────────────────────────────────────
+        
     # Check and ensure that the CRS of the shapefile is defined
     if gdf.crs is None:
         print("❌ Error: Shapefile CRS is not defined.")
@@ -89,7 +116,11 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
         gdf = gdf.to_crs(epsg=epsg_int)  # Reproject the shapefile to match text data EPSG
     
     # Filter the shapefile to keep only geometries within the specified bounds
-    gdf = gdf.cx[lon_bounds[0]:lon_bounds[1], lat_bounds[0]:lat_bounds[1]]
+    #gdf = gdf.cx[lon_bounds[0]:lon_bounds[1], lat_bounds[0]:lat_bounds[1]]
+
+# ──────────────────────────────────────────────────────────────────
+# ▶ SECTION 4: Output grid creation + interpolation of bathy points◀
+# ──────────────────────────────────────────────────────────────────
     
     print("📏 Defining grid for interpolation...")
     # Define the grid for interpolation using the specified resolution in degrees
@@ -102,21 +133,91 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     # Interpolation using Matplotlib's Triangulation
     triang = tri.Triangulation(lon, lat)
     grid_depth = tri.CubicTriInterpolator(triang, depth)(grid_lon, grid_lat)
+
+# ──────────────────────────────────────────────────────────────
+# ▶ SECTION 5: Erasing terrestrial zones from interpolated data◀
+# ──────────────────────────────────────────────────────────────
     
     print("🏝️ Creating mask for grid points covering terrestrial areas...")
     # Create a mask for the grid points based on the polygons in the shapefile
     mask = np.zeros_like(grid_depth, dtype=bool)
-    
+
+    ### OLD WAY TO DETRMINE COORDS INSIDE POLYGONS ##################################################################################
     # Extract x and y coordinates from the grid
-    grid_lon_flat = grid_lon.ravel()
-    grid_lat_flat = grid_lat.ravel()
+    #grid_lon_flat = grid_lon.ravel()
+    #grid_lat_flat = grid_lat.ravel()
     
     # Apply vectorized contains for each polygon in the GeoDataFrame
-    for poly in gdf.geometry:
-        mask |= vectorized.contains(poly, grid_lon_flat, grid_lat_flat).reshape(grid_depth.shape)
+    #for poly in gdf.geometry:
+    #    mask |= vectorized.contains(poly, grid_lon_flat, grid_lat_flat).reshape(grid_depth.shape)
+    #################################################################################################################################
+
+    ny, nx = grid_lon.shape
+    mask = np.zeros_like(grid_lon, dtype=bool)  # Initialize the mask as a boolean array with the same shape as grid_lon
+    n2max = 50000  # Maximum number of points per chunk
+    
+    # Determine if the data should be processed in chunks based on the size of gdf
+    if gdf.shape[0] > 3000:
+        # Calculate the number of chunks based on the grid size and the maximum number of points per chunk
+        nchunk = int(np.max([np.sqrt((ny)*(nx)/n2max), 1]))  # At least 1 chunk
+    else:
+        nchunk = 1  # No chunking if gdf is small
+    
+    # If chunking is applied, print the chunk format
+    if nchunk > 1:
+        print(f"Chunk format (y,x):({nchunk},{nchunk})")
+
+    
+    # Loop over the chunks in both x and y directions
+    for i, j in product(list(range(nchunk)), list(range(nchunk))):
+        if nchunk > 1:
+            print(f"🧩 Processing chunk ({i+1}/{nchunk}, {j+1}/{nchunk})")
+
+    
+        # Overlap between chunks to avoid edge effects
+        dx1 = 2; dx2 = 2; dy1 = 2; dy2 = 2
+        if i == 0: dx1 = 0  # No overlap on the left-most chunk
+        if i == nchunk - 1: dx2 = 0  # No overlap on the right-most chunk
+        if j == 0: dy1 = 0  # No overlap on the top-most chunk
+        if j == nchunk - 1: dy2 = 0  # No overlap on the bottom-most chunk
+    
+        # Define the indices for the current chunk in the x and y dimensions
+        nx1i = int(i * (nx) / nchunk - 2 * dx1)  # Start index in x
+        nx2i = int((i + 1) * (nx) / nchunk + 2 * dx2)  # End index in x
+        ny1i = int(j * (ny) / nchunk - 2 * dy1)  # Start index in y
+        ny2i = int((j + 1) * (ny) / nchunk + 2 * dy2)  # End index in y
+    
+        # Find the geographic boundaries of the current chunk in lon/lat
+        llcrnrlon = np.nanmin(grid_lon[ny1i:ny2i, nx1i:nx2i])  # Lower-left corner longitude
+        urcrnrlon = np.nanmax(grid_lon[ny1i:ny2i, nx1i:nx2i])  # Upper-right corner longitude
+        llcrnrlat = np.nanmin(grid_lat[ny1i:ny2i, nx1i:nx2i])  # Lower-left corner latitude
+        urcrnrlat = np.nanmax(grid_lat[ny1i:ny2i, nx1i:nx2i])  # Upper-right corner latitude
+    
+        # Clip the geodataframe to the chunk bounding box
+        gs = gdf.clip((llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat))
+    
+        try:  # Try to apply region masking if polygons exist in the chunk
+            # Create a mask for the chunk using regionmask and the grid coordinates (lon/lat)
+            rmask = regionmask.mask_geopandas(
+                      gs.geometry, grid_lon[ny1i:ny2i, nx1i:nx2i], grid_lat[ny1i:ny2i, nx1i:nx2i])
+    
+            # Update the main mask: set areas where regionmask is NaN to 1 (i.e., inside polygons)
+            mask[ny1i + dy1:ny2i - dy2, nx1i + dx1:nx2i - dx2]\
+                [np.isnan(rmask[dy1:ny2i - ny1i - dy2, dx1:nx2i - nx1i - dx2])] = 1
+            
+            print(f"✅ Chunk ({i+1}/{nchunk}, {j+1}/{nchunk}) processed successfully!")
+            
+        except:  # If there are no polygons in the chunk, set the mask to 1 (marking the whole chunk)
+            print(f"ℹ️ No polygons found in chunk ({i+1}/{nchunk}, {j+1}/{nchunk})")
+            mask[ny1i + dy1:ny2i - dy2, nx1i + dx1:nx2i - dx2] = 1
+            continue  # Continue to the next chunk
     
     # Apply the mask to set depths inside polygons to NaN
-    grid_depth_masked = np.where(mask, np.nan, grid_depth)
+    grid_depth_masked = np.where(mask==False, np.nan, grid_depth)
+
+# ──────────────────────────────────────────────────────────
+# ▶ SECTION 6: Dataset creation for export◀
+# ──────────────────────────────────────────────────────────
     
     #ds = xr.Dataset({"depth": (["lon", "lat"], grid_depth_masked)}, coords={"lon": (["lon"], grid_lon[:, 0]), "lat": (["lat"], grid_lat[0, :])})
     ds = xr.Dataset(
@@ -125,7 +226,7 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
         },
         coords={
             "lon": (["lon"], grid_lon[:, 0]),
-            "lat": (["lat"], grid_lat[0, :]))
+            "lat": (["lat"], grid_lat[0, :])
         }
     )
     
@@ -133,6 +234,10 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     ds.rio.write_crs(CRS.from_epsg(epsg_int), inplace=True)
 
     print("✅ Depth grid created successfully from textfile!")
+
+# ──────────────────────────────────────────────────────────
+# ▶ SECTION 7: Optionnal saving◀
+# ──────────────────────────────────────────────────────────
     
     # Save the grid_depth to a NetCDF file if output_file is specified
     if output_file:
@@ -604,7 +709,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
         return new_z
     #----------------
 
-    # List of buffer withs to apply
+    # List of buffer widths to apply
     buffer_widths = [10, 5, 3, 2]
 
     # Initialize the variable with the initial high-resolution grid
