@@ -86,17 +86,24 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     
     print("📜 Reading the shapefile...")
     # Load shapefile metadata to get its CRS (loading only one row to retrieve CRS)
-    shapefile_meta = gpd.read_file(shapefile_path, rows=1)
-    shapefile_crs = shapefile_meta.crs
-    
-    # Check if the shapefile has a defined CRS
-    if shapefile_crs is None:
-        raise ValueError("❌ No CRS found in the shapefile")
+    try:
+        shapefile_meta = gpd.read_file(shapefile_path, rows=1)
+        shapefile_crs = shapefile_meta.crs
         
-    # Reproject lon_bounds and lat_bounds to the shapefile's CRS (epsg_int -> shapefile CRS)
-    transformer = Transformer.from_crs(f"EPSG:{epsg_int}", shapefile_crs, always_xy=True)
-    min_lon, min_lat = transformer.transform(lon_bounds[0], lat_bounds[0])
-    max_lon, max_lat = transformer.transform(lon_bounds[1], lat_bounds[1])
+        # Check if the shapefile has a defined CRS
+        if shapefile_crs is None:
+            raise ValueError("❌ No CRS found in the shapefile")
+            
+        # Reproject lon_bounds and lat_bounds to the shapefile's CRS (epsg_int -> shapefile CRS)
+        transformer = Transformer.from_crs(f"EPSG:{epsg_int}", shapefile_crs, always_xy=True)
+        min_lon, min_lat = transformer.transform(lon_bounds[0], lat_bounds[0])
+        max_lon, max_lat = transformer.transform(lon_bounds[1], lat_bounds[1])
+        
+    except Exception as e:
+        #In case the shoreline file is .json/kml ... and not a shapefile
+        print(f"⚠️ The shoreline file seems to not be a shapefile: {e}")
+        print("Assuming the shoreline file is in the same reference system as the bathymetry...")
+
 
     # Use the reprojected bounding box to load only the necessary data
     gdf = gpd.read_file(shapefile_path, bbox=(min_lon, min_lat, max_lon, max_lat))
