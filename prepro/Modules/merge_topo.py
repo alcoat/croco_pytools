@@ -226,11 +226,13 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 6: Dataset creation for export◀
 # ──────────────────────────────────────────────────────────
-    
+    print("Shape of grid_depth_masked:", grid_depth_masked.shape)
+    print("Length of grid_lon:", len(grid_lon[:, 0]))
+    print("Length of grid_lat:", len(grid_lat[0, :]))
     #ds = xr.Dataset({"depth": (["lon", "lat"], grid_depth_masked)}, coords={"lon": (["lon"], grid_lon[:, 0]), "lat": (["lat"], grid_lat[0, :])})
     ds = xr.Dataset(
         {
-            "depth": (["lon", "lat"], grid_depth_masked)
+            "depth": (["lat", "lon"], np.transpose(grid_depth_masked))
         },
         coords={
             "lon": (["lon"], grid_lon[:, 0]),
