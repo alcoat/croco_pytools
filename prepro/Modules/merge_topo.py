@@ -16,7 +16,7 @@ import rioxarray
 #Configure import paths
 sys.path.extend(["./../Readers/"])
 import topo_reader
-from pyproj import Transformer
+from pyproj import Transformer, CRS
 #Dependencies for interpolatig .txt file
 import pandas as pd
 import geopandas as gpd
@@ -24,6 +24,7 @@ import matplotlib.tri as tri
 from shapely import vectorized
 from itertools import product
 import regionmask
+
 
 # /!\ The dependencies used for r.mblend method (2nd function) are imported inside the function
 
@@ -255,6 +256,7 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     return ds
 
 
+
 # ================================================
 # FUNCTION FOR FINDING COORDINATES'NAMES (NETCDF)
 # ================================================
@@ -358,7 +360,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
 # ──────────────────────────────────────────────────────────
 
     # Open the datasets
-     if high_res.endswith('.txt'):
+    if high_res.endswith('.txt'):
         if params is None:
             raise ValueError("params must be provided when high_res is a .txt file.")
         print("🔄 Loading high resolution data from text file...")
@@ -524,7 +526,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     new_lon_2 = np.arange(lon2.min(), lon2.max(), resolution_lon)
     new_lat_2 = np.arange(lat2.min(), lat2.max(), resolution_lat)
     new_lon_grid_2, new_lat_grid_2 = np.meshgrid(new_lon_2, new_lat_2)
-
+    
     ### OLD WAY TO INTERPOLATE ##################################################################################
     # Interpolate ds2 data onto the new grid
     #z2_interp = griddata((lon_flat_2, lat_flat_2), z_flat_2, (new_lon_grid_2, new_lat_grid_2), method='nearest')
@@ -544,16 +546,74 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     # Initialize the grid interpolator for z2
     interpolator_2 = pyinterp.backends.xarray.RegularGridInterpolator(z2_dataarray, geodetic=False)
     
-    # Prepare new coordinates for interpolation
-    new_coords_2 = {
-        'longitude': new_lon_grid_2.flatten(),  # Flattened array of new longitudes
-        'latitude': new_lat_grid_2.flatten()     # Flattened array of new latitudes
-    }
-    
-    # Perform interpolation using the nearest method
-    z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
 
-    print("✅ Low-resolution grid interpolation completed.")
+    # Get the shape of the interpolation grid
+    shape = new_lon_grid_2.shape  
+    
+    # Check if the grid size exceeds 3,000,000 elements
+    if shape[0] * shape[1] > 3000000:
+        
+        # Parameters for chunking
+        chunk_size = 1000  # Maximum size of a chunk
+        overlap = 25       # Size of the overlap
+        
+        # Initialize the interpolation grid, filled with NaN
+        z2_interp = np.full(shape, np.nan)  
+        
+        # Loop through the grid in chunks
+        for i in range(0, shape[0], chunk_size - overlap):
+            for j in range(0, shape[1], chunk_size - overlap):
+                # Determine the size of the chunk without exceeding the limits
+                end_i = min(i + chunk_size, shape[0])
+                end_j = min(j + chunk_size, shape[1])
+                
+                # Ensure the overlap does not exceed the limits
+                start_i = max(i - overlap, 0)
+                start_j = max(j - overlap, 0)
+    
+                # Create coordinates for this chunk
+                lon_coords = new_lon_grid_2[start_i:end_i, start_j:end_j].flatten()  # Flattened longitude coordinates for the chunk
+                lat_coords = new_lat_grid_2[start_i:end_i, start_j:end_j].flatten()  # Flattened latitude coordinates for the chunk
+                
+                # Prepare the coordinate pairs for the interpolator
+                coords_subset = {
+                    'longitude': lon_coords,
+                    'latitude': lat_coords
+                }
+    
+                # Use the interpolator on this chunk
+                z2_interp_subset = interpolator_2(coords_subset, method='nearest').reshape(end_i - start_i, end_j - start_j)
+    
+                # Update the interpolation grid with results
+                z2_interp[start_i:end_i, start_j:end_j] = np.where(
+                    np.isnan(z2_interp[start_i:end_i, start_j:end_j]), 
+                    z2_interp_subset,  # Use the interpolated values
+                    z2_interp[start_i:end_i, start_j:end_j]  # Keep existing values
+                )
+        
+        print("✅ Low-resolution grid interpolation completed with chunks' method.")
+    
+    else:
+        # Prepare new coordinates for interpolation if the grid is smaller
+        new_coords_2 = {
+            'longitude': new_lon_grid_2.flatten(),  # Flattened array of new longitudes
+            'latitude': new_lat_grid_2.flatten()     # Flattened array of new latitudes
+        }
+        
+        # Perform interpolation using the nearest method
+        z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
+        
+        print("✅ Low-resolution grid interpolation completed (No chunks).")
+
+    # Prepare new coordinates for interpolation
+        #new_coords_2 = {
+         #   'longitude': new_lon_grid_2.flatten(),  # Flattened array of new longitudes
+          #  'latitude': new_lat_grid_2.flatten()     # Flattened array of new latitudes
+       # }
+    # Perform interpolation using the nearest method
+    #z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
+
+    #print("✅ Low-resolution grid interpolation completed.")
     #############################################################################################################
 
 
