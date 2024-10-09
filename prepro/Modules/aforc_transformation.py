@@ -16,13 +16,12 @@ import scipy.interpolate as itp
 # -------------------------------------------------
 
 
-def flip_data(data,data_origin):
+def flip_data(data):
 # The latitude of some data sources are not increasing, so the script will flip them
 # ---------------------
 # data : xarray.DataArray of one variable
-# data_origin : source of the data (example : 'era_ecmwf', 'era_dataref', 'cfsr')
     if len(data['lat'].dims) == 1: # Regular grid
-        if data['lat'][1].values > data['lat'][0].values:
+        if data['lat'][1].values < data['lat'][0].values:
             data = data.isel(lat=slice(None,None,-1))
         else: data = data.isel(lat=slice(None,None,1))
     return data

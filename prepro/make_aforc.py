@@ -91,8 +91,7 @@ os.makedirs(output_dir,exist_ok=True)
 # -------------------------------------------------
 # python Dictionary from JSON file
 # -------------------------------------------------
-# with open('ERA5_variables.json', 'r') as jf:
-with open('croco_variables.json', 'r') as jf:
+with open('./Readers/croco_variables.json', 'r') as jf:
     croco_variables = json.load(jf)
 
 # -------------------------------------------------
@@ -229,10 +228,10 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # -----------------------------------
 # CONVERT DATA IF NECESSARY
 # -----------------------------------
-                data = flip_data(data_grouped[i][variables.get_var(var)],data_origin)
+                data = flip_data(data_grouped[i][variables.get_var(var)])
                 data = unit_conversion(data,var,variables)
                 if var == 'str':
-                    sst = flip_data(data_grouped[i][variables.get_var('sst')],data_origin)
+                    sst = flip_data(data_grouped[i][variables.get_var('sst')])
                     if extrapolation_sst:
                         sst = extrapolation(sst.values,sst.lon.values,sst.lat.values)
                     else:
