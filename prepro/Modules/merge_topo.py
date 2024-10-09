@@ -258,6 +258,86 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
     return ds
 
 
+# ================================================
+# FUNCTION CHUNKING INTERPOLATION
+# ================================================
+
+def interpolate_large_grid(latitudes, longitudes, data_array, chunk_size=1000, overlap=25, method='nearest'):
+    """
+    Interpolates a large grid using chunking to avoid memory overload.
+
+    Parameters:
+    -----------
+    latitudes : np.ndarray
+        2D array of latitude values for the grid to interpolate over.
+    longitudes : np.ndarray
+        2D array of longitude values for the grid to interpolate over.
+    data_array : xr.DataArray
+        DataArray containing the data to interpolate, with dimensions 
+        corresponding to latitude and longitude.
+    chunk_size : int, optional
+        Size of the chunks to process at a time (default: 1000).
+    overlap : int, optional
+        Size of overlap between chunks to ensure smooth transitions (default: 25).
+    method : str, optional
+        Interpolation method, default is 'nearest'. Other options include 'linear'.
+
+    Returns:
+    --------
+    interpolated_result : np.ndarray
+        2D array of interpolated values matching the shape of the input grid.
+    """
+
+    # Initialize the grid interpolator using the provided DataArray
+    grid_interpolator = pyinterp.backends.xarray.RegularGridInterpolator(data_array, geodetic=False)
+    
+    grid_shape = longitudes.shape  # Get the shape of the grid to interpolate
+    
+    interpolated_result = np.full(grid_shape, np.nan)  # Initialize the result grid with NaN
+
+    # Check if the grid is large enough to require chunking
+    if grid_shape[0] * grid_shape[1] > 3000000:
+        # Loop through the grid in chunks to interpolate
+        for row_start in range(0, grid_shape[0], chunk_size - overlap):
+            for col_start in range(0, grid_shape[1], chunk_size - overlap):
+                # Calculate the end of the current chunk, not exceeding the grid boundaries
+                row_end = min(row_start + chunk_size, grid_shape[0])
+                col_end = min(col_start + chunk_size, grid_shape[1])
+
+                # Adjust the chunk to include overlap, without exceeding grid boundaries
+                row_start_overlap = max(row_start - overlap, 0)
+                col_start_overlap = max(col_start - overlap, 0)
+
+                # Extract longitude and latitude values for this chunk                    
+                lon_chunk = longitudes[row_start_overlap:row_end, col_start_overlap:col_end].ravel() #.flatten()
+                lat_chunk = latitudes[row_start_overlap:row_end, col_start_overlap:col_end].ravel() #.flatten()
+
+                # Prepare the coordinate pairs for the interpolator
+                coords_chunk = {
+                    'longitude': lon_chunk,
+                    'latitude': lat_chunk
+                }
+
+                # Perform interpolation for this chunk
+                interpolated_chunk = grid_interpolator(coords_chunk, method=method).reshape(row_end - row_start_overlap, col_end - col_start_overlap)
+
+                # Update the result grid, replacing NaN values only
+                interpolated_result[row_start_overlap:row_end, col_start_overlap:col_end] = np.where(
+                    np.isnan(interpolated_result[row_start_overlap:row_end, col_start_overlap:col_end]), 
+                    interpolated_chunk, 
+                    interpolated_result[row_start_overlap:row_end, col_start_overlap:col_end]
+                )
+    else:
+        # For smaller grids, perform interpolation directly
+        flat_coords = {
+            'longitude': longitudes.ravel(), #.flatten(),
+            'latitude': latitudes.ravel() #.flatten()
+        }
+        # Interpolate directly across the entire grid
+        interpolated_result = grid_interpolator(flat_coords, method=method).reshape(longitudes.shape)
+
+    return interpolated_result
+
 
 # ================================================
 # FUNCTION FOR FINDING COORDINATES'NAMES (NETCDF)
@@ -528,13 +608,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     new_lon_2 = np.arange(lon2.min(), lon2.max(), resolution_lon)
     new_lat_2 = np.arange(lat2.min(), lat2.max(), resolution_lat)
     new_lon_grid_2, new_lat_grid_2 = np.meshgrid(new_lon_2, new_lat_2)
-    
-    ### OLD WAY TO INTERPOLATE ##################################################################################
-    # Interpolate ds2 data onto the new grid
-    #z2_interp = griddata((lon_flat_2, lat_flat_2), z_flat_2, (new_lon_grid_2, new_lat_grid_2), method='nearest')
-    #############################################################################################################
 
-    ### NEW WAY TO INTERPOLATE ##################################################################################
     # Create a DataArray for z2 with unique 1D latitude and longitude coordinates
     z2_dataarray = xr.DataArray(
         z2,
@@ -544,7 +618,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
         },
         dims=['latitude', 'longitude']  # Dimensions should match the DataArray shape
     )
-    
+
+    '''
     # Initialize the grid interpolator for z2
     interpolator_2 = pyinterp.backends.xarray.RegularGridInterpolator(z2_dataarray, geodetic=False)
     
@@ -616,7 +691,10 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     #z2_interp = interpolator_2(new_coords_2, method='nearest').reshape(new_lon_grid_2.shape)
 
     #print("✅ Low-resolution grid interpolation completed.")
-    #############################################################################################################
+    '''
+    z2_interp = interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z2_dataarray)
+
+    print("✅ Low-resolution grid interpolation completed.")
 
 
 # ───────────────────────────────────────────────────────────────
@@ -644,34 +722,24 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     mask_overlap = (new_lon_grid_2 >= lon_min_1) & (new_lon_grid_2 <= lon_max_1) & \
                    (new_lat_grid_2 >= lat_min_1) & (new_lat_grid_2 <= lat_max_1)
 
-    ### OLD WAY TO INTERPOLATE ##################################################################################
-    # Interpolate the high-resolution data (ds1) onto the overlapping area of ds2
-    #z1_interp_on_z2_overlap = griddata(
-        #(lon_flat_1, lat_flat_1),  # Source points (grid 1)
-        #z_flat_1,                  # Source values (grid 1)
-        #(new_lon_grid_2[mask_overlap], new_lat_grid_2[mask_overlap]),  # Target points (overlapping region in grid 2)
-        #method='nearest'           # Interpolation method (nearest neighbor)
-    #)
-    #############################################################################################################
-
-    ### NEW WAY TO INTERPOLATE ##################################################################################
     # Create a DataArray for z1
     z1_dataarray = xr.DataArray(
         z1,  # The values to be interpolated
         coords={
-            'lat': lat1,  # 1D array of latitudes corresponding to z1
-            'lon': lon1   # 1D array of longitudes corresponding to z1
+            'latitude': lat1,  # 1D array of latitudes corresponding to z1
+            'longitude': lon1   # 1D array of longitudes corresponding to z1
         },
-        dims=['lat', 'lon']  # Define the dimensions of the DataArray
+        dims=['latitude', 'longitude']  # Define the dimensions of the DataArray
     )
-    
+
+'''
     # Create the interpolator for z1
     interpolator = pyinterp.backends.xarray.RegularGridInterpolator(z1_dataarray, geodetic=False)
     
     # Prepare new coordinates for interpolation within the overlap region
     new_coords_1 = {
-        'lon': new_lon_grid_2[mask_overlap].flatten(),  # Flattened longitudes from the overlap region
-        'lat': new_lat_grid_2[mask_overlap].flatten()    # Flattened latitudes from the overlap region
+        'longitude': new_lon_grid_2[mask_overlap].flatten(),  # Flattened longitudes from the overlap region
+        'latitude': new_lat_grid_2[mask_overlap].flatten()    # Flattened latitudes from the overlap region
     }
     
     # Apply the interpolator to the new coordinates
@@ -679,18 +747,25 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     
     # Reshape the result to match the shape of the grid 2
     z1_interp_on_z2_overlap = z1_interp_on_z2_overlap.reshape(new_lon_grid_2[mask_overlap].shape)
-    #############################################################################################################
+'''
+    #Interpolates grid 1 over all the grid 2 extent (=> NAN on grid 1's sides)
+    z1_interp= interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z1_dataarray, chunk_size=500, overlap=25, method='nearest')
+    z1_interp= z1_interp[mask_overlap]
+    #--->Clean memory:
+    gc.collect()
 
     # Save the original interpolated ds2 grid for later use
     z2_save = z2_interp.copy()
     
     # Replace the values in z2_interp (low-res grid) with those from grid 1 in the overlapping region
-    z2_interp[mask_overlap] = z1_interp_on_z2_overlap
+    #z2_interp[mask_overlap] = z1_interp_on_z2_overlap
+    z2_interp[mask_overlap] = z1_interp
 
     print("✅ High-resolution grid interpolation completed.")
 
     #---> Clean memory:
-    del z1_interp_on_z2_overlap, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
+    #del z1_interp_on_z2_overlap, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
+    del z1_interp, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
     gc.collect()
 
 # ──────────────────────────────────────────────────────────
