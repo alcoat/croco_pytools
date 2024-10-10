@@ -913,19 +913,19 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     del data, lon_axis, lat_axis
     gc.collect()
     '''
+
+        # Create axes for the coordinates
+    lon_axis = pyinterp.Axis(np.ravel(new_lon_2).astype(np.float64))
+    lat_axis = pyinterp.Axis(np.ravel(new_lat_2).astype(np.float64))
+
     # Size threshold to decide the processing method
     size_threshold = 1000  # Define this threshold according to your available memory
     chunk_size = 1000  # Size of each chunk for processing
     overlap = 25  # Define the overlap size
-
-    # Create axes for the coordinates
-    lon_axis = pyinterp.Axis(np.ravel(new_lon_2))
-    lat_axis = pyinterp.Axis(np.ravel(new_lat_2))
-    
     
     # Check the size of new_lon_2 to decide the method to use
     if new_lon_2.size > size_threshold:
-        print('⚙️ The grid is large; using chunk processing with overlap ...')
+        print('⚙️ The grid is large; using chunk processing with overlap to fill last ponctual Nans...')
         
         # Loop over the grid with overlap
         for i in range(0, z_less_nan.shape[0], chunk_size - overlap):
@@ -934,8 +934,8 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
                 j_end = min(j + chunk_size, z_less_nan.shape[1])
                 
                 # Adjust indices for the axes based on the current chunk
-                lat_chunk_axis = lat_axis[i:i_end]
-                lon_chunk_axis = lon_axis[j:j_end]
+                lat_chunk_axis = pyinterp.Axis(lat_axis[i:i_end].astype(np.float64)) #lat_axis[i:i_end]
+                lon_chunk_axis = pyinterp.Axis(lon_axis[j:j_end].astype(np.float64)) #lon_axis[j:j_end]
                 
                 # Extract the chunk
                 chunk_data = z_less_nan[i:i_end, j:j_end]
@@ -950,19 +950,23 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
                 # Clean up
                 del data_chunk, chunk_data
                 gc.collect()
-    
+                z= z_less_nan
+                
     else:
-        print('⚙️ The grid is small; applying LOESS interpolation directly ...')
+        print('⚙️ The grid is small; applying LOESS interpolation directly to fill the last ponctual Nans...')
+        
         # Initialize the data grid
         data = pyinterp.Grid2D(lat_axis, lon_axis, z_less_nan)
         # Apply LOESS interpolation on the entire grid
         z = pyinterp.fill.loess(data, nx=3, ny=3)
+
+        del data
     
     # Indication of the end of interpolation
     print('✅ The punctual NaNs have been filled using the LOESS interpolation method')
     
     #---> Clean memory:
-    del data, lon_axis, lat_axis
+    del lon_axis, lat_axis
     gc.collect()
 
 # ──────────────────────────────────────────────────────────
@@ -1097,13 +1101,25 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     
     print('✅ The mask_buffer has been smoothed with linear ponderation')
 
+    # Deleting useless varaibles
+    del mask_overlap, mask_buffer, dilated_mask_buffer
+    del border_buffer_ext, border_buffer_inner, coords_border_inner, coords_border_outer, coords_buffer
+    del values_inner, values_outer, tree_border_inner, tree_border_outer
+    del interpolated_values_buffer
+    
+    # Cleaning
+    gc.collect()
+
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 7: SAVING TO NETCDF FORMAT ◀
 # ──────────────────────────────────────────────────────────
 
     # Get unique coordinates
-    new_lon_unique = np.unique(new_lon_grid_2)
-    new_lat_unique = np.unique(new_lat_grid_2)
+    #new_lon_unique = np.unique(new_lon_grid_2)
+    #new_lat_unique = np.unique(new_lat_grid_2)
+    new_lon_unique = new_lon_grid_2[0, :]  
+    new_lat_unique = new_lat_grid_2[:, 0]  
+
 
     ### OLD WAY TO SAVE DATA AS DOUBLE ##########################################################################
     # Create a DataArray for the interpolated data
@@ -1134,17 +1150,23 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
                }
 
     # Create a DataArray for the interpolated data and cast it to float32
+    #ds_interpolated = xr.DataArray(
+    #    z.astype('float32'),  # Cast to float32
+    #    coords={topo_type['lat']: new_lat_unique, topo_type['lon']: new_lon_unique},  # Add coordinates dynamically
+    #    dims=[topo_type['lat'], topo_type['lon']]  # Specify dimensions dynamically
+    #)
+
     ds_interpolated = xr.DataArray(
         z.astype('float32'),  # Cast to float32
         coords={topo_type['lat']: new_lat_unique, topo_type['lon']: new_lon_unique},  # Add coordinates dynamically
         dims=[topo_type['lat'], topo_type['lon']]  # Specify dimensions dynamically
-    )
-    
+    ).chunk({'lat': 100, 'lon': 100})  # Chunking
+
     # Create a Dataset to organize the variables
     ds_to_save = xr.Dataset({
         topo_type['topo']: ds_interpolated  # Add the interpolated variable
     })
-    
+
     # SAVE WITH CHUNKS TO LIMIT MEMORY USAGE
     ds_to_save.to_netcdf(output_file, encoding={topo_type['topo']: {'chunksizes': (100, 100), 'dtype': 'float32'}})
 
