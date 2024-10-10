@@ -732,7 +732,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
         dims=['latitude', 'longitude']  # Define the dimensions of the DataArray
     )
 
-'''
+    '''
     # Create the interpolator for z1
     interpolator = pyinterp.backends.xarray.RegularGridInterpolator(z1_dataarray, geodetic=False)
     
@@ -747,25 +747,27 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     
     # Reshape the result to match the shape of the grid 2
     z1_interp_on_z2_overlap = z1_interp_on_z2_overlap.reshape(new_lon_grid_2[mask_overlap].shape)
-'''
+    '''
     #Interpolates grid 1 over all the grid 2 extent (=> NAN on grid 1's sides)
     z1_interp= interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z1_dataarray, chunk_size=500, overlap=25, method='nearest')
-    z1_interp= z1_interp[mask_overlap]
+    #z1_interp= z1_interp[mask_overlap]
+    
     #--->Clean memory:
     gc.collect()
 
     # Save the original interpolated ds2 grid for later use
-    z2_save = z2_interp.copy()
+    #z2_save = z2_interp.copy()
     
     # Replace the values in z2_interp (low-res grid) with those from grid 1 in the overlapping region
     #z2_interp[mask_overlap] = z1_interp_on_z2_overlap
-    z2_interp[mask_overlap] = z1_interp
+    #z2_interp[mask_overlap] = z1_interp
 
     print("✅ High-resolution grid interpolation completed.")
 
     #---> Clean memory:
     #del z1_interp_on_z2_overlap, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
-    del z1_interp, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
+    #del z1_interp, z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
+    del z2_dataarray, z1_dataarray, lon_grid_1, lat_grid_1, ds1, ds2
     gc.collect()
 
 # ──────────────────────────────────────────────────────────
@@ -853,29 +855,47 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
         return new_z
     #----------------
 
+    rows, cols = np.where(mask_overlap)
+
+    # Définir les limites du rectangle autour de la région de True
+    min_row, max_row = rows.min(), rows.max()
+    min_col, max_col = cols.min(), cols.max()
+    
+    # Extraire la sous-section rectangulaire du tableau
+    zoom_z1 = z1_interp[min_row:max_row+1, min_col:max_col+1]
+    zoom_z2 = z2_interp[min_row:max_row+1, min_col:max_col+1]
+
     # List of buffer widths to apply
     buffer_widths = [10, 5, 3, 2]
 
     # Initialize the variable with the initial high-resolution grid
-    z_less_nan = z2_interp
-    
+    #z_less_nan = z2_interp
+    z_tempo = zoom_z1
+
     # Apply buffers of decreasing widths
     for width in buffer_widths:
         print(f'⚙️ Filling NaN areas with lower-resolution data and smoothing the buffer of {width} cells...')
-        z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=width)
+        #z_less_nan = nan_buffer_linear_pond(z_less_nan, z2_save, buffer_width=width)
+        z_tempo = nan_buffer_linear_pond(z_tempo, zoom_z2, buffer_width=width)
         print(f'✅ Successfully created a {width}-cell buffer, enhancing data quality around NaN areas.')
+        #---> Clean memory:
+        gc.collect()
     
     print('🎉 Groups of NaNs in the high-resolution grid have been filled with lower-resolution grid data and smoothed.')
 
-
+    # Replace the values in z2_interp (low-res grid) with those from grid 1 in the overlapping region
+    z2_interp[min_row:max_row+1, min_col:max_col+1] = z_tempo
+    z_less_nan=  z2_interp
+    
     #---> Clean memory:
-    del z2_save, z2_interp
+    #del z2_save, z2_interp
+    del z1_interp, z_tempo
     gc.collect()
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 5: FILLING THE REMAINING NANs◀
 # ──────────────────────────────────────────────────────────
-
+    '''
     # Create axes for the coordinates
     lon_axis = pyinterp.Axis(np.ravel(new_lon_2))
     lat_axis = pyinterp.Axis(np.ravel(new_lat_2))
@@ -889,6 +909,58 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
 
     print('✅ The ponctual Nans have been filled with loess interpolation method')
 
+    #---> Clean memory:
+    del data, lon_axis, lat_axis
+    gc.collect()
+    '''
+    # Size threshold to decide the processing method
+    size_threshold = 1000  # Define this threshold according to your available memory
+    chunk_size = 1000  # Size of each chunk for processing
+    overlap = 25  # Define the overlap size
+
+    # Create axes for the coordinates
+    lon_axis = pyinterp.Axis(np.ravel(new_lon_2))
+    lat_axis = pyinterp.Axis(np.ravel(new_lat_2))
+    
+    
+    # Check the size of new_lon_2 to decide the method to use
+    if new_lon_2.size > size_threshold:
+        print('⚙️ The grid is large; using chunk processing with overlap ...')
+        
+        # Loop over the grid with overlap
+        for i in range(0, z_less_nan.shape[0], chunk_size - overlap):
+            for j in range(0, z_less_nan.shape[1], chunk_size - overlap):
+                i_end = min(i + chunk_size, z_less_nan.shape[0])
+                j_end = min(j + chunk_size, z_less_nan.shape[1])
+                
+                # Adjust indices for the axes based on the current chunk
+                lat_chunk_axis = lat_axis[i:i_end]
+                lon_chunk_axis = lon_axis[j:j_end]
+                
+                # Extract the chunk
+                chunk_data = z_less_nan[i:i_end, j:j_end]
+                data_chunk = pyinterp.Grid2D(lat_chunk_axis, lon_chunk_axis, chunk_data)
+                
+                # Apply LOESS on the chunk
+                z_chunk = pyinterp.fill.loess(data_chunk, nx=3, ny=3)
+                    
+                # Integrate the result back into z_less_nan
+                z_less_nan[i:i_end, j:j_end] = z_chunk
+                
+                # Clean up
+                del data_chunk, chunk_data
+                gc.collect()
+    
+    else:
+        print('⚙️ The grid is small; applying LOESS interpolation directly ...')
+        # Initialize the data grid
+        data = pyinterp.Grid2D(lat_axis, lon_axis, z_less_nan)
+        # Apply LOESS interpolation on the entire grid
+        z = pyinterp.fill.loess(data, nx=3, ny=3)
+    
+    # Indication of the end of interpolation
+    print('✅ The punctual NaNs have been filled using the LOESS interpolation method')
+    
     #---> Clean memory:
     del data, lon_axis, lat_axis
     gc.collect()
