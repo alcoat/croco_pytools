@@ -262,7 +262,7 @@ def create_depth_grid_from_points(data_file_path, shapefile_path, lat_bounds, lo
 # FUNCTION CHUNKING INTERPOLATION
 # ================================================
 
-def interpolate_large_grid(latitudes, longitudes, data_array, chunk_size=1000, overlap=25, method='nearest'):
+def interpolate_large_grid(latitudes, longitudes, data_array, chunk_size=1000, overlap=25, size_threshold=3000000, method='nearest'):
     """
     Interpolates a large grid using chunking to avoid memory overload.
 
@@ -296,7 +296,9 @@ def interpolate_large_grid(latitudes, longitudes, data_array, chunk_size=1000, o
     interpolated_result = np.full(grid_shape, np.nan)  # Initialize the result grid with NaN
 
     # Check if the grid is large enough to require chunking
-    if grid_shape[0] * grid_shape[1] > 3000000:
+    if grid_shape[0] * grid_shape[1] > size_threshold:
+        print("🔄 Grid is large! Chunking will be used for interpolation.")
+        
         # Loop through the grid in chunks to interpolate
         for row_start in range(0, grid_shape[0], chunk_size - overlap):
             for col_start in range(0, grid_shape[1], chunk_size - overlap):
@@ -436,6 +438,17 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     
     """
 
+
+    ###############################################################################
+    #                          INTERPOLATION CHUNKING PARAMETERS                 #
+    ###############################################################################
+    # Define the parameters for interpolation chunking to manage memory usage.
+    size_threshold = 3000000  # Maximum grid size (number of elements) for direct processing
+    chunk_size = 1000         # Size of each chunk for processing
+    overlap = 25              # Overlap size (rows and columns) between chunks
+    ###############################################################################
+
+    
 
 # ──────────────────────────────────────────────────────────
 # ▶ SECTION 1: Data recovery and conversion◀
@@ -692,7 +705,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
 
     #print("✅ Low-resolution grid interpolation completed.")
     '''
-    z2_interp = interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z2_dataarray)
+    z2_interp = interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z2_dataarray, chunk_size=chunk_size, overlap=overlap, size_threshold=size_threshold)
 
     print("✅ Low-resolution grid interpolation completed.")
 
@@ -749,7 +762,7 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     z1_interp_on_z2_overlap = z1_interp_on_z2_overlap.reshape(new_lon_grid_2[mask_overlap].shape)
     '''
     #Interpolates grid 1 over all the grid 2 extent (=> NAN on grid 1's sides)
-    z1_interp= interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z1_dataarray, chunk_size=500, overlap=25, method='nearest')
+    z1_interp= interpolate_large_grid(new_lat_grid_2, new_lon_grid_2, z1_dataarray, chunk_size=chunk_size, overlap=overlap, size_threshold=size_threshold, method='nearest')
     #z1_interp= z1_interp[mask_overlap]
     
     #--->Clean memory:
@@ -918,10 +931,6 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
     lon_axis = pyinterp.Axis(np.ravel(new_lon_2).astype(np.float64))
     lat_axis = pyinterp.Axis(np.ravel(new_lat_2).astype(np.float64))
 
-    # Size threshold to decide the processing method
-    size_threshold = 1000  # Define this threshold according to your available memory
-    chunk_size = 1000  # Size of each chunk for processing
-    overlap = 25  # Define the overlap size
     
     # Check the size of new_lon_2 to decide the method to use
     if new_lon_2.size > size_threshold:
