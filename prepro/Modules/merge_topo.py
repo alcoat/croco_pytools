@@ -385,6 +385,58 @@ def find_coords(ds):
 
     return lon_coord, lat_coord
 
+
+# ================================================
+# FUNCTION FOR MERGING SEVERAL FILES AT ONCE
+# ================================================
+
+def merge_multiple_grids(grid_files, buffer_width, final_output_file, coarsen_factors):
+    """
+    Merge multiple grids from finest to coarsest resolution.
+
+    Parameters:
+    ----------
+    - grid_files : List of strings representing paths to grid files sorted from finest to coarsest resolution.
+    - buffer_width : (int) The width of the buffer to be applied around the high resolution grid.
+    - final_output_file : (str) The path to the final output NetCDF file where the processed grid will be saved.
+    - coarsen_factors : List of integers for coarsening the resolution at each iteration. coarsen_factors = [None, 2] -> length= len(grid_files)-1 = Num of merging
+
+    Returns:
+    -------
+    None
+    """
+
+    # Initialize with the first high resolution grid (the finest)
+    current_high_res = grid_files[0]  # Start with the finest resolution grid
+
+    # Iterate over the low resolution grids
+    for i in range(1, len(grid_files)):
+        low_res = grid_files[i]  # Get the next coarser resolution grid
+        print(f"\n=== Iteration {i} ===")
+        print(f"Merging grids: High resolution: {current_high_res}, Low resolution: {low_res}")
+
+        # Create a temporary file for the merged output
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.nc') as temp_output:
+            temp_output_file = temp_output.name
+
+        # Call the merge_smooth function to merge the current high res with the low res
+        merge_smooth(current_high_res, low_res, buffer_width, temp_output_file, coarsen_factor=coarsen_factors[i-1])
+
+        # Update current_high_res to the path of the temporary output file for the next iteration
+        current_high_res = temp_output_file  # Set the path of the temporary file
+
+    # Final save to the specified output file
+    merge_smooth(current_high_res, low_res, buffer_width, final_output_file, coarsen_factor=coarsen_factors[-1])
+    print("Merging of grids completed and saved to:", final_output_file)
+
+    # Cleanup: remove temporary files (if needed)
+    for i in range(1, len(grid_files)):
+        try:
+            os.remove(temp_output_file)  # Remove each temporary file after use
+        except OSError as e:
+            print(f"Error deleting temporary file {temp_output_file}: {e}")
+
+
 # ================================================
 # FUNCTION FOR MERGING - LINEAR PONDERATION METHOD
 # ================================================
