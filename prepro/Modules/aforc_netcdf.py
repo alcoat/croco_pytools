@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jul  6 01:53:59 2024
+Created on Mon Oct 14 16:50:23 2024
 
-@author: menkes
+@author: annelou
 """
 import numpy as np
 import os
@@ -14,7 +14,7 @@ from netCDF4 import num2date
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO FIND INPUTFILES
 # ---------------------------------------------------
-def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_files,READ_PATM):
+def find_input(variables,input_dir,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,var=None):
 # Finding input_file paths
 # -----------------------
 # variables : class of variables with the name of the variable, his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
@@ -23,59 +23,48 @@ def find_input(variables,input_dir,input_prefix,Ystart,Mstart,Yend,Mend,multi_fi
 # multi_files : bool, if variables are separated in different files
 # -----------------------
 # Warning : only for path type /data_origin/file.nc or /data_origin/Y/M/file.nc
-    if os.path.exists(input_dir + str(Ystart) + '/' + str(Mstart).zfill(2)):
+    if multi_files == True and var == None:
+        print('You need to put a variable name in find_input fonction')
+        sys.exit()
+        
+    if os.path.exists(input_dir + str(year_inprocess) + '/' + str(month_inprocess).zfill(2)):
         type_path = '/origin/Y/M/'
     else:
         type_path = '/origin/'
     
-    if multi_files:
-        varlist = []
-        for var in variables.raw_name:
-            if var == 'lon' or var == 'lat':
-                continue
-            globals()[var]=[]
-            varlist.append(var)
-    
     input_file = []
-    for j in range(Ystart, Yend + 1):
-        if j == Ystart: i = Mstart
-        else: i = 1
-        while i <= 12 and (j < Yend or (j == Yend and i <= Mend)):
-            
-            if multi_files:    
-                for var in variables.raw_name:
-                    if var == 'lon' or var == 'lat':
-                        continue
-                    elif variables.get_filename('u10m') == variables.get_filename('v10m') and var == 'v10m':
-                        continue
-                    elif var == 'msl' and not READ_PATM:
-                        continue
-                    else:
-                        if type_path == '/origin/Y/M/':
-                            eval(var).extend(glob.glob(input_dir + str(j) + '/' + str(i).zfill(2) + '/'+input_prefix +variables.get_filename(var)+'*.nc'))
-                            input_file.extend(glob.glob(input_dir + str(j) + '/' + str(i).zfill(2) + '/'+input_prefix +variables.get_filename(var)+'*.nc'))
-                        elif type_path == '/origin/':
-                            eval(var).extend(sorted(glob.glob(input_dir + input_prefix +variables.get_filename(var)+'*.nc')))
-                            input_file.append(sorted(glob.glob(input_dir + input_prefix +variables.get_filename(var)+'*.nc')))
-                            i = 100 # end of while loop
-                        else:
-                            print('Please put your data either in a single common file or with a path like DATA_TYPE/YEAR/MONTH/file.nc')
-                            sys.exit()
-      
-            else:
-                if type_path == '/origin/Y/M/':
-                    input_file.extend(glob.glob(input_dir + str(j) + '/' + str(i).zfill(2) + '/' + input_prefix))
-                elif type_path == '/origin/':
-                    input_file.extend(glob.glob(input_dir + input_prefix[:-1] + str(j) + '*' ))
-                    i = 100 # end of while loop
+    if multi_files:    
+        if var == 'lon' or var == 'lat':
+            pass
+        elif variables.get_filename('u10m') == variables.get_filename('v10m') and var == 'v10m':
+            pass
+        elif var == 'msl' and not READ_PATM:
+            pass
+        else:
+            if type_path == '/origin/Y/M/':
+                if input_prefix[0] == '*':
+                    input_file=glob.glob(input_dir + str(year_inprocess) + '/' + str(month_inprocess).zfill(2) + '/'+variables.get_filename(var) + input_prefix[1:] + str(year_inprocess) + str(month_inprocess).zfill(2)+'*.nc')
                 else:
-                    print('Please put your data either in a single common file or with a path like DATA_TYPE/YEAR/MONTH/file.nc')
-                    sys.exit()
-            i += 1
+                    input_file=glob.glob(input_dir + str(year_inprocess) + '/' + str(month_inprocess).zfill(2) + '/'+input_prefix + variables.get_filename(var) + '*' + str(year_inprocess) + str(month_inprocess).zfill(2)+'*.nc')
+            else:
+                if input_prefix[0] == '*':
+                    input_file=sorted(glob.glob(input_dir + variables.get_filename(var) + input_prefix[1:] + str(year_inprocess) + str(month_inprocess).zfill(2) +'*.nc'))
+                else:
+                    input_file=sorted(glob.glob(input_dir + input_prefix + variables.get_filename(var) + '*' + str(year_inprocess) + str(month_inprocess).zfill(2) +'*.nc'))
+
+    else:
+        if type_path == '/origin/Y/M/':
+            input_file=glob.glob(input_dir + str(year_inprocess) + '/' + str(month_inprocess).zfill(2) + '/' + input_prefix )
+        else:
+            input_file=glob.glob(input_dir + input_prefix[:-1] + str(year_inprocess) + str(month_inprocess).zfill(2) + '*' )
+
+    if input_file == []:
+        print('Please put your data either in a single common file or with a path like DATA_TYPE/YEAR/MONTH/file.nc')
+        sys.exit()
+
     if not multi_files:
         input_file = sorted(input_file)  
     return input_file
-
 
 # -----------------------------------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO FIND LON/LAT INDICES TO CUT IRREGULAR GRID
@@ -89,7 +78,6 @@ def ind_irreg_grid(dataxr,var,lonmin,lonmax,latmin,latmax):
     # Find longitude min :
     for i in range(len(a[0,:])):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
-            print(str(i),'not empty')
             xmin = i
             if xmin != 0:
                 xmin = i -1
@@ -97,13 +85,11 @@ def ind_irreg_grid(dataxr,var,lonmin,lonmax,latmin,latmax):
     # Find longitude max :
     for i in range(len(a[0,:])-1,-1,-1):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
-            print(str(i),'not empty')
             xmax = i +1
             break
     # Find latitude min :
     for i in range(len(a[:,0])):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
-            print(str(i),'not empty')
             ymin = i
             if ymin != 0:
                 ymin = i -1
@@ -111,7 +97,6 @@ def ind_irreg_grid(dataxr,var,lonmin,lonmax,latmin,latmax):
     # Find latitude max :
     for i in range(len(a[:,0])-1,-1,-1):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
-            print(str(i),'not empty')
             ymax = i +1
             break
     try:

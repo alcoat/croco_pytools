@@ -25,7 +25,7 @@ Variable | Variable definition                  | Unity (always) | Additional pr
 --------------------------------------------------------------------------------------------------
 lon      | longitude                            | degrees        | Used to properly read the file
 lat      | latitude                             | degrees        | Used to properly read the file
-tp       | total precipitation                  | kg m-2 s-1     | Conversion kg m-2 s-1 to cm/day
+tp       | total precipitation                  | kg m-2 s-1     | Conversion into cm/day
 ssr      | surface net solar radiation          | W m-2          | 
 dswrf    | downward short wave rad flux surface | W m-2          | (if no ssr variable) calculate ssr with uswrf
 uswrf    | upward short wave rad flux surface   | W m-2          | (if no ssr variable) calculate ssr with dswrf

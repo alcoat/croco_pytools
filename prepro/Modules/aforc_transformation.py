@@ -15,7 +15,6 @@ import scipy.interpolate as itp
 # FUNCTIONS USED BY make_aforc.py
 # -------------------------------------------------
 
-
 def flip_data(data):
 # The latitude of some data sources are not increasing, so the script will flip them
 # ---------------------
