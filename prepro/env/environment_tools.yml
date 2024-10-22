@@ -26,3 +26,7 @@ dependencies:
   - pip:
       - copernicusmarine>=1.1.0,<2.0.0
       - xarray==2024.3.0
+  - pyinterp.fill  # Ajout pour le module de remplissage de pyinterp
+  - scipy.spatial  # Ajout pour l'utilisation de cKDTree
+  - scipy.ndimage  # Ajout pour l'érosion et dilatation binaire
+

@@ -959,6 +959,56 @@ class inputs_smth():
         self.smthr     = smthr
         self.rfact     = rfact
         self.smooth    = smooth
+
+#############################
+### Class for AGRIF mode ###
+class Inputs_c2c:
+    """
+    Inputs object for grid configuration.
+    """
+    def __init__(self, coef=3, imin=10, imax=27, jmin=8, jmax=28):
+        """
+        Initialize Inputs_c2c with default or specified values.
+
+        Parameters:
+        coef (int): Refinement coefficient.
+        imin (int)
+        imax (int)
+        jmin (int)
+        jmax (int)
+        """
+        self.coef = coef
+        self.imin = imin
+        self.imax = imax
+        self.jmin = jmin
+        self.jmax = jmax
+
+    def __repr__(self):
+        return (f"Inputs_c2c(coef={self.coef}, imin={self.imin}, "
+                f"imax={self.imax}, jmin={self.jmin}, jmax={self.jmax})")
+
+class Inputs_smth_c2c:
+    """
+    Inputs object for smoothing configuration.
+    """
+    def __init__(self, smthr=1.0, rfact=1.0, smooth='lsmooth'):
+        """
+        Initialize Inputs_smth_c2c with default or specified values.
+
+        Parameters:
+        smthr (float): Interpolation radius.
+        rfact (float): Refinement factor.
+        smooth (str): Smoothing method, options include 'lsmooth', 'smooth', 
+                      'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo'.
+        """
+        self.smthr = smthr
+        self.rfact = rfact
+        self.smooth = smooth
+
+    def __repr__(self):
+        return (f"Inputs_smth_c2c(smthr={self.smthr}, rfact={self.rfact}, "
+                f"smooth={self.smooth})")
+
 #######################
 ### Read parent grid ##
 
