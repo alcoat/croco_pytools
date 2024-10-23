@@ -29,7 +29,7 @@ tp       | total precipitation                  | cm/day         | Conversion in
 ssr      | surface net solar radiation          | W m-2          | 
 dswrf    | downward short wave rad flux surface | W m-2          | (if no ssr variable) calculate ssr with uswrf
 uswrf    | upward short wave rad flux surface   | W m-2          | (if no ssr variable) calculate ssr with dswrf
-t2m      | temperature at 2m                    | ÂC               Conversion K to Â° if necessary
+t2m      | temperature at 2m                    | Celsius        |  Conversion K to Celcius if necessary
 u10m     | eastward wind at 10m                 | m s-1          |
 v10m     | northward wind at 10m                | m s-1          |
 strd     | surface thermal radiation downwards  | W m-2          |
