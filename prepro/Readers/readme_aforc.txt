@@ -6,9 +6,9 @@
 The var_info variable in the aforc_reader.py file is composed of 4 or 5 (if multi files) data :
 
      1                            2                    3                    4                            5
-variable_name (see below) | variable_name (netcdf) | unity | conversion_to_access_unity_wanted | variable_file_name (if multi files)
+variable_name (see below) | variable_name (netcdf) | unit | conversion_to_access_unity_wanted | variable_file_name (if multi files)
 
-Variable_name (1) and unity (3) are must be invariant in form (except for the relative humidity, unity accepted is % or (0-1). 
+Variable_name (1) and unity (3) are must be invariant in form (except for the relative humidity, unit accepted is % or (0-1). 
 The list of the possible variables is given below.
 
 Variable_name (netcdf) (3) is the name of the variable present in the user data.
@@ -21,21 +21,21 @@ Variable_file_name (5) is for multi files raw data cases and so optional. Put ho
 # List of the possible variables
 #--------------------------------------------------
 
-Variable | Variable definition                  | Unity (always) | Additional processing to metadata formatting  
+Variable | Variable definition                  | Unit wanted    | Additional processing to metadata formatting  
 --------------------------------------------------------------------------------------------------
 lon      | longitude                            | degrees        | Used to properly read the file
 lat      | latitude                             | degrees        | Used to properly read the file
-tp       | total precipitation                  | kg m-2 s-1     | Conversion into cm/day
+tp       | total precipitation                  | cm/day         | Conversion into cm/day if necessary
 ssr      | surface net solar radiation          | W m-2          | 
 dswrf    | downward short wave rad flux surface | W m-2          | (if no ssr variable) calculate ssr with uswrf
 uswrf    | upward short wave rad flux surface   | W m-2          | (if no ssr variable) calculate ssr with dswrf
-t2m      | temperature at 2m                    | K              | Conversion K to °C
+t2m      | temperature at 2m                    | �C               Conversion K to ° if necessary
 u10m     | eastward wind at 10m                 | m s-1          |
 v10m     | northward wind at 10m                | m s-1          |
 strd     | surface thermal radiation downwards  | W m-2          |
 str      | surface net thermal radiation        | W m-2          | (if no strd variable) calculate strd with sst
 sst      | sea surface temperature              | K              | (if no strd variable) calculate strd with str
-r        | relative humidity                    | % or (0-1)     | if % convert into (0-1)
+r        | relative humidity                    | (0-1)          | if % convert into (0-1) if necessary
 q        | specfic humidity                     | kg kg-1        |
 msl      | air pressure at sea level            | Pa             |
 
