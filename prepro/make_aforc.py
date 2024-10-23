@@ -34,20 +34,16 @@ import pyinterp.backends.xarray
 # -------------------------------------------------
 # INPUT :
 # -------------------------------------------------
-#data_origin = 'era_ecmwf' # era_dataref, era_ecmwf, cfsr
-data_origin = 'output_MF'
-input_prefix = '*_NCV-3_ERA5_evaluation_r1i1p1f1_CNRM-MF_CNRM-AROME46t1_v1-r1_1H_*'
-input_dir = '/home/datawork-lops-siam-moawi/PROJECTS/FLAGSHIP/OUTPUT_HANH/'
+data_origin = 'era_dataref'
 #input_dir = '/path/in/'
-#input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, write '*' before sufix
+input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, write '*' before sufix
 
-multi_files = True # If one file per variable in input : True
+multi_files = False # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
 #output_dir = '/path/out/'
-output_dir = '/home/datawork-lops-siam-moawi/PROJECTS/FLAGSHIP/OUTPUT_HANH_FORMATTED/'
 output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
@@ -56,14 +52,13 @@ ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
             # 1 if own area
 if ownArea == 0:
     #croco_grd = '/pathin/to/your/croco/grid/croco_grd.nc'
-    croco_grd = '/home3/datawork/alschaef/CROCO/FLAGSHIP/CONFIGS/patch_hbl_git_v2/CROCO_FILES/croco_grd.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 4,27,-40,-24
 
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 1990,1   # Starting month
-Yend, Mend  = 1991,1  # Ending month
+Ystart, Mstart = 1980,1   # Starting month
+Yend, Mend  = 1980,1  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -112,7 +107,7 @@ with open('./Readers/croco_variables.json', 'r') as jf:
 # -------------------------------------------------
 if ownArea == 0:
     grid = xr.open_dataset(croco_grd)
-    lon_min,lon_max,lat_min,lat_max = np.floor(grid['lon_rho'].min())-5,np.ceil(grid['lon_rho'].max())+5,np.floor(grid['lat_rho'].min())-5,np.ceil(grid['lat_rho'].max())+5
+    lon_min,lon_max,lat_min,lat_max = np.floor(grid['lon_rho'].min()),np.ceil(grid['lon_rho'].max()),np.floor(grid['lat_rho'].min()),np.ceil(grid['lat_rho'].max())
 
 # *****************************************************************************
 #                                MAIN FUNCTION
@@ -201,16 +196,18 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # SELECT AREA AND READ DATA OVER IT
 # ------------------------------------
                     if irreg == 0: # Regular grid : Coords = 1D array
-                    # The selection is made by values
+                        ix_min = int(find_nearest(dataxr['lon'],lon_min))
+                        ix_max = int(find_nearest(dataxr['lon'],lon_max))
+                        iy_min = int(find_nearest(dataxr['lat'],lat_min))
+                        iy_max = int(find_nearest(dataxr['lat'],lat_max))
+                    # The selection is made by indices for lon and lat and by values for time
                     # First, will check if latitudes are inversed
                         if dataxr['lat'][1].values > dataxr['lat'][0].values: # from lat_min to lat_max
-                            dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
-                                                lon = slice(lon_min,lon_max) ,\
-                                                lat = slice(lat_min,lat_max) )
+                            sel_args = {lat_dim[0]: slice(iy_min-1,iy_max+1),lon_dim[0]:slice(ix_min-1,ix_max+1)}
                         else:
-                            dataxr_inprocess = dataxr.sel( time = slice(start_date,end_date) , \
-                                                lon = slice(lon_min,lon_max) ,\
-                                                lat = slice(lat_max,lat_min) )                        
+        
+                            sel_args = {lat_dim[0]: slice(iy_max-1,iy_min+1),lon_dim[0]:slice(ix_min-1,ix_max+1)}
+                        dataxr_inprocess = dataxr.sel(time=slice(start_date,end_date)).isel(**sel_args)
                     else: # Irregular grid : Coords = 2D array
                     # The selection is made by indices
                     # For now, suppose latitudes are from lat_min to lat_max

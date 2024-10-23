@@ -66,9 +66,17 @@ def find_input(variables,input_dir,input_prefix,year_inprocess,month_inprocess,m
         input_file = sorted(input_file)  
     return input_file
 
-# -----------------------------------------------------------------------------
-# FUNCTIONS USED BY make_aforc.py TO FIND LON/LAT INDICES TO CUT IRREGULAR GRID
-# -----------------------------------------------------------------------------
+# --------------------------------------------------------
+# FUNCTIONS USED BY make_aforc.py TO FIND LON/LAT INDICES
+# --------------------------------------------------------
+# REGULARD GRID
+#--------------
+def find_nearest(array,value):
+    idx = (np.abs(array-value)).argmin()
+    return idx
+
+# IRREGULAR GRID
+#---------------
 def ind_irreg_grid(dataxr,var,lonmin,lonmax,latmin,latmax):
 # dataxr : xarray.DataArray of one frame
 # var : any variable

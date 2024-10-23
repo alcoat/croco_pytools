@@ -11,10 +11,11 @@ import sys
 sys.path.append("/Modules")
 import scipy.interpolate as itp
 
+import time
+
 # -------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py
 # -------------------------------------------------
-
 def flip_data(data):
 # The latitude of some data sources are not increasing, so the script will flip them
 # ---------------------
