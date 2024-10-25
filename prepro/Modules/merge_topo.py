@@ -1233,6 +1233,308 @@ def merge_smooth(high_res, low_res, buffer_width, output_file, target_epsg='EPSG
 
 
     print(f"📂 The merged grid has been saved as: {output_file}")
+    
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
+
+# =====================================================================
+# FUNCTION FOR MERGING IRREGULAR GRID WITH REGULAR ONE- KRINGING METHOD
+# =====================================================================
+
+def kring_merging(high_res, low_res, output_file, shapefile_path, n_neighbors, target_epsg='EPSG:4326', lat_bounds, lon_bounds):
+    """
+    Merge high-resolution and low-resolution bathymetric data using a kriging interpolation method,
+    while masking terrestrial areas based on a given shapefile.
+
+    /!\ HIGH and LOW resolultion bathy files have to be georeferenced in the same SCR/ESPG defines by 'target_epsg'
+
+    Parameters:
+    -----------
+    high_res : str
+        Path to the text file containing high-resolution bathymetric data (lat, lon, depth) without a header.
+    
+    low_res : str
+        Path to the NetCDF or TIFF file containing low-resolution bathymetric data.
+    
+    output_file : str
+        Path to the output NetCDF file where the merged bathymetric data will be saved.
+    
+    shapefile_path : str
+        Path to the shapefile used to mask terrestrial areas. The shapefile should contain polygons representing land.
+
+    n_neighbors : int 
+        The number of neighbors to consider during kriging interpolation.
+    
+    target_epsg : str, optional
+        Target EPSG code for coordinate transformation (default is 'EPSG:4326').
+    
+    lat_bounds : tuple of float
+        Latitude bounds for filtering the high-resolution data in the format (lat_min, lat_max).
+    
+    lon_bounds : tuple of float
+        Longitude bounds for filtering the high-resolution data in the format (lon_min, lon_max).
+
+    Returns:
+    --------
+    None
+        The function saves the merged bathymetric data to the specified output file and prints status messages
+        throughout the process to provide feedback on the steps being executed.
+
+    Notes:
+    ------
+    - The function reads and filters high-resolution bathymetric data, reads a shapefile for land masking,
+      and performs kriging interpolation on the low-resolution data to fill in gaps.
+    - The resulting grid will have the same resolution as the low-resolution data and will exclude values
+      corresponding to terrestrial areas.
+    - The function handles large datasets in chunks to optimize memory usage during processing.
+
+    Raises:
+    -------
+    ValueError
+        If the specified low-resolution file format is not supported or if the shapefile does not have a defined CRS.
+    Exception
+        If an error occurs during data processing or reading files.
+    """
+    
+    lat_min, lat_max = lat_bounds
+    lon_min, lon_max = lon_bounds
+    netcdf_file= low_res
+
+    # ──────────────────────────────────────────────────────────
+    # ▶ SECTION 1: Reading bathy text file + filtering◀
+    # ──────────────────────────────────────────────────────────
+    
+    print("🗃️ Reading depth data from the text file...")
+    
+    # Read the data from the text file (no header)
+    df = pd.read_csv(high_res, sep='\s+', header=None, names=['lat', 'lon', 'depth'])
+    
+    # Remove duplicates and sort the data
+    df = df.drop_duplicates().sort_values(by=['lat', 'lon'])
+    
+    print("🔍 Filtering data within specified bounds...")
+    # Filter data within the specified latitude and longitude bounds
+    filtered_data = df[(df['lat'] >= lat_bounds[0]) & (df['lat'] <= lat_bounds[1]) &
+                       (df['lon'] >= lon_bounds[0]) & (df['lon'] <= lon_bounds[1])]
+    
+    # Extract longitude, latitude, and depth from the filtered data
+    lon = filtered_data['lon'].values
+    lat = filtered_data['lat'].values
+    depth = filtered_data['depth'].values
+    
+    # ──────────────────────────────────────────────────────────
+    # ▶ SECTION 2: Shapefile data local extraction◀
+    # ──────────────────────────────────────────────────────────
+    
+    print("📜 Reading the shapefile...")
+    # Load shapefile metadata to get its CRS (loading only one row to retrieve CRS)
+    try:
+        shapefile_meta = gpd.read_file(shapefile_path, rows=1)
+        shapefile_crs = shapefile_meta.crs
+        
+        # Check if the shapefile has a defined CRS
+        if shapefile_crs is None:
+            raise ValueError("❌ No CRS found in the shapefile")
+            
+        # Reproject lon_bounds and lat_bounds to the shapefile's CRS (epsg_int -> shapefile CRS)
+        transformer = Transformer.from_crs(f"EPSG:{epsg_int}", shapefile_crs, always_xy=True)
+        min_lon, min_lat = transformer.transform(lon_bounds[0], lat_bounds[0])
+        max_lon, max_lat = transformer.transform(lon_bounds[1], lat_bounds[1])
+        
+    except Exception as e:
+        #In case the shoreline file is .json/kml ... and not a shapefile
+        print(f"⚠️ The shoreline file seems to not be a shapefile: {e}")
+        print("Assuming the shoreline file is in the same reference system as the bathymetry...")
+    
+    
+    # Use the reprojected bounding box to load only the necessary data
+    gdf = gpd.read_file(shapefile_path, bbox=(min_lon, min_lat, max_lon, max_lat))
+    
+    # ───────────────────────────────────────────────────────────
+    # ▶ SECTION 3: Shapefile CRS conversion to match bathy's one◀
+    # ───────────────────────────────────────────────────────────
+        
+    # Check and ensure that the CRS of the shapefile is defined
+    if gdf.crs is None:
+        print("❌ Error: Shapefile CRS is not defined.")
+        
+    
+    # If the CRS of the shapefile and the text data are different, we need to reproject the shapefile
+    if gdf.crs.to_epsg() != epsg_int:
+        print("🔄 Reprojecting shapefile to match text data EPSG...")
+        gdf = gdf.to_crs(epsg=epsg_int)  # Reproject the shapefile to match text data EPSG
+
+
+    # ────────────────────────────────────────────────────────────────
+    # ▶ SECTION 4: Interpolation with kringing method over empty mesh◀
+    # ────────────────────────────────────────────────────────────────
+
+    # Ensure the file is in a valid format
+    if not netcdf_file.endswith(('.nc', '.tiff', '.tif')):
+        raise ValueError("Invalid file format. Supported formats are NetCDF and TIFF.")
+    
+    try:
+        # Open a NetCDF/TIFF file
+        ds_netcdf = xr.open_dataset(netcdf_file)
+        print(f"Processing file: {netcdf_file}...")
+        
+        # If it's a TIFF, remove the 'band' dimension
+        if netcdf_file.endswith('.tiff') or netcdf_file.endswith('.tif'):
+            ds_netcdf = ds_netcdf.sel(band=1, drop=True)
+        
+        # Get the coordinate names
+        net_x, net_y = find_coords(ds_netcdf)
+        
+        # Get the variable name for z/depth/topo
+        for var_name in ds_netcdf.data_vars:
+            var_data = ds_netcdf[var_name]
+            # Check if the variable is 2D and contains numerical values
+            if var_data.ndim == 2 and var_data.dtype.kind in {'f', 'i'}:
+                net_z = var_name
+                break
+        
+        # Keep only the relevant data
+        subset = ds_netcdf.sel(
+            y=slice(lat_bounds[0], lat_bounds[1]), 
+            x=slice(lon_bounds[0], lon_bounds[1])
+        )
+        
+        # Extract longitude, latitude, and depth variables
+        lons_subset = subset[net_x].values
+        lats_subset = subset[net_y].values
+        depths_subset = subset[net_z].values
+
+        #Creating the future grid using netcdf meshing for future comparisons
+        X, Y = np.meshgrid(subset[net_x].values, subset[net_y].values)
+        
+        # Flatten the matrices into columns
+        X_flat = X.ravel()
+        Y_flat = Y.ravel()
+        depth_flat = depths_subset.ravel()
+        
+        # Create a DataFrame with coordinates and depth
+        df_subset = pd.DataFrame({
+            'x': X_flat,
+            'y': Y_flat,
+            'depth': depth_flat
+        })
+        
+        # Combine all DataFrames with df
+        df_total = pd.concat([df, df_subset], ignore_index=True)
+        df_total = df_total.dropna(subset=['x', 'y'])
+        
+        # Extract longitude, latitude, and depth from the filtered data
+        lon_total = df_total['x'].values
+        lat_total = df_total['y'].values
+        depth_total = df_total['depth'].values
+        
+        mesh = pyinterp.RTree()
+        mesh.packing(np.vstack((lon_total, lat_total)).T, depth_total)
+        kriging, neighbors = mesh.universal_kriging(
+            np.vstack((grid_lon.ravel(), grid_lat.ravel())).T,
+            within=True,  # Extrapolation is forbidden
+            k=n_neighbors,
+            covariance='exponential',  # 'matern_12', #alpha=100_000,
+            num_threads=0)
+        kriging = kriging.reshape(grid_lon.shape)
+        grid_depth = kriging
+        
+    except Exception as e:
+        print(f"Error processing file {netcdf_file}: {e}")
+
+    # ──────────────────────────────────────────────────────────────
+    # ▶ SECTION 5: Erasing terrestrial zones from interpolated data◀
+    # ──────────────────────────────────────────────────────────────
+    
+    print("🏝 Creating mask for grid points covering terrestrial areas...")
+    
+    # Create a mask for the grid points based on the polygons in the shapefile
+    mask = np.zeros_like(grid_depth, dtype=bool)    
+    ny, nx = grid_lon.shape
+    mask = np.zeros_like(grid_lon, dtype=bool)  # Initialize the mask as a boolean array with the same shape as grid_lon
+    n2max = 50000  # Maximum number of points per chunk
+    
+    # Determine if the data should be processed in chunks based on the size of gdf
+    if gdf.shape[0] > 3000:
+        # Calculate the number of chunks based on the grid size and the maximum number of points per chunk
+        nchunk = int(np.max([np.sqrt((ny)*(nx)/n2max), 1]))  # At least 1 chunk
+    else:
+        nchunk = 1  # No chunking if gdf is small
+    
+    # If chunking is applied, print the chunk format
+    if nchunk > 1:
+        print(f"Chunk format (y,x):({nchunk},{nchunk})")
+    
+    
+    # Loop over the chunks in both x and y directions
+    for i, j in product(list(range(nchunk)), list(range(nchunk))):
+        if nchunk > 1:
+            print(f"🧩 Processing chunk ({i+1}/{nchunk}, {j+1}/{nchunk})")
+    
+    
+        # Overlap between chunks to avoid edge effects
+        dx1 = 2; dx2 = 2; dy1 = 2; dy2 = 2
+        if i == 0: dx1 = 0  # No overlap on the left-most chunk
+        if i == nchunk - 1: dx2 = 0  # No overlap on the right-most chunk
+        if j == 0: dy1 = 0  # No overlap on the top-most chunk
+        if j == nchunk - 1: dy2 = 0  # No overlap on the bottom-most chunk
+    
+        # Define the indices for the current chunk in the x and y dimensions
+        nx1i = int(i * (nx) / nchunk - 2 * dx1)  # Start index in x
+        nx2i = int((i + 1) * (nx) / nchunk + 2 * dx2)  # End index in x
+        ny1i = int(j * (ny) / nchunk - 2 * dy1)  # Start index in y
+        ny2i = int((j + 1) * (ny) / nchunk + 2 * dy2)  # End index in y
+    
+        # Find the geographic boundaries of the current chunk in lon/lat
+        llcrnrlon = np.nanmin(grid_lon[ny1i:ny2i, nx1i:nx2i])  # Lower-left corner longitude
+        urcrnrlon = np.nanmax(grid_lon[ny1i:ny2i, nx1i:nx2i])  # Upper-right corner longitude
+        llcrnrlat = np.nanmin(grid_lat[ny1i:ny2i, nx1i:nx2i])  # Lower-left corner latitude
+        urcrnrlat = np.nanmax(grid_lat[ny1i:ny2i, nx1i:nx2i])  # Upper-right corner latitude
+    
+        # Clip the geodataframe to the chunk bounding box
+        gs = gdf.clip((llcrnrlon, llcrnrlat, urcrnrlon, urcrnrlat))
+    
+        try:  # Try to apply region masking if polygons exist in the chunk
+            # Create a mask for the chunk using regionmask and the grid coordinates (lon/lat)
+            rmask = regionmask.mask_geopandas(
+                      gs.geometry, grid_lon[ny1i:ny2i, nx1i:nx2i], grid_lat[ny1i:ny2i, nx1i:nx2i])
+    
+            # Update the main mask: set areas where regionmask is NaN to 1 (i.e., inside polygons)
+            mask[ny1i + dy1:ny2i - dy2, nx1i + dx1:nx2i - dx2]\
+                [np.isnan(rmask[dy1:ny2i - ny1i - dy2, dx1:nx2i - nx1i - dx2])] = 1
+            
+            print(f"✅ Chunk ({i+1}/{nchunk}, {j+1}/{nchunk}) processed successfully!")
+            
+        except:  # If there are no polygons in the chunk, set the mask to 1 (marking the whole chunk)
+            print(f"ℹ️ No polygons found in chunk ({i+1}/{nchunk}, {j+1}/{nchunk})")
+            mask[ny1i + dy1:ny2i - dy2, nx1i + dx1:nx2i - dx2] = 1
+            continue  # Continue to the next chunk
+    
+    # Apply the mask to set depths inside polygons to NaN
+    grid_depth_masked = np.where(mask==False, np.nan, grid_depth)
+    
+    # ──────────────────────────────────────────────────────────
+    # ▶ SECTION 6: Dataset creation for export◀
+    # ──────────────────────────────────────────────────────────
+
+    ds = xr.Dataset(
+        {
+            "depth": (["lat", "lon"], np.transpose(grid_depth_masked))
+        },
+        coords={
+            "lon": (["lon"], grid_lon[:, 0]),
+            "lat": (["lat"], grid_lat[0, :])
+        }
+    )
+    
+    print("✅ Depth grid created successfully from textfile!")
+
+    print("💾 Saving the depth grid to NetCDF file...")
+    ds.to_netcdf(output_file)
+    print("✅ Depth grid saved successfully!")
+
+
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
 #-------------------------------------------------------------------------------------
