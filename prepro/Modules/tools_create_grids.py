@@ -89,6 +89,45 @@ def create_classic_grid(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
 
 ###########################################
 
+def smooth_after_mask_edit(grid, smooth_meth, hmin, hmax, rfact):
+    """
+    Applies smoothing to a grid object after mask editing, as smoothing is dependent on the mask.
+
+    Parameters:
+    -----------
+    grid : Outputs class object
+        The grid to be smoothed, already created with create_classic_grid, create_child_grid_offline,
+        or create_child_grid_AGRIF methods.
+    smooth_meth : str
+        Smoothing method to apply.
+    hmin : float
+        Minimum depth in meters.
+    hmax : float
+        Maximum depth in meters.
+    rfact : float
+        Maximum r-factor to reach.
+    
+    Returns:
+    --------
+    grid : Outputs class object
+        The modified grid with applied smoothing.
+    """
+    import toolsf
+
+    # Retrieve the smoothing function dynamically from toolsf module
+    smoothing_function = getattr(toolsf, smooth_meth)
+    topo = smoothing_function(grid.h, hmin, hmax, rfact, grid.mask_rho)
+
+    # Update the grid's depth attribute
+    grid.h = topo
+
+    print('Grid smoothed again, taking into account the freshly modified mask/the modified bathy')
+
+    return grid
+
+    
+###########################################
+
 def create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
                   hmin, hmax, interp_rad, rfact, smooth_meth, topofile, shp_file, sgl_connect, open_boundary, parent_grid):
     """
@@ -112,6 +151,7 @@ def create_child_grid_offline(tra_lon, tra_lat, size_x, size_y, nx, ny, rot,
     sgl_connect (list): Single Connect mask water parameters.
     output_file (str): Path to the output NetCDF file.
     open_boundary (dict): Contains checkboxes booleans for NESW directions, merging_area and 'WESN' which contains direction in a text format
+    parent_grid (str): path to the parent grid netcdf file
 
     Returns:
     outputs: Processed outputs variable.
@@ -163,7 +203,8 @@ def create_child_grid_AGRIF(coef, imin, imax, jmin, jmax, hmin, hmax, interp_rad
     sgl_connect (list): Single Connect mask water parameters.
     output_file (str): Path to the output NetCDF file.
     open_boundary (dict): Contains checkboxes booleans for NESW directions, merging_area and 'WESN' which contains direction in a text format
-
+    parent_grid (str): path to the parent grid netcdf file
+    
     Returns:
     outputs: Processed outputs variable.
     """
