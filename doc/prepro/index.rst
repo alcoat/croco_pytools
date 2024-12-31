@@ -9,6 +9,7 @@ Preprocessing tools
    tuto.readers
    tuto.grid
    tuto.ibc
+   tuto.atm
    tuto.tide
    tuto.rivers  
    tuto.zoom
