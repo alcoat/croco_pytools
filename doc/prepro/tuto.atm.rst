@@ -22,7 +22,7 @@ You can check the variables name from these input data by doing:
 
   ncdump -h filename.nc
 
-You thus, first need to check/edit the ibc reader, ``Readers/aforc_reader.py``, for these data. 
+You thus, first need to check/edit the atmospheric reader, ``Readers/aforc_reader.py``, for these data. 
 Here we use the ``era_ecmwf`` style of formatting:
 
 ::
@@ -43,6 +43,7 @@ Here we use the ``era_ecmwf`` style of formatting:
     If the different variables are in separate files, you need to add how the variables are named to the file names. 
 
 ::
+
      elif data_origin == 'cfsr':
         var_info = [ ['lon'  ,'lon'           ,1.           ,' '       ],\
                      ['lat'  ,'lat'           ,1.           ,' '       ],\
@@ -74,7 +75,9 @@ There are several parts in it:
   multi_files = False 
 
 ``data_origin`` input data dictionnary as defined in the Readers/aforc_reader.py.
+
 ``input_prefix`` for multifiles, if the name of the file begin with the variable name, write '*' before sufix.
+
 ``multi_files`` if one file per variable in input, set True.
 
 * **OUTPUT**:
@@ -119,6 +122,7 @@ There are several parts in it:
   extrapolation_sst = True
 
 ``READ_PATM`` to convert the atmospheric pressure, set True.
+
 ``extrapolation_sst`` is for the case there is no STRD variable in raw data. It will be calculated with STR and SST. SST may or may not be extrapolated to the coast. If it is not, this may result in temperature spike at the coast at certain points. However, note that extrapolation increases pre-processing time. If STRD is in raw data, extrapolation_sst will no be considered. If your variable is not the sea surface temperature but the surface temperature, no need to set True.
 
 
