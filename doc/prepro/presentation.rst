@@ -20,6 +20,7 @@ Steps for creating a configuration (with these routines) are:
 * Build the grid
 * Build the lateral boundary conditions (3D currents, temperature and salinity, barotropic currents, surface elevation)
 * Build the initial conditions
+* Build the atmospheric forcing
 
 And eventually:
 
@@ -62,6 +63,8 @@ The main directory contains the following files:
      - Script to build the lateral boundary conditions (surface elevation, 3D currents, barotropic currents, temperature and salinity, other tracers)
    * - make_ini.py
      - Script to build the initial 3D conditions
+   * - make_aforc.py
+     - Script to build the atmospheric forcing into croco format
    * - make_zoom_cond.py
      - Script to build initial and lateral boundary conditions for nested grid (offline nest or AGRIF nest)
    * - make_tides.py
