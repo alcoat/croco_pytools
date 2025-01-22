@@ -171,7 +171,7 @@ if __name__ == "__main__":   # if multi files, 'input_file' not used
 # -----------------------------------       
                 if flag_frst==True:
                     if not multi_files:
-                        flag_rst = False
+                        flag_frst = False
                         
                     # Rename lon/lat
                     if variables.get_var('lon') != 'lon': 
