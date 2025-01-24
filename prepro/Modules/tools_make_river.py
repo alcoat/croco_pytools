@@ -820,6 +820,11 @@ def write_croco_in(river, croco_dir,riverfile,filw='for_croco_in.txt'):
     fw.write('                           %s\n'%(croco_dir+riverfile))
     fw.write('                   '+str(len(river))+'\n')
     for il,ll in enumerate(river.keys()):
+        if river[ll]['dsrc'] == 0:
+            river[ll]['jj']-=1
+        elif river[ll]['dsrc'] == 1:
+            river[ll]['ii']-=1
+
         fw.write('                       %5i %5i   %1i      %2.1d    T T  14.0  5.0\n' % (river[ll]['ii'],river[ll]['jj'],river[ll]['dsrc'],river[ll]['qbardir']))
     fw.write(' \n')
     fw.write('Line to enter in the croco.in file in the psource section :\n')
