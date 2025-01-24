@@ -6,6 +6,7 @@ import xarray as xr
 import _pickle as pickle
 import scipy.signal as ss
 from scipy.interpolate import interp1d
+from scipy.ndimage import label, distance_transform_edt,generate_binary_structure
 import shapely.geometry as shpg
 import matplotlib.pyplot as py
 import sys,os
@@ -91,33 +92,78 @@ def convtime(s):
             print('Could not find out date format from date %s' % s)
             sys.exit()
 
+def find_river_mouth(Rmouth,ocean_land_mask):
+    """
+    Identify the river mouths located farthest from the ocean-land interface.
 
-def nine_points_max_iter(Vin,Maskin):
-    '''
-    Iterative procedure to link all point of one river (in the coastal area)
-    '''
-    Vout=0*Vin
-    res=100
-    n=0
-    while res>0:
-        n=+1
-        a=np.stack( (Vin[:-2,2:  ],Vin[1:-1,2:  ],Vin[2:,2:  ],\
-                 Vin[:-2,1:-1],Vin[1:-1,1:-1],Vin[2:,1:-1],\
-                 Vin[:-2,:-2 ],Vin[1:-1,:-2 ],Vin[2:,:-2 ] ),axis=2)
-        Vin[1:-1,1:-1]=Maskin[1:-1,1:-1]*np.max(a,axis=2)
-        res=np.max(Vin-Vout)
-        Vout=Vin+0
-        if n>15:
-            print('nine_points_max_iter did not converge')
-            break
-     
+    This function analyzes a 2D array representing river flow (`Rmouth`) and 
+    computes the location of river mouths that are the farthest from the 
+    ocean-land boundary. The boundary is derived from the provided 
+    `ocean_land_mask`, where ocean is marked with `0` and land with `1`.
+
+    Parameters
+    ----------
+    Rmouth : numpy.ndarray
+        A 2D array indicating river flow, where non-zero values represent 
+        river mouths.
+    ocean_land_mask : numpy.ndarray
+        A 2D binary mask where `1` denotes land and `0` denotes ocean.
+
+    Returns
+    -------
+    i_mou : numpy.ndarray
+        A 1D array of x-coordinates (column indices) for the identified river 
+        mouth locations.
+    j_mou : numpy.ndarray
+        A 1D array of y-coordinates (row indices) for the identified river 
+        mouth locations.
+
+    Notes
+    -----
+    - The function uses connected components labeling to group river mouth 
+      regions (`Rmouth` > 0).
+    - For each connected region, the point farthest from the ocean-land 
+      interface is selected.
+    - The computation of distances to the interface relies on the Euclidean 
+      distance transform.
+    """
     
-#  print('nine_points_max_iter did converge after ',n,' iterations')
-    Vout=Vout[np.where(Vout!=0)]
+    # Validate inputs
+    if Rmouth.shape != ocean_land_mask.shape:
+        raise ValueError("Rmouth and ocean_land_mask must have the same shape.")
+    
+    # Init list containing river mouth index
+    i_mou = []
+    j_mou = []
+    
+    # structure to allow diagonal point to be in the river
+    s = generate_binary_structure(2,2)
+    # Label connected components in Rmouth
+    labeled_array, num_features = label(Rmouth,structure=s)
 
-    return(Vout)
+    # Get grid indices
+    Ny, Nx = Rmouth.shape
+    i_indices, j_indices = np.meshgrid(np.arange(Nx), np.arange(Ny))
+    
+    # Compute distance to interface
+    distance_from_interface = distance_transform_edt(ocean_land_mask)
+    
+    # Loop through each labeled region (river mouth)
+    for label_id in range(1, num_features + 1):
+        # Get the indices of the current river mouth
+        region_mask = labeled_array == label_id
+        i_vals = i_indices[region_mask]
+        j_vals = j_indices[region_mask]
+        
+        # Get distances to the ocean-land interface
+        distances = distance_from_interface[region_mask]
+        
+        # Find the point with the maximum distance
+        max_distance_idx = np.argmax(distances)
+        j_mou += [j_vals[max_distance_idx]]
+        i_mou += [i_vals[max_distance_idx]]
 
-
+    return np.array(i_mou),np.array(j_mou)
 
 def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_pos=None,geolim=None,Crange=None):
     '''
@@ -296,36 +342,18 @@ def read_river_netcdf(files,tstart,tend,time_units,Qmin=None,lon_pos=None,lat_po
             coast[1:-1,1:-1]=ss.convolve(coast[1:-1,1:-1],np.ones((3,3)), mode='same')
             coast[np.where(coast>=1)]=1
             coast=coast*mask
-  
-        # Get the river mouths position
+
+        # Restrain river mouths position to coast
         Rmouth=Qmean*coast
         # Select the rivers with a mean discharge above a given treshold (Qmin)
         # each pixel with a value > Qmin is considered a specific river
         Rmouth[np.where(Rmouth<Qmin)]=0
+        # Get rid of nan
         Rmouth[np.where(np.isnan(Rmouth))]=0
-        Rmouth[np.where(Rmouth>=Qmin)]=1
-        Rmouth[0,:]=0
-        Rmouth[-1,:]=0
-        Rmouth[:,0]=0
-        Rmouth[:,-1]=0
-        [Ny,Nx]=np.shape(Rmouth)
-        # For each group of connected points selected as river mouths keep only one point using an iterative procedure 
-        i=np.arange(Nx)
-        j=np.arange(Ny)
 
-        [I,J]=np.meshgrid(i,j)
+        # Find index for each river mouth
+        i_mou,j_mou = find_river_mouth(Rmouth,mask)
 
-        Imouth=I*Rmouth
-        Jmouth=J*Rmouth
-
-        i_mou=nine_points_max_iter(Imouth,Rmouth)
-        j_mou=nine_points_max_iter(Jmouth,Rmouth)
-        
-        ij_mou=i_mou + 1e5*j_mou
-        ij_mou=np.unique(ij_mou)
-
-        j_mou=np.int32(np.floor(ij_mou*1e-5))
-        i_mou=np.int32(ij_mou - 1e5*j_mou)
         # For each river mouth, get the connected location where the discharge is the largest
         Nrivers=np.size(i_mou)
         if Nrivers ==0:
