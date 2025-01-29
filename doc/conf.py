@@ -17,6 +17,8 @@
 # sys.path.insert(0, os.path.abspath('.'))
 # import sphinx_bootstrap_theme
 
+import os
+
 # -- Project information -----------------------------------------------------
 
 project = "croco_pytools"
@@ -27,7 +29,7 @@ author_tex = ""
 # The short X.Y version
 version = ""
 # The full version, including alpha/beta/rc tags
-release = ""
+release = "1.0.2"
 
 
 # -- General configuration ---------------------------------------------------
@@ -86,12 +88,28 @@ exclude_patterns = []
 html_theme = "sphinx_book_theme"
 
 html_logo = "_static/logo_CROCO_2.png"
+
+html_favicon = "_static/favicon_CROCO.png"
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
 
+
+# Récupérer la branche actuelle à partir des variables d'environnement de GitLab CI
+branch_name = os.getenv("CI_COMMIT_REF_NAME", "unknown")
+
+# Définir le message d'annonce en fonction de la branche
+if branch_name.startswith("release"):
+    announcement = f"CROCO_PYTOOLS release {release} documentation"
+elif branch_name == "unknown":
+    announcement = f"⚠️ You're on a development branch of CROCO_PYTOOLS documentation. Work in progress! ⚠️"
+else:
+    announcement = f"⚠️ You're on a development branch of CROCO_PYTOOLS documentation (branch :{branch_name}). Work in progress! ⚠️"
+
+# Passer ce message à Sphinx via html_theme_options
 html_theme_options = {
+    "announcement": announcement,
     "repository_provider": "gitlab",
     "repository_url": "https://gitlab.inria.fr/croco-ocean/croco_pytools",
     "use_repository_button": True,
