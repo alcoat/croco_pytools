@@ -878,7 +878,7 @@ def to_grid_point(
 
     if vcoord is not None:
         assert vcoord in ["s_rho", "rho", "r", "s_w", "w"], (
-            'scoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % vcoord
+            'vcoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % vcoord
         )
         if vcoord in ["s_rho", "rho", "r"]:
             var = to_s_rho(var, xgrid, vboundary=vboundary, vfill_value=vfill_value)
@@ -925,6 +925,11 @@ def get_z(
     h = ds.h if h is None else h
     z_sfc = 0 * ds.h if z_sfc is None else z_sfc
 
+    # wet-dry hotfix
+    # if ds.Dcrit is not None:
+    if hasattr(ds, "Dcrit"):
+        z_sfc = z_sfc.where(z_sfc > (ds.Dcrit - h), ds.Dcrit - h)
+
     # switch horizontal grid if needed
     if hgrid in ["u", "v", "p"]:
         h = to_grid_point(h, xgrid, hcoord=hgrid, vcoord=vgrid)
@@ -947,7 +952,7 @@ def get_z(
         z0 = hc * sc + (h - hc) * cs
         z = z0 + (1 + z0 / h) * z_sfc
     elif vtransform == 2:
-        z0 = (hc * sc + h * cs) / (hc + h)
+        z0 = (hc * sc + np.abs(h) * cs) / (hc + np.abs(h))
         z = z0 * (z_sfc + h) + z_sfc
 
     # reorder spatial dimensions and place them last
