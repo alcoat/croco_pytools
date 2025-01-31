@@ -402,6 +402,7 @@ class getdata():
             else:
                 print('Error in shifting algoritm')
                 sys.exit()
+            (lon,lat)=np.meshgrid(lon_tmp,lat_tmp)
         ###
         elif imin>imax:
             print('Reading topography in two separate parts adjacent through 360-degree periodicity\n First...' )
