@@ -4,6 +4,9 @@ __pycache__/
 
 # C extensions
 *.so
+*.mod
+*.o
+*_.f
 
 # doc build
 doc/build
