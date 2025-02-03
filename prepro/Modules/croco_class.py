@@ -618,7 +618,10 @@ class CROCO():
 
             nc.createVariable('grd_pos','i',('four'))
             nc.variables['grd_pos'].long_name='Subgrid location in the parent grid: psi corner points (imin imax jmin jmax)'
-            nc.variables['grd_pos'][:]=prt_grd[3:]
+            nc.variables['grd_pos'][0]=int(prt_grd[3])+1
+            nc.variables['grd_pos'][1]=int(prt_grd[4])+1
+            nc.variables['grd_pos'][2]=int(prt_grd[5])+1
+            nc.variables['grd_pos'][3]=int(prt_grd[6])+1
 
 
         nc.close()
@@ -629,10 +632,10 @@ class CROCO():
             fname='AGRIF_FixedGrids.in'
             fid=open(fname,'w')
             fid.write('    1\n')#'%s\n','    1');
-            fid.write('    '+str(prt_grd[3])+ \
-                               '    '+str(prt_grd[4])+ \
-                               '    '+str(prt_grd[5])+\
-                               '    '+str(prt_grd[6])+\
+            fid.write('    '+str(prt_grd[3]+1)+ \
+                               '    '+str(prt_grd[4]+1)+ \
+                               '    '+str(prt_grd[5]+1)+\
+                               '    '+str(prt_grd[6]+1)+\
                                '    '+str(prt_grd[2])+\
                                '    '+str(prt_grd[2])+\
                                '    '+str(prt_grd[2])+\

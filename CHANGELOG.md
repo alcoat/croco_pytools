@@ -8,7 +8,10 @@ Release changelog are available here : https://gitlab.inria.fr/croco-ocean/croco
 
 ### Fixed
 
+- Nesting with AGRIF: correct issue #20: child grid corners indices are now correctly written in the croco_grd file and AGRIF_FixedGrids.in
+
 - prepro/make_tides: some numpy meshgrid was lost at a previous commit, correct to have make_tides work again ( solve #31 )
+
 
 ### Changed
 
