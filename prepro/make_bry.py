@@ -57,7 +57,7 @@ import ibc_class as Inp
 #--- USER CHANGES ---------------------------------------------------------
 
 # Dates
-Yorig = 2013                    # year defining the origin of time as: days since Yorig-01-01
+Yorig, Morig, Dorig = '2013', '01', '01' # origin of time as: days since Yorig-Morig-Dorig
 Ystart, Mstart = '2013', '01'   # Starting month
 Yend, Mend  = '2013','03'       # Ending month 
 
@@ -99,10 +99,9 @@ cycle_bry = 0.
 if __name__ == '__main__':
 
     # Put origin date to the right format
-    day_zero   = str(Yorig)+'0101'    
-    day_zero_num = plt.datetime.datetime(int(day_zero[:4]),
-                                         int(day_zero[4:6]),
-                                         int(day_zero[6:8]))
+    day_zero_num = plt.datetime.datetime(int(Yorig),
+                                         int(Morig),
+                                         int(Dorig))
     day_zero_num = plt.date2num(day_zero_num)
 
     # Put start and end date to the right format
@@ -270,7 +269,7 @@ if __name__ == '__main__':
         nc.variables['bry_time'].cycle=cycle_bry
         nc.variables['bry_time'][:]=bry_time
         if cycle_bry==0:
-            nc.variables['bry_time'].units='days since %s-01-01 00:00:00' %(Yorig)
+            nc.variables['bry_time'].units='days since %s-%s-%s 00:00:00' %(Yorig,Morig,Dorig)
         # --- Loop on boundaries ------------------------------------------
   
         if len(tracers) == 0:
