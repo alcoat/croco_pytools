@@ -55,7 +55,6 @@ compilation of fortran routines interfaced with python routines.
 Scripts for easy installation are provided: 
 - general script: prepro/install.py
 - script for conda environment: prepro/env/conda_install.py
-- script for fortran compilation: prepro/Modules: compilation_fortran_tools.py
 
 See the full [documentation]( https://croco-ocean.gitlabpages.inria.fr/croco_pytools/prepro) for more details.
 

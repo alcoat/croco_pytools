@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import matplotlib
 # We want matplotlib to use a wxPython backend
@@ -255,10 +256,10 @@ class MainWindow(HasTraits):
     opt_file = File(value=output_file,
                      label='Output file',
                      desc='Output path')
-    opt_file_zm = File(value='../../CROCO_FILES/croco_chd_grd.nc',
+    opt_file_zm = File(value=output_file + '.1',
                      label='Output file',
                      desc='Output path')
-    opt_dir = File(value='../../CROCO_FILES',
+    opt_dir = File(value=os.path.dirname(output_file) + '/',
                      label='Output dir',
                      desc='Output path')
 
@@ -310,8 +311,9 @@ class MainWindow(HasTraits):
     sglc_i = CInt(sgl_connect[1],label='i0')
     sglc_j = CInt(sgl_connect[2],label='j0')
 
-    merge= CInt(5, label='Merging area (nb points)')
-    checklist = List(editor=CheckListEditor(values=['South','West', 'East', 'North'], cols=4 ))
+    merge= CInt(10, label='Merging area (nb points)')
+    #checklist = List(editor=CheckListEditor(values=['South','West', 'East', 'North'], cols=4 ))
+    checklist = List(['South','West', 'East', 'North'])
 
     ##########################
     def _figure_default(self):
@@ -362,7 +364,8 @@ class MainWindow(HasTraits):
 #                          '_',
                           Item(name='shp_file',editor=DirectoryEditor(entries=1),style='simple'),
 #                          '_',
-                          Item(name='checklist',label='Open boundaries', style='custom'),
+                          #Item(name='checklist',label='Open boundaries', style='custom'),
+                          Item(name='checklist',label='Open boundaries', editor=CheckListEditor(values=['South', 'West', 'East', 'North'], cols=4), style='custom'),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
 #                          '_',
                           HGroup('single_connect','sglc_i', 'sglc_j'),
@@ -385,7 +388,8 @@ class MainWindow(HasTraits):
                           '_',
                           Item(name='shp_file',editor=DirectoryEditor(entries=1),style='simple'),
                           '_',
-                          Item(name='checklist',label='Open boundaries', style='custom', id="custom"),
+                          #Item(name='checklist',label='Open boundaries', style='custom', id="custom"),
+                          Item(name='checklist',label='Open boundaries', editor=CheckListEditor(values=['South', 'West', 'East', 'North'], cols=4), style='custom'),
                           Item(name='merge',label='Merging area (nb points)',style='simple', springy=True),
                           '_',
                           HGroup('single_connect','sglc_i', 'sglc_j'),
