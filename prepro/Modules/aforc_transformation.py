@@ -11,7 +11,6 @@ import numpy as np
 import sys
 sys.path.append("/Modules")
 import scipy.interpolate as itp
-
 import time
 import datetime as dt
 import xarray as xr
@@ -106,24 +105,21 @@ def ssr_calculation(uswrf,dswrf,croco_variables):
     ssr.attrs = { 'units': croco_variables['ssr'][1], 'long_name': croco_variables['ssr'][0] }
     return ssr
 
-def remove_cumul(var_cumul,cumul_step,irreg):
+def remove_cumul(var_cumul,cumul_step):
 # Remove accumulation for data with 'cumul' in the reader
 # ---------------------
 # var_cumul : accumulated data
 # cumul_step : accumulation period in hours
-# irreg : (0 - regular grid ; 1 - irregular grid)
+    # Find indices where data is not accumulated :
     c_step = int(dt.timedelta(hours=cumul_step).total_seconds())
     mask_resetcumul = (var_cumul.time - var_cumul.time[0]) % np.timedelta64(c_step,'s')
     mask_resetcumul = mask_resetcumul == np.timedelta64(0)
-    
+    # Compute var[t=i] - var[t=i-1] :
     var_dif = var_cumul.diff(dim='time',n=1)
     
-    if irreg == 1: # 2D lon/lat
-        if len(var_cumul.lon.dims) != 2:
-            print('Problem in remove cumul')
-            sys.exit()
-        else:
-            zero_frame = xr.DataArray(
+    # Create a frame of zeros to add to var_dif and represent t=0 :
+    if len(var_cumul.lon.dims) == 2: # 2D lon/lat
+        zero_frame = xr.DataArray(
                 np.zeros((1, var_cumul.sizes[var_cumul.lon.dims[0]], var_cumul.sizes[var_cumul.lon.dims[1]])),  
                 dims=['time', var_cumul.lon.dims[0], var_cumul.lon.dims[1]], 
                 coords={'time': [var_cumul.time.values[0]], 
@@ -136,8 +132,10 @@ def remove_cumul(var_cumul,cumul_step,irreg):
             coords={'time': [var_cumul.time.values[0]], 
                     var_cumul.lat.dims[0] : var_dif[var_cumul.lat.dims[0]], var_cumul.lon.dims[0]: var_dif[var_cumul.lon.dims[0]]}  
         )
-    
     var_dif = xr.concat([zero_frame, var_dif], dim='time')
+    
+    # For indices where data is not accumulated : var_cumul
+    # For others                                : var_dif
     var_tmp = mask_resetcumul * var_cumul + (1 - mask_resetcumul) * var_dif
 
     # To have [var] = unit per hour :
