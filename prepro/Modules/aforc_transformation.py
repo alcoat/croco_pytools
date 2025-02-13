@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Jul  6 01:50:45 2024
+Created on Fri Feb  7 14:52:10 2025
 
-@author: menkes
+@author: annelou
 """
+
 import pylab as plt
 import numpy as np
 import sys
@@ -12,6 +13,8 @@ sys.path.append("/Modules")
 import scipy.interpolate as itp
 
 import time
+import datetime as dt
+import xarray as xr
 
 # -------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py
@@ -80,11 +83,11 @@ def r_calculation(q,t2m,croco_variables):
 # Calculation of the relative humidity (0-1)
 # ---------------------
 # q : specific humidity
-# t2m : temperature at 2m
+# t2m : temperature at 2m in Celsius
 # croco_variables : dictionary with long name and unity of the variable \
 # (see ../Readers/croco_variables.json)
     Pref= 1020
-    ew = 6.1121*(1.0007+3.46e-6*Pref)* np.exp((17.502*(t2m-273.15))/(240.97+(t2m-273.15)))
+    ew = 6.1121*(1.0007+3.46e-6*Pref)* np.exp((17.502*(t2m))/(240.97+(t2m)))
     Qsat = 0.62197*(ew/(Pref-0.378*ew))
     r = q / Qsat
     r.name = 'r'.upper()
@@ -102,6 +105,51 @@ def ssr_calculation(uswrf,dswrf,croco_variables):
     ssr.name = 'ssr'.upper()
     ssr.attrs = { 'units': croco_variables['ssr'][1], 'long_name': croco_variables['ssr'][0] }
     return ssr
+
+def remove_cumul(var_cumul,cumul_step,irreg):
+# Remove accumulation for data with 'cumul' in the reader
+# ---------------------
+# var_cumul : accumulated data
+# cumul_step : accumulation period in hours
+# irreg : (0 - regular grid ; 1 - irregular grid)
+    c_step = int(dt.timedelta(hours=cumul_step).total_seconds())
+    mask_resetcumul = (var_cumul.time - var_cumul.time[0]) % np.timedelta64(c_step,'s')
+    mask_resetcumul = mask_resetcumul == np.timedelta64(0)
+    
+    var_dif = var_cumul.diff(dim='time',n=1)
+    
+    if irreg == 1: # 2D lon/lat
+        if len(var_cumul.lon.dims) != 2:
+            print('Problem in remove cumul')
+            sys.exit()
+        else:
+            zero_frame = xr.DataArray(
+                np.zeros((1, var_cumul.sizes[var_cumul.lon.dims[0]], var_cumul.sizes[var_cumul.lon.dims[1]])),  
+                dims=['time', var_cumul.lon.dims[0], var_cumul.lon.dims[1]], 
+                coords={'time': [var_cumul.time.values[0]], 
+                      var_cumul.lon.dims[0] : var_dif[var_cumul.lon.dims[0]], var_cumul.lon.dims[1]: var_dif[var_cumul.lon.dims[1]]}  
+            )
+    else: # 1D lon/lat
+        zero_frame = xr.DataArray(
+            np.zeros((1, var_cumul.sizes[var_cumul.lat.dims[0]], var_cumul.sizes[var_cumul.lon.dims[0]])),  
+            dims=['time', var_cumul.lat.dims[0], var_cumul.lon.dims[0]], 
+            coords={'time': [var_cumul.time.values[0]], 
+                    var_cumul.lat.dims[0] : var_dif[var_cumul.lat.dims[0]], var_cumul.lon.dims[0]: var_dif[var_cumul.lon.dims[0]]}  
+        )
+    
+    var_dif = xr.concat([zero_frame, var_dif], dim='time')
+    var_tmp = mask_resetcumul * var_cumul + (1 - mask_resetcumul) * var_dif
+
+    # To have [var] = unit per hour :
+    step_time = var_cumul[var_cumul.dims[0]][1] - var_cumul[var_cumul.dims[0]][0]
+    step_time = float(step_time / np.timedelta64(1, 'h'))
+    var_nocumul = var_tmp / step_time
+    
+    return var_nocumul
+
+
+
+
 
 
 
