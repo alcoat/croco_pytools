@@ -89,6 +89,9 @@ sigma_params = dict(theta_s=7, theta_b=2, N=32, hc=200) # Vertical streching, si
 # Ini file informations
 ini_filename = 'croco_ini.nc' # output will be put in croco_dir by default
 
+# Conserv OGCM transport option
+conserv=1  # Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport          
+
 #--- END USER CHANGES -----------------------------------------------------
 
 if __name__ == '__main__':
@@ -156,9 +159,10 @@ if __name__ == '__main__':
             cosa=np.cos(crocogrd.angle)
             sina=np.sin(crocogrd.angle)
 
-            [u,v,ubar,vbar]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,tndx,tndx)
+            [ubar_ogcm,vbar_ogcm,ubar,vbar] = interp_tools.compute_uvbar_ogcm(inpdat,cosa,sina,crocogrd,tndx,tndx)
+            
+            [u,v]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,tndx,tndx)
               
-            conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
             if conserv == 1:
                 (ubar_croco,h0)=sig_tools.vintegr(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)/grd_tools.rho2u(crocogrd.h)
                 (vbar_croco,h0)=sig_tools.vintegr(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)/grd_tools.rho2v(crocogrd.h)

@@ -93,6 +93,9 @@ obc_dict = dict(south=1, west=1, east=1, north=1) # open boundaries (1=open , [S
 output_file_format = "MONTHLY" # How outputs are spit (MONTHLY,YEARLY,FULL)
 cycle_bry = 0.
 
+# Conserv OGCM transport option
+conserv=1  # Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport          
+
 #--- END USER CHANGES -----------------------------------------------------
 
 
@@ -298,10 +301,11 @@ if __name__ == '__main__':
 
                         cosa=np.cos(eval(''.join(('crocogrd.angle_',boundary))) )
                         sina=np.sin(eval(''.join(('crocogrd.angle_',boundary))) )
+                        
+                        [ubar_ogcm,vbar_ogcm,ubar,vbar] = interp_tools.compute_uvbar_ogcm(inpdat,cosa,sina,crocogrd,dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
 
-                        [u,v,ubar,vbar]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
-
-                        conserv=1  # Correct the horizontal transport i.e. remove the intergrated tranport and add the OGCM transport          
+                        [u,v]=interp_tools.interp_uv(inpdat,Nzgoodmin,z_rho,cosa,sina,crocogrd,dtmin,dtmax,prev,nxt,bdy=boundary[0].upper())
+                        
                         if conserv == 1:
                             ubar_croco=sig_tools.vintegr4D(u,grd_tools.rho2u(z_w),grd_tools.rho2u(z_rho),np.nan,np.nan)[0]/grd_tools.rho2u(eval(''.join(('crocogrd.h_'+boundary))))
                             vbar_croco=sig_tools.vintegr4D(v,grd_tools.rho2v(z_w),grd_tools.rho2v(z_rho),np.nan,np.nan)[0]/grd_tools.rho2v(eval(''.join(('crocogrd.h_'+boundary))))

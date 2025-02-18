@@ -196,7 +196,6 @@ def add2layers(vin):
     return vout
 
 ######################################################################
-
 def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
     '''
     Remove the missing values from a gridded 2D field
@@ -228,6 +227,18 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
     else:
         Lon,Lat = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy)))
 
+# 0: Precompute valid indices (igood) and bad indices (ibad)
+
+    Vin_one = inputfile.var_periodicity(vname,0,k,bdy=bdy)
+    if "_FillValue" not in inputfile.ncglo[vname].encoding:# If no FillValue in netcdf, assume 0 as value for the mask  
+        Vin_one[Vin_one==0]=np.nan
+    
+    valid_mask = ~np.isnan(Vin_one[:, :])  # Assume the mask is the same for all time steps
+    igood = np.where(valid_mask)
+    ibad = np.where(~valid_mask)
+    NzGood=np.size(igood)
+    Nbad=np.size(ibad)
+
 # 1: Read data
     if dtmin != dtmax:
         l=np.arange(dtmin,dtmax+1)
@@ -235,7 +246,6 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
         l=dtmin
 
     Vin = inputfile.var_periodicity(vname,l,k,bdy=bdy)
-
     if dtmin==dtmax:
         Vin=Vin[np.newaxis,:]
 
@@ -253,8 +263,6 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
         del Vtmp
 
 # 2: Remove bad values (using nearest values)
-    if "_FillValue" not in inputfile.ncglo[vname].encoding:# If no FillValue in netcdf, assume 0 as value for the mask  
-        Vin[Vin==0]=np.nan 
 
     if bdy != "":
         if bdy == 'S':
@@ -274,12 +282,6 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
     Vout=np.zeros([Vin.shape[0],crocolon.shape[0],crocolon.shape[1]])
    
     for tt in range(Vin.shape[0]):
-        igood = np.where(np.isnan(Vin[tt,:])==False)
-        ibad  = np.where(np.isnan(Vin[tt,:]))
- 
-        NzGood=np.size(igood)
-        Nbad=np.size(ibad)
-
         if NzGood==0:
 #            print('\nWarning: no good data')
             Vin[:]=np.nan
@@ -295,7 +297,7 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
             val_interpolator=pyinterp.backends.xarray.Grid2D(make_xarray(Vinfilled,Lon,Lat))
 # 3: 2D interpolation
         if NzGood ==0:
-            Vout[tt,:]=np.nan
+            Vout[tt,:] = np.nan
         else:
             Vout[tt,:]  = val_interpolator.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
     return Vout,NzGood
@@ -405,10 +407,6 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
     print('Horizontal interpolation of u and v over z levels')
     u4d=np.zeros((T,Nz,M,L-1))
     v4d=np.zeros((T,Nz,M-1,L))
-    ubar=np.zeros((T,M,L-1))
-    vbar=np.zeros((T,M-1,L))
-    zu  =ubar
-    zv  =vbar
     kgood=-1
     for k in progressbar(range(Nz),' uv : ', 40):
         (u3d,Nzgood_u) = interp_tracers(inputfile,'u',k,crocogrd,dtmin,dtmax,prev,nxt,bdy=bdy)
@@ -422,16 +420,9 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
             u4d[:,kgood,:,:]=grd_tools.rho2u(u3d*cosa3d+v3d*sina3d)
             v4d[:,kgood,:,:]=grd_tools.rho2v(v3d*cosa3d-u3d*sina3d)
 
-            ubar = ubar + grd_tools.rho2u((u3d*dz[kgood])*cosa3d+(v3d*dz[kgood])*sina3d)
-            zu   = zu   + dz[kgood]*np.ones(ubar.shape)
-            vbar = vbar + grd_tools.rho2v((v3d*dz[kgood])*cosa3d-(u3d*dz[kgood])*sina3d)
-            zv   = zv   + dz[kgood]*np.ones(vbar.shape)
-
 
     u4d=u4d[:,0:kgood,:,:]
     v4d=v4d[:,0:kgood,:,:]
-    ubar=ubar/zu
-    vbar=vbar/zv
     depth=depth[0:kgood]
 
     [Nz]=np.shape(depth)
@@ -459,9 +450,10 @@ def interp_uv(inputfile,Nzgoodmin,z_rho,cosa,sina,\
     uout=ztosigma(u4d,Z,grd_tools.rho2u(z_rho))
     vout=ztosigma(v4d,Z,grd_tools.rho2v(z_rho))
 
-    return uout,vout,ubar,vbar
+    return uout,vout
 
 
+####################################################################
 
 
 def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,bdy=""):
@@ -591,3 +583,195 @@ def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,
     elif vname == 'cur':
         return Uout,Vout,NzGood
 
+####################################################################
+
+def compute_uvbar_ogcm(inputfile,cosa,sina,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
+    '''
+        Compute ubar and vbar from OGCM
+        Remove the missing values (extrapolation)
+        Do the horizontal interpolation using pyinterp tools to the croco grid
+        Do the rotation and the shift on u- and v- croco grid
+
+        Inputs:
+        inputfile     Input class containing useful tools (see input_class.py)
+        k             Depth index ( -1 when no depth component)
+        crocogrd      CROCO grid class
+        dtmin         Starting index of the time series
+        dtmax         Ending index of the time series
+        prev          If 1 duplicates the first index of the time series
+        nxt           If 1 duplicates the last index of the time series
+        bdy           Specify which boundary you are on. Leave empty if not
+
+        Output:
+        ubar_ogcm, vbar_ogcm, ubar_croco_rotated_u, vbar_croco_rotated_v
+        
+                ubar_ogcm, vbar_ogcm :  
+                            ubar and vbar on the OGCM grid computed 
+                            from the reanalysis (lon/lat grid)
+        
+          		ubar_croco_rotated_u, vbar_croco_rotated_v :
+                            ubar  and vbar computed from the OGCM
+                            and interpolated on the croco grid, 
+                            rotated, at U- and V- grid
+               
+    '''
+# 0: Read input data informations
+    nc        = inputfile.ncglo
+    varinp    = inputfile.var
+    Lon_ogcm,Lat_ogcm = eval(''.join(("inputfile.lonT"+bdy))),eval(''.join(("inputfile.latT"+bdy)))
+
+# 1: Read data
+    if dtmin != dtmax:
+        l=np.arange(dtmin,dtmax+1)
+    else:
+        l=dtmin
+    
+    zeta_ogcm = inputfile.var_periodicity('ssh',l,-1,bdy=bdy)
+    
+    if np.ndim(zeta_ogcm)==2:  # add a dimension of 1 in case of ini
+        zeta_ogcm=zeta_ogcm[np.newaxis,:]
+    
+    [T,M,L]=np.shape(zeta_ogcm)
+    
+    depth= inputfile.depth
+    [Nz]=np.shape(depth)
+    
+    print('Compute ubar and vbar from OGCM over z-levels and interpolate to croco grid')
+    u_ogcm=np.zeros((T,Nz,M,L))
+    v_ogcm=np.zeros((T,Nz,M,L))
+    dz=np.gradient(depth)
+
+    #for k in range(Nz):
+    for k in progressbar(range(Nz),' - reading/extracting u/v from OGCM : ', 40):
+        #print('K=',k)
+        u_ogcm_tmp = inputfile.var_periodicity('u',l,k,bdy=bdy)
+        v_ogcm_tmp = inputfile.var_periodicity('v',l,k,bdy=bdy)
+        
+        u_ogcm[:,k,:,:] = u_ogcm_tmp
+        v_ogcm[:,k,:,:] = v_ogcm_tmp
+    
+# 1: Compute the barotropic velocities from reanalysis
+    maskuv3d = np.where(np.isnan(u_ogcm), 0, 1)
+    u_ogcm[np.isnan(u_ogcm)] = 0
+    v_ogcm[np.isnan(v_ogcm)] = 0
+
+    du = np.zeros((T,M,L))
+    dv = np.zeros((T,M,L))
+    zuv = du
+
+    #for k in range(Nz):
+    for k in progressbar(range(Nz),' - computing ubar/vbar from OGCM : ', 40):
+        #print('K=',k)
+        du = du + dz[k] * u_ogcm[:,k,:,:] 
+        dv = dv + dz[k] * v_ogcm[:,k,:,:]
+        zuv = zuv + dz[k] * maskuv3d[:,k,:,:]
+
+    du[zuv == 0] = np.nan
+    dv[zuv == 0] = np.nan
+    zuv[zuv == 0] = np.nan
+    
+    ubar_ogcm = du / zuv
+    vbar_ogcm = dv / zuv
+    
+# 0: Precompute valid indices (igood) and bad indices (ibad)
+    ubar_ogcm_one = ubar_ogcm[0,:,:]
+    vbar_ogcm_one = vbar_ogcm[0,:,:]
+    igood = np.where(np.isnan(ubar_ogcm_one[:])==False)
+    ibad  = np.where(np.isnan(ubar_ogcm_one[:]))
+    NzGood=np.size(igood)
+    Nbad=np.size(ibad)
+    
+# 0: Precompute the interpolator spline only once
+    splineU = itp.NearestNDInterpolator((Lon_ogcm[igood].ravel(),
+                                        Lat_ogcm[igood].ravel()),
+                                        ubar_ogcm_one[igood[0],igood[1]])
+    
+    splineV = itp.NearestNDInterpolator((Lon_ogcm[igood].ravel(),
+                                        Lat_ogcm[igood].ravel()),
+                                        vbar_ogcm_one[igood[0],igood[1]])
+    
+    if prev == 1: # create overlap before when no data avail
+        vartmp=np.zeros([ubar_ogcm.shape[0]+1,ubar_ogcm.shape[1],ubar_ogcm.shape[2]])
+        vartmp[1:,:]=np.copy(ubar_ogcm)
+        vartmp[0,:]=np.copy(ubar_ogcm[0,:])
+        ubar_ogcm=vartmp
+        del vartmp
+        
+        vartmp=np.zeros([vbar_ogcm.shape[0]+1,vbar_ogcm.shape[1],vbar_ogcm.shape[2]])
+        vartmp[1:,:]=np.copy(vbar_ogcm)
+        vartmp[0,:]=np.copy(vbar_ogcm[0,:])
+        vbar_ogcm=vartmp
+        del vartmp
+        
+    if nxt==1: # create overlap after when no data avail
+        vartmp=np.zeros([ubar_ogcm.shape[0]+1,ubar_ogcm.shape[1],ubar_ogcm.shape[2]])
+        vartmp[:-1,:]=np.copy(ubar_ogcm)
+        vartmp[-1,:]=np.copy(ubar_ogcm[-1,:])
+        ubar_ogcm=vartmp
+        del vartmp
+        
+        vartmp=np.zeros([vbar_ogcm.shape[0]+1,vbar_ogcm.shape[1],vbar_ogcm.shape[2]])
+        vartmp[:-1,:]=np.copy(vbar_ogcm)
+        vartmp[-1,:]=np.copy(vbar_ogcm[-1,:])
+        vbar_ogcm=vartmp
+        del vartmp
+        
+    cosa3d=np.tile(cosa, (vbar_ogcm.shape[0], 1, 1))    
+    sina3d=np.tile(sina, (vbar_ogcm.shape[0], 1, 1))
+       
+    #print(' - horizontal interpolation to croco grid')
+# 2: Interp of ubar and vbar from reanalysis (ubar_ogcm and vbar_ogcm) to crocogrid
+    if bdy != "":
+        if bdy == 'S':
+            bound='south'
+        elif bdy == 'W':
+            bound='west'
+        elif bdy == 'E':
+            bound='east'
+        elif bdy == 'N':
+            bound='north'
+        
+        crocolon=eval(''.join(('crocogrd.lon_',bound)))
+        crocolat=eval(''.join(('crocogrd.lat_',bound)))
+        crocolonu=eval(''.join(('crocogrd.lonu_',bound)))
+        crocolatu=eval(''.join(('crocogrd.latu_',bound)))
+        crocolonv=eval(''.join(('crocogrd.lonv_',bound)))
+        crocolatv=eval(''.join(('crocogrd.latv_',bound)))
+    else:
+        crocolon=crocogrd.lon
+        crocolat=crocogrd.lat
+        crocolonu=crocogrd.lonu
+        crocolatu=crocogrd.latu
+        crocolonv=crocogrd.lonv
+        crocolatv=crocogrd.latv
+        
+    ubar_croco_r = np.zeros([ubar_ogcm.shape[0],crocolon.shape[0],crocolon.shape[1]])
+    vbar_croco_r = np.zeros([vbar_ogcm.shape[0],crocolon.shape[0],crocolon.shape[1]])
+    ubar_croco_rotated_u = np.zeros([ubar_ogcm.shape[0],crocolonu.shape[0],crocolonu.shape[1]])
+    vbar_croco_rotated_v = np.zeros([vbar_ogcm.shape[0],crocolonv.shape[0],crocolonv.shape[1]])
+
+# 2.1 2D extrapolation of ubar_ogcm and vbar_ogcm
+    #for tt in range(ubar_croco_r.shape[0]):
+    for tt in progressbar(range(ubar_croco_r.shape[0]),' -  horizontal interpolation to croco grid', 40):
+        #  ==> for ubar_ogcm
+        ubar_ogcm_filled = np.copy(np.squeeze(ubar_ogcm[tt,:]))
+        ubar_ogcm_filled[ibad] = splineU(Lon_ogcm[ibad[0],ibad[1]],Lat_ogcm[ibad[0],ibad[1]])
+        val_interpolatorU=pyinterp.backends.xarray.Grid2D(make_xarray(ubar_ogcm_filled,Lon_ogcm,Lat_ogcm))
+        
+        #  ==>  for vbar_ogcm
+        vbar_ogcm_filled = np.copy(np.squeeze(vbar_ogcm[tt,:]))
+        vbar_ogcm_filled[ibad] = splineV(Lon_ogcm[ibad[0],ibad[1]],Lat_ogcm[ibad[0],ibad[1]])
+        val_interpolatorV=pyinterp.backends.xarray.Grid2D(make_xarray(vbar_ogcm_filled,Lon_ogcm,Lat_ogcm))   
+ 
+# 2.2 Interpolation to croco grid 
+        ubar_croco_r[tt,:] = val_interpolatorU.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
+                                                    num_threads=1).reshape(crocolon.shape)
+        vbar_croco_r[tt,:] = val_interpolatorV.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
+                                                    num_threads=1).reshape(crocolon.shape)
+# 2.3 Rotation and shift on u- and v- grid       
+        ubar_croco_rotated_u[tt,:] = grd_tools.rho2u(ubar_croco_r[tt,:] * cosa3d[tt,:] \
+                                                     + vbar_croco_r[tt,:] * sina3d[tt,:])
+        vbar_croco_rotated_v[tt,:] = grd_tools.rho2v(vbar_croco_r[tt,:] * cosa3d[tt,:] \
+                                                    - ubar_croco_r[tt,:] * sina3d[tt,:])
+ 
+    return ubar_ogcm,vbar_ogcm,ubar_croco_rotated_u,vbar_croco_rotated_v
