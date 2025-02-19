@@ -300,7 +300,7 @@ if __name__ == "__main__":
 # ----------------------------
                     # Depend if the variable is flag with 'cumul' (cf aforc_reader.py) :
                     if variables.get_iscumul(var) == 'cumul':
-                        data = remove_cumul(data,cumul_step,irreg)
+                        data = remove_cumul(data,cumul_step)
                         
 # Put data in the wanted unit : 
 # -----------------------------
@@ -330,7 +330,7 @@ if __name__ == "__main__":
                     elif var == 'uswrf':
                         dswrf = flip_data(data_grouped[i][variables.get_var('dswrf')])
                         if variables.get_iscumul('dswrf') == 'cumul':
-                            dswrf = remove_cumul(dswrf,cumul_step,irreg)
+                            dswrf = remove_cumul(dswrf,cumul_step)
                         dswrf = unit_conversion(dswrf,'dswrf',variables)
                         data = ssr_calculation(data,dswrf,croco_variables)
                         var = 'ssr'
