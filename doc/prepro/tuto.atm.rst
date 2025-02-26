@@ -28,14 +28,14 @@ Here we use the ``era_ecmwf`` style of formatting:
 ::
 
     elif data_origin == 'era_ecmwf':
-        var_info = [ ['lon'  ,'longitude'     ,1.           ],\
-                     ['lat'  ,'latitude'      ,1.           ],\
-                     ['tp'   ,'tp'            ,cff_tp       ],\
-                     ['ssr'  ,'ssr'           ,cff_heat     ],\
-                     ['t2m'  ,'t2m'           ,cff_temp     ],\
-                     ['u10m' ,'u10'           ,1.           ],\
-                     ['v10m' ,'v10'           ,1.           ],\
-                     ['strd' ,'strd'          ,cff_heat     ],\
+        var_info = [ ['lon'  ,'longitude'     ,1.           ,' '      ],\
+                     ['lat'  ,'latitude'      ,1.           ,' '      ],\
+                     ['tp'   ,'tp'            ,cff_tp       ,'cumul'  ],\
+                     ['ssr'  ,'ssr'           ,cff_heat     ,'cumul'  ],\
+                     ['t2m'  ,'t2m'           ,cff_temp     ,' '      ],\
+                     ['u10m' ,'u10'           ,1.           ,' '      ],\
+                     ['v10m' ,'v10'           ,1.           ,' '      ],\
+                     ['strd' ,'strd'          ,cff_heat     ,' '      ],\
                    ]
 
 
@@ -45,16 +45,16 @@ Here we use the ``era_ecmwf`` style of formatting:
 ::
 
      elif data_origin == 'cfsr':
-        var_info = [ ['lon'  ,'lon'           ,1.           ,' '       ],\
-                     ['lat'  ,'lat'           ,1.           ,' '       ],\
-                     ['tp'   ,'PRATE_L1_Avg_1',1.           ,'prate'   ],\
-                     ['dswrf','DSWRF_L1_Avg_1',1.           ,'dswsfc'  ],\
-                     ['uswrf','USWRF_L1_Avg_1',1.           ,'uswsfc'  ],\
-                     ['t2m'  ,'TMP_L103'      ,cff_temp     ,'tmp2m'   ],\
-                     ['u10m' ,'U_GRD_L103'    ,1.           ,'wnd10m'  ],\
-                     ['v10m' ,'V_GRD_L103'    ,1.           ,'wnd10m'  ],\
-                     ['strd' ,'DLWRF_L1_Avg_1',1.           ,'dlwsfc'  ],\
-                     ['q'    ,'SPF_H_L103'    ,1.           ,'q2m'     ],\
+        var_info = [ ['lon'  ,'lon'           ,1.           ,' '      ,' '       ],\
+                     ['lat'  ,'lat'           ,1.           ,' '      ,' '       ],\
+                     ['tp'   ,'PRATE_L1_Avg_1',1.           ,'cumul'  ,'prate'   ],\
+                     ['dswrf','DSWRF_L1_Avg_1',1.           ,'cumul'  ,'dswsfc'  ],\
+                     ['uswrf','USWRF_L1_Avg_1',1.           ,'cumul'  ,'uswsfc'  ],\
+                     ['t2m'  ,'TMP_L103'      ,cff_temp     ,' '      ,'tmp2m'   ],\
+                     ['u10m' ,'U_GRD_L103'    ,1.           ,' '      ,'wnd10m'  ],\
+                     ['v10m' ,'V_GRD_L103'    ,1.           ,' '      ,'wnd10m'  ],\
+                     ['strd' ,'DLWRF_L1_Avg_1',1.           ,'cumul'  ,'dlwsfc'  ],\
+                     ['q'    ,'SPF_H_L103'    ,1.           ,' '      ,'q2m'     ],\
                    ]
 
  
@@ -118,8 +118,11 @@ There are several parts in it:
 
 ::
 
+  cumul_step = 1
   READ_PATM = False
   extrapolation_sst = True
+
+``cumul_step`` data accumulation time in hours.
 
 ``READ_PATM`` to convert the atmospheric pressure, set True.
 
