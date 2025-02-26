@@ -59,13 +59,13 @@ else:
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
 Ystart, Mstart = 1980,1   # Starting month
-Yend, Mend  = 1980,1  # Ending month
+Yend, Mend  = 1980,2  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
 # -------------------------------------------------
 # If cumul, indicate the step in hours :
-cumul_step = 6 # in hour
+cumul_step = 1 # in hour
 
 # To convert the atmospheric pressure : True
 READ_PATM = False
@@ -242,14 +242,24 @@ if __name__ == "__main__":
                         # Find lon/lat indices to cut the grid :
                         ix_min = int(find_nearest(dataxr['lon'],lon_min))
                         ix_max = int(find_nearest(dataxr['lon'],lon_max))
-                        iy_min = int(find_nearest(dataxr['lat'],lat_min))
-                        iy_max = int(find_nearest(dataxr['lat'],lat_max))
+                        iy_latmin = int(find_nearest(dataxr['lat'],lat_min))
+                        iy_latmax = int(find_nearest(dataxr['lat'],lat_max))
+
                         # Latitudes from min to max :
-                        if dataxr['lat'][1].values > dataxr['lat'][0].values: # from lat_min to lat_max
-                            sel_args = {lat_dim[0]: slice(iy_min-1,iy_max+1),lon_dim[0]:slice(ix_min-1,ix_max+1)}
+                        if iy_latmin < iy_latmax: iy_min = iy_latmin  ; iy_max = iy_latmax
                         # Reversed latitudes (max to min) :
-                        else:
-                            sel_args = {lat_dim[0]: slice(iy_max-1,iy_min+1),lon_dim[0]:slice(ix_min-1,ix_max+1)}
+                        else: iy_min = iy_latmax  ; iy_max = iy_latmin
+
+                        # Take margin :
+                        iy_min -= 4 ; ix_min -= 4
+                        if iy_min < 0: iy_min = 0
+                        if ix_min < 0: ix_min = 0
+                        iy_max += 4 ; ix_max += 4
+                        if iy_max // len(dataxr['lat']) == 1: iy_max // len(dataxr['lat'])
+                        if ix_max // len(dataxr['lon']) == 1: ix_max // len(dataxr['lon'])
+
+                        # Selection :
+                        sel_args = {lat_dim[0]: slice(iy_min,iy_max),lon_dim[0]:slice(ix_min,ix_max)}
                     
                     # Reduced dataset in time, lon and lat :
                     dataxr_inprocess = dataxr.sel(time=slice(start_date,end_date)).isel(**sel_args)

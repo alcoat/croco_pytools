@@ -123,7 +123,7 @@ def lookvar(data_origin):
                      ['lat'  ,'lat'           ,1.          ,' '    ,' '      ],\
                      ['sst'  ,'ts'            ,1.          ,' '    ,'ts'     ],\
                      ['tp'   ,'pr'            ,cff_tp2     ,' '    ,'pr'     ],\
-                     ['dswrf','rlus'          ,1.          ,' '    ,'rlus'   ],\
+                     ['dswrf','rsds'          ,1.          ,' '    ,'rsds'   ],\
                      ['uswrf','rsus'          ,1.          ,' '    ,'rsus'   ],\
                      ['t2m'  ,'tas'           ,cff_temp    ,' '    ,'tas'    ],\
                      ['u10m' ,'uas'           ,1.          ,' '    ,'uas'    ],\
