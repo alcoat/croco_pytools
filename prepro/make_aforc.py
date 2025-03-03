@@ -35,31 +35,39 @@ import pyinterp.backends.xarray
 # -------------------------------------------------
 # INPUT :
 # -------------------------------------------------
-data_origin = 'era_dataref'
-input_dir = '/path/in/'
-input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, write '*' before sufix
+data_origin = 'output_MF'
+# input_dir = '/path/in/'
+# input_prefix = 'era_5-copernicus__*' # For multifiles, if the name of the file begin with the variable name, write '*' before sufix
 
-multi_files = False # If one file per variable in input : True
+multi_files = True
+input_dir = '/Users/annelou/Documents/DATA/output_hanh/'
+input_prefix = '*_NCV-3_ERA5_evaluation_r1i1p1f1_CNRM-MF_CNRM-AROME46t1_v1-r1_1H_*'
+output_dir = '/Users/annelou/Documents/DATA/TEST_DEV_AFORC/res_test/hanh_output/'
+
+
+
+# multi_files = False # If one file per variable in input : True
 
 # -------------------------------------------------
 # OUTPUT :
 # -------------------------------------------------
-output_dir = '/path/out/'
+# output_dir = '/path/out/'
 output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
 # Grid size : 
-ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
+ownArea = 0 # 0 if area from croco_grd.nc
             # 1 if own area
 if ownArea == 0:
-    croco_grd = '/pathin/to/your/croco/grid/croco_grd.nc'
+    # croco_grd = '/pathin/to/your/croco/grid/croco_grd.nc'
+    croco_grd = '/Users/annelou/Documents/croco/croco_grd/croco_grd_NEW_MASK_NCVA.nc'
 else:
     lon_min,lon_max,lat_min,lat_max = 4,27,-40,-24
 
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 1980,1   # Starting month
-Yend, Mend  = 1980,2  # Ending month
+Ystart, Mstart = 1990,1   # Starting month
+Yend, Mend  = 1990,1  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -231,10 +239,23 @@ if __name__ == "__main__":
                     if len(lon_dim) == 2 and len(lat_dim) == 2:
                         irreg = 1
                         # Find lon/lat indices to cut the grid :
-                        ix_min,ix_max,iy_min,iy_max = ind_irreg_grid(dataxr.isel(time=0),variables.get_var(var),lon_min,lon_max,lat_min,lat_max)
-                        print("WARNING : For now, with irregular grid, it supposes that latitudes are from lat_min to lat_max")
-                        sel_args = {lon_dim[0]: slice(iy_min,iy_max),lon_dim[1]:slice(ix_min,ix_max)}
+                        ix_min,ix_max,iy_latmin,iy_latmax = ind_irreg_grid(dataxr.isel(time=0),variables.get_var(var),lon_min,lon_max,lat_min,lat_max)
                         
+                        # Latitudes from min to max :
+                        if iy_latmin < iy_latmax: iy_min = iy_latmin  ; iy_max = iy_latmax
+                        # Reversed latitudes (max to min) :
+                        else: iy_min = iy_latmax  ; iy_max = iy_latmin
+
+                        # Take margin :
+                        iy_min -= 4 ; ix_min -= 4
+                        if iy_min < 0: iy_min = 0
+                        if ix_min < 0: ix_min = 0
+                        iy_max += 4 ; ix_max += 4
+                        if iy_max // len(dataxr[lon_dim[0]]) == 1: iy_max = len(dataxr[lon_dim[0]])
+                        if ix_max // len(dataxr[lon_dim[1]]) == 1: ix_max = len(dataxr[lon_dim[1]])
+                        
+                        sel_args = {lon_dim[0]: slice(iy_min,iy_max),lon_dim[1]:slice(ix_min,ix_max)}
+              
 # Regular grid (1D lon/lat) :
 # ---------------------------             
                     else: 
@@ -255,8 +276,8 @@ if __name__ == "__main__":
                         if iy_min < 0: iy_min = 0
                         if ix_min < 0: ix_min = 0
                         iy_max += 4 ; ix_max += 4
-                        if iy_max // len(dataxr['lat']) == 1: iy_max // len(dataxr['lat'])
-                        if ix_max // len(dataxr['lon']) == 1: ix_max // len(dataxr['lon'])
+                        if iy_max // len(dataxr['lat']) == 1: iy_max = len(dataxr['lat'])
+                        if ix_max // len(dataxr['lon']) == 1: ix_max = len(dataxr['lon'])
 
                         # Selection :
                         sel_args = {lat_dim[0]: slice(iy_min,iy_max),lon_dim[0]:slice(ix_min,ix_max)}

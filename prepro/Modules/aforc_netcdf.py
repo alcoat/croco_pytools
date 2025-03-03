@@ -112,32 +112,27 @@ def ind_irreg_grid(dataxr,var,lon_min,lon_max,lat_min,lat_max):
     for i in range(len(a[0,:])):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
             xmin = i
-            if xmin != 0:
-                xmin = i -1
             break
     # Find longitude max :
     for i in range(len(a[0,:])-1,-1,-1):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
-            xmax = i +1
+            xmax = i
             break
     # Find latitude min :
     for i in range(len(a[:,0])):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
             ymin = i
-            if ymin != 0:
-                ymin = i -1
             break
     # Find latitude max :
     for i in range(len(a[:,0])-1,-1,-1):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
-            ymax = i +1
+            ymax = i
             break
     try:
         xmin,xmax,ymin,ymax
     except NameError:
         print("The croco_grid does not appear to be included in the atmospheric forcing grid.")
         sys.exit()
-    print(xmin,xmax,ymin,ymax)
     return xmin,xmax,ymin,ymax
 
 
