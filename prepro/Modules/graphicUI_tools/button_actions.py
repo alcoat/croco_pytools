@@ -129,8 +129,8 @@ class ComputeC2cThread(Thread):
         self.nest(self.topo_prt,self.inputs,self.outputs)
         self.topo(self.outputs, self.topo_file,self.shp_file,
                   smooth=self.inputs_smth,
-                  hmin=np.nanmin(self.topo_prt.h),
-                  hmax=np.nanmax(self.topo_prt.h),
+#                  hmin=np.nanmin(self.topo_prt.h),
+#                  hmax=np.nanmax(self.topo_prt.h),
                   sgl_connect=self.single_connect,
                   prt_grd=self.topo_prt,
                   coef=self.inputs.coef)
