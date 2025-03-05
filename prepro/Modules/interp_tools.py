@@ -299,7 +299,7 @@ def interp_tracers(inputfile,vname,k,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy=""):
         if NzGood ==0:
             Vout[tt,:] = np.nan
         else:
-            Vout[tt,:]  = val_interpolator.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
+            Vout[tt,:]  = val_interpolator.bicubic(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
     return Vout,NzGood
 
 
