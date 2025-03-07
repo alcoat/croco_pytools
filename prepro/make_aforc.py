@@ -59,7 +59,7 @@ else:
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
 Ystart, Mstart = 1980,2   # Starting month
-Yend, Mend  = 1980,3  # Ending month
+Yend, Mend  = 1980,2  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
