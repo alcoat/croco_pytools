@@ -74,15 +74,19 @@ Click "Update Value" to save the modification. If you want to use this tool mult
 
 ### Editing Bathymetry
 Example of bathymetry editing using a rectangular selector.
+
 .. figure:: figures/notebooks/bathy_edition_rect_selector.png
    :scale: 40 %
-   This image shows how to use the rectangular selector to edit the bathymetry.
+
+This image shows how to use the rectangular selector to edit the bathymetry.
 
 ### Editing the Mask
 Example of landmask editing using the pointer (one cell at a time).
+
 .. figure:: figures/notebooks/mask_edit_pointer.png
    :scale: 40 %
-   This image shows how to use the pointer tool to edit the landmask one cell at a time.
+   
+This image shows how to use the pointer tool to edit the landmask one cell at a time.
 
 ### ⛰️ Last Smoothing After Edits
 ===========================
@@ -114,9 +118,11 @@ plot_grid(outputs, figure, ax, shp_file, zview='grid outline', plot_shape=True)
    - Set to **False** to omit the shapefile.
 
 Example of plotting the topography map with the grid outline:
+
 .. figure:: figures/notebooks/grid_display.png
    :scale: 40 %
-   This is an example of plotting the topography map with the grid outline.
+
+This is an example of plotting the topography map with the grid outline.
 
 💾 Save Grid as NetCDF
 ===========================
