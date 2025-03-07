@@ -13,3 +13,5 @@ Preprocessing tools
    tuto.rivers  
    tuto.zoom
    tuto.download
+   tuto.notebooks
+   tuto.merge_topo
