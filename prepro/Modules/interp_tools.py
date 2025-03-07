@@ -567,8 +567,8 @@ def interp_tides(inputfile,vname,k,crocogrd,dtmin,dtmax,input_type,prev=0,nxt=0,
                 Rout[tt,:]=np.nan
                 Iout[tt,:]=np.nan
             else:
-                Rout[tt,:]  = r_val_interpolator.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
-                Iout[tt,:]  = i_val_interpolator.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
+                Rout[tt,:]  = r_val_interpolator.bicubic(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
+                Iout[tt,:]  = i_val_interpolator.bicubic(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),num_threads=1).reshape(crocolon.shape)
 
         Vout=(Rout+1j*Iout)
 
@@ -764,9 +764,9 @@ def compute_uvbar_ogcm(inputfile,cosa,sina,crocogrd,dtmin,dtmax,prev=0,nxt=0,bdy
         val_interpolatorV=pyinterp.backends.xarray.Grid2D(make_xarray(vbar_ogcm_filled,Lon_ogcm,Lat_ogcm))   
  
 # 2.2 Interpolation to croco grid 
-        ubar_croco_r[tt,:] = val_interpolatorU.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
+        ubar_croco_r[tt,:] = val_interpolatorU.bicubic(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
                                                     num_threads=1).reshape(crocolon.shape)
-        vbar_croco_r[tt,:] = val_interpolatorV.bivariate(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
+        vbar_croco_r[tt,:] = val_interpolatorV.bicubic(coords=dict(lon=crocolon.flatten(),lat=crocolat.flatten()),
                                                     num_threads=1).reshape(crocolon.shape)
 # 2.3 Rotation and shift on u- and v- grid       
         ubar_croco_rotated_u[tt,:] = grd_tools.rho2u(ubar_croco_r[tt,:] * cosa3d[tt,:] \
