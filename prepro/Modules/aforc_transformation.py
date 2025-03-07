@@ -42,13 +42,23 @@ def unit_conversion(data,var,variables):
         data1 = data * variables.get_conv_cff(var)
     return data1
 
-def extrapolation(data,lon,lat):
+def extrapolation(data,lon,lat,land_mask,interp_meth):
 # Extrapolate data with the nearest neighbor method
 # ---------------------
 # data : xarray.DataArray of one variable
-# lon : longitude 1D
-# lat : latitude 1D
-    longitude, latitude = np.meshgrid(lon,lat)
+# lon : longitude 1D or 2D
+# lat : latitude 1D or 2D
+# land_mask : 2D array of boolean
+# interp_meth : interpolation method = 'nearest' or 'cloughtocher'
+# /!\ cloughtocher is cubic interpolation, it could have no physical sens
+    land_mask = np.tile(land_mask, (np.shape(data)[0], 1, 1))
+    data[land_mask] = np.nan
+
+    if len(np.shape(lon))<=1:
+        longitude, latitude = np.meshgrid(lon,lat)
+    else: 
+        longitude = lon ; latitude = lat
+        
     data[data==0]=np.nan
     crocolon = longitude
     Vout = np.zeros([data.shape[0],crocolon.shape[0],crocolon.shape[1]])
@@ -56,11 +66,19 @@ def extrapolation(data,lon,lat):
     for tt in range(data.shape[0]):
         igood = np.where(np.isnan(data[tt,:])==False)
         ibad  = np.where(np.isnan(data[tt,:]))
- 
-        spline = itp.NearestNDInterpolator((longitude[igood].ravel(),latitude[igood].ravel()),data[tt,igood[0],igood[1]])
+
+        if interp_meth == 'nearest':
+            spline = itp.NearestNDInterpolator((longitude[igood].ravel(),latitude[igood].ravel()),data[tt,igood[0],igood[1]])
+        elif interp_meth == 'cloughtocher':
+            spline = itp.CloughTocher2DInterpolator((longitude[igood].ravel(),latitude[igood].ravel()),data[tt,igood[0],igood[1]])
+        else:
+            print("Bad interpolation name (for sst or drowning treatment). Try 'nearest' or 'cloughtocher'.")
+            sys.exit()
+
         Vinfilled =np.copy(np.squeeze(data[tt,:]))
         Vinfilled[ibad] = spline(longitude[ibad[0],ibad[1]],latitude[ibad[0],ibad[1]])
         Vout[tt,:] = Vinfilled
+        
     return Vout
 
 def strd_calculation(str_var,sst,variables,croco_variables):

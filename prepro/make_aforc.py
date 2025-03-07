@@ -9,6 +9,7 @@ Created on Thu Feb 13 17:51:49 2025
 import xarray as xr
 import pylab as plt
 import numpy as np
+import numpy.ma as ma
 import glob as glob
 from dateutil.relativedelta import relativedelta
 import json
@@ -26,7 +27,6 @@ from data_consistency import consistency
 from aforc_transformation import *
 import scipy.interpolate as itp
 import pyinterp.backends.xarray
-
 
 # *******************************************************************************
 #                         U S E R  *  O P T I O N S
@@ -49,7 +49,7 @@ output_file_format = "MONTHLY" # How output files are split (MONTHLY,DAILY)
 
 # -------------------------------------------------
 # Grid size : 
-ownArea = 0 # 0 if area from croco_grd.nc +/- 5°
+ownArea = 0 # 0 if area from croco_grd.nc
             # 1 if own area
 if ownArea == 0:
     croco_grd = '/pathin/to/your/croco/grid/croco_grd.nc'
@@ -58,8 +58,8 @@ else:
 
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 1980,1   # Starting month
-Yend, Mend  = 1980,2  # Ending month
+Ystart, Mstart = 1980,2   # Starting month
+Yend, Mend  = 1980,3  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -76,7 +76,21 @@ READ_PATM = False
 # however, note that extrapolation increases pre-processing time.
 # If STRD is in raw data, extrapolation_sst will no be considered.
 extrapolation_sst = True # /!\ if sst = ts (surf temp) no need
+if extrapolation_sst: 
+    data_with_mask = 'sst'
+    sst_interp = 'nearest' # 'nearest' or 'cloughtocher' (= cubic, not recommended)
 
+# Extrapolation of all atmospheric data to the coast
+# Cut data from the atmospheric land/sea mask
+# Need to have a masked variable (for example sst data)
+drowning = True
+if drowning: 
+    data_with_mask = 'sst' # Name from variable dictionnary
+    drowning_interp = 'nearest' # 'nearest' or 'cloughtocher' (= cubic, not recommended)
+    drowning_plot = True # Save a plot to show the interpolation
+    if drowning_plot:
+        drowning_plot_folder = output_dir
+    
 # *****************************************************************************
 #                      E N D     U S E R  *  O P T I O N S
 # *****************************************************************************
@@ -111,12 +125,21 @@ if ownArea == 0:
 start_time = time.time() 
     
 if __name__ == "__main__":
+# -----------------------------------
+# IF DROWNING, WILL EXTRACT THE MASK
+# -----------------------------------
+    if extrapolation_sst or drowning:
+        pathin = find_type_path(input_dir,Ystart,Mstart)
+        if multi_files: input_file = find_input(pathin,input_prefix,Ystart,Mstart,multi_files,READ_PATM,variables.get_var(data_with_mask))
+        else: input_file = find_input(pathin,input_prefix,Ystart,Mstart,multi_files,READ_PATM)
+        enginein = find_engine(input_file[0])
+        land_mask = xr.open_dataset(input_file[0],engine=enginein)[variables.get_var(data_with_mask)].to_masked_array()
+        land_mask = ma.getmask(land_mask[0,:,:])
 
 # -----------------------------------
 # LOOP ON YEARS AND MONTHS
 # -----------------------------------
     for year_inprocess in range(Ystart,Yend+1): 
-        
         if year_inprocess == Ystart: month_inprocess = Mstart
         else: month_inprocess = 1
         
@@ -140,7 +163,7 @@ if __name__ == "__main__":
 # LOOP ON VARIABLES
 # -----------------------------------
             for var in variables.raw_name: 
-
+                print(var)
                 if var == 'msl' and not READ_PATM:
                     continue
                 elif var == 'lon' or var == 'lat' or var == 'dswrf' or var == 'sst':
@@ -154,7 +177,7 @@ if __name__ == "__main__":
 # ----------------
                 if multi_files:
                     # Find file names :
-                    input_file = find_input(variables,pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,var)
+                    input_file = find_input(pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,variables.get_var(var))
                     if input_file==[]:
                         continue
                     else:
@@ -170,7 +193,7 @@ if __name__ == "__main__":
                         # Find the needeed variable :
                         var2 = [i for i in range(len(['str','q','uswrf'])) if ['str','q','uswrf'][i] == var]
                         var2 = ['sst', 't2m', 'dswrf'][var2[0]]
-                        input_file = find_input(variables,pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM, var2)
+                        input_file = find_input(pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,variables.get_var(var2))
                         if input_file==[]:
                             print('/!\ ', var2, 'files cannot be read and are necessary for calculations relative to', var, '/!\ ')
                             sys.exit()
@@ -182,7 +205,7 @@ if __name__ == "__main__":
 # -----------------------------------------
                 elif flag_frst==True: 
                     # Find file names :
-                    input_file = find_input(variables,pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM)
+                    input_file = find_input(pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM)
                     # Find if netcdf or grib files
                     enginein = find_engine(input_file[0])
                     # Open data
@@ -231,10 +254,23 @@ if __name__ == "__main__":
                     if len(lon_dim) == 2 and len(lat_dim) == 2:
                         irreg = 1
                         # Find lon/lat indices to cut the grid :
-                        ix_min,ix_max,iy_min,iy_max = ind_irreg_grid(dataxr.isel(time=0),variables.get_var(var),lon_min,lon_max,lat_min,lat_max)
-                        print("WARNING : For now, with irregular grid, it supposes that latitudes are from lat_min to lat_max")
-                        sel_args = {lon_dim[0]: slice(iy_min,iy_max),lon_dim[1]:slice(ix_min,ix_max)}
+                        ix_min,ix_max,iy_latmin,iy_latmax = ind_irreg_grid(dataxr.isel(time=0),variables.get_var(var),lon_min,lon_max,lat_min,lat_max)
                         
+                        # Latitudes from min to max :
+                        if iy_latmin < iy_latmax: iy_min = iy_latmin  ; iy_max = iy_latmax
+                        # Reversed latitudes (max to min) :
+                        else: iy_min = iy_latmax  ; iy_max = iy_latmin
+
+                        # Take margin :
+                        iy_min -= 4 ; ix_min -= 4
+                        if iy_min < 0: iy_min = 0
+                        if ix_min < 0: ix_min = 0
+                        iy_max += 4 ; ix_max += 4
+                        if iy_max // len(dataxr[lon_dim[0]]) == 1: iy_max = len(dataxr[lon_dim[0]])
+                        if ix_max // len(dataxr[lon_dim[1]]) == 1: ix_max = len(dataxr[lon_dim[1]])
+                        
+                        sel_args = {lon_dim[0]: slice(iy_min,iy_max),lon_dim[1]:slice(ix_min,ix_max)}
+              
 # Regular grid (1D lon/lat) :
 # ---------------------------             
                     else: 
@@ -255,14 +291,18 @@ if __name__ == "__main__":
                         if iy_min < 0: iy_min = 0
                         if ix_min < 0: ix_min = 0
                         iy_max += 4 ; ix_max += 4
-                        if iy_max // len(dataxr['lat']) == 1: iy_max // len(dataxr['lat'])
-                        if ix_max // len(dataxr['lon']) == 1: ix_max // len(dataxr['lon'])
+                        if iy_max // len(dataxr['lat']) == 1: iy_max = len(dataxr['lat'])
+                        if ix_max // len(dataxr['lon']) == 1: ix_max = len(dataxr['lon'])
 
                         # Selection :
                         sel_args = {lat_dim[0]: slice(iy_min,iy_max),lon_dim[0]:slice(ix_min,ix_max)}
                     
                     # Reduced dataset in time, lon and lat :
                     dataxr_inprocess = dataxr.sel(time=slice(start_date,end_date)).isel(**sel_args)
+                    
+                    # Reduced land_mask in lon and lat :
+                    if extrapolation_sst or drowning:
+                        land_mask = land_mask[iy_min:iy_max,ix_min:ix_max]
 
 # -----------------------------------------------------
 # GROUP BY MONTHS OR DAYS DEPEND ON THE WANTED OUTPUT :
@@ -323,7 +363,7 @@ if __name__ == "__main__":
                         sst = flip_data(data_grouped[i][variables.get_var('sst')])
                         sst = unit_conversion(sst,'sst',variables)
                         if extrapolation_sst:
-                            sst = extrapolation(sst.values,sst.lon.values,sst.lat.values)
+                            sst = extrapolation(sst.values,sst.lon.values,sst.lat.values,land_mask,sst_interp)
                         else:
                             sst = sst.values
                         data = strd_calculation(data,sst,variables,croco_variables)
@@ -349,6 +389,17 @@ if __name__ == "__main__":
 # ----------------------------------
                     else:
                         data = attr(data,var,variables,croco_variables)
+                        
+# If drowning, will extrapolate the sea data to the land data :
+# -------------------------------------------------------------
+                    if drowning:
+                        data_extra = extrapolation(data.values,data.lon.values,data.lat.values,land_mask,drowning_interp)
+                        
+                        if drowning_plot and year_inprocess == Ystart and month_inprocess == Mstart:
+                            extrapolation_plot(data,data_extra,land_mask,drowning_plot_folder)
+                            
+                        data = xr.DataArray(data_extra, dims = data.dims, coords = data.coords, name = data.name, attrs = data.attrs) 
+                        
                         
 # Put time in the right format :
 # ------------------------------

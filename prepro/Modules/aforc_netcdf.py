@@ -12,6 +12,10 @@ import glob
 from netCDF4 import num2date
 import logging
 
+import matplotlib.pyplot as mplt
+import cartopy.crs as ccrs
+from matplotlib.ticker import MultipleLocator
+
 # ---------------------------------------------------
 # FUNCTIONS USED BY make_aforc.py TO FIND INPUTFILES
 # ---------------------------------------------------
@@ -39,7 +43,7 @@ def find_type_path(input_dir,year_inprocess,month_inprocess):
         
     return pathin
 
-def find_input(variables,pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,var=None):
+def find_input(pathin,input_prefix,year_inprocess,month_inprocess,multi_files,READ_PATM,var=None):
 # To find file paths and names
 # ----------------------------
 # variables : class of variables with the name of the variable, his factor of conversion to attempt the needed unity and the nomenclature of the variable file if multifile
@@ -61,9 +65,9 @@ def find_input(variables,pathin,input_prefix,year_inprocess,month_inprocess,mult
             pass
         else:
             if input_prefix[0] == '*':
-                input_file=sorted(glob.glob(pathin + variables.get_filename(var) + input_prefix[1:] + str(year_inprocess) + str(month_inprocess).zfill(2)+'*'))
+                input_file=sorted(glob.glob(pathin + var + input_prefix[1:] + str(year_inprocess) + str(month_inprocess).zfill(2)+'*'))
             else:
-                input_file=sorted(glob.glob(pathin + input_prefix + variables.get_filename(var) + '*' + str(year_inprocess) + str(month_inprocess).zfill(2)+'*'))
+                input_file=sorted(glob.glob(pathin + input_prefix + var + '*' + str(year_inprocess) + str(month_inprocess).zfill(2)+'*'))
     else:
         input_file=sorted(glob.glob(pathin + input_prefix[:-1] + str(year_inprocess) + str(month_inprocess).zfill(2) + '*' ))
 
@@ -112,33 +116,62 @@ def ind_irreg_grid(dataxr,var,lon_min,lon_max,lat_min,lat_max):
     for i in range(len(a[0,:])):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
             xmin = i
-            if xmin != 0:
-                xmin = i -1
             break
     # Find longitude max :
     for i in range(len(a[0,:])-1,-1,-1):
         if np.where(~np.isnan(a[:,i]))[0].size > 0:
-            xmax = i +1
+            xmax = i
             break
     # Find latitude min :
     for i in range(len(a[:,0])):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
             ymin = i
-            if ymin != 0:
-                ymin = i -1
             break
     # Find latitude max :
     for i in range(len(a[:,0])-1,-1,-1):
         if np.where(~np.isnan(a[i,:]))[0].size > 0:
-            ymax = i +1
+            ymax = i
             break
     try:
         xmin,xmax,ymin,ymax
     except NameError:
         print("The croco_grid does not appear to be included in the atmospheric forcing grid.")
         sys.exit()
-    print(xmin,xmax,ymin,ymax)
     return xmin,xmax,ymin,ymax
+
+# ------------------------------------------------------
+# EXTRAPOLATION PLOT // DROWNING KEY
+# ------------------------------------------------------
+def extrapolation_plot(data,data_extra,land_mask,drowning_plot_folder):
+# data : raw data
+# data_extra : data extrapolated to the coast
+# land_mask : mask
+# drowning_plot_folder : path to save the plot
+    fig = mplt.figure(figsize=(6, 8))
+    ax0 = fig.add_subplot(2, 1, 1, projection=ccrs.PlateCarree())
+    ax1 = fig.add_subplot(2, 1, 2, projection=ccrs.PlateCarree())
+    levels = np.linspace(np.nanmin(data_extra),np.nanmax(data_extra),15)
+    a0 = ax0.contourf(data.lon.values,data.lat.values,data[0,:,:],levels = levels)
+    ax0.contour(data.lon.values,data.lat.values,land_mask[:,:], colors='black', linewidths=1)
+    ax0.set_title(data.name+' raw data : no extrapolation')
+    
+    ax1.contourf(data.lon.values,data.lat.values,data_extra[0,:,:],levels = levels)
+    ax1.contour(data.lon.values,data.lat.values,land_mask[:,:], colors='black', linewidths=1)
+    ax1.set_title('Remove land data and extrapolation of sea data')
+    
+    cbar_ax = fig.add_axes([0.82, 0.30, 0.035, 0.41])  # [left, bottom, width, height]
+    cbar = fig.colorbar(a0, cax=cbar_ax, orientation='vertical')
+    cbar.set_label(data.name + ' ('+data.units+')')
+    
+    for ax in [ax0,ax1]:
+        gl = ax.gridlines(draw_labels=True,crs=ccrs.PlateCarree(),linewidth=0.5, color='gray', alpha=0.5, linestyle='--')#, dms=True, x_inline=False, y_inline=False)
+        gl.right_labels = False
+        gl.top_labels = False
+        # gl.xlocator = MultipleLocator(5)  # Intervalle de 10 degrés en longitude
+        # gl.ylocator = MultipleLocator(2.5)   # Intervalle de 5 degrés en latitude
+
+    mplt.subplots_adjust(left=0.1, right=0.80, bottom=0.05, top=0.95)
+    mplt.savefig(drowning_plot_folder+'extrapolation_'+data.name+'.png')
 
 
 # ------------------------------------------------------
