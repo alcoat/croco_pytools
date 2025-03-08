@@ -55,7 +55,7 @@ import ibc_class as Inp
 # starting date
 Yini, Mini, Dini, Hini  = '2013', '01', '01', '12' # Month and days need to be 2-digits format
 # reference time (default = ini time)
-Yorig, Morig, Dorig = Yini, Mini, Dini # Month and days need to be 2-digits format
+Yorig, Morig, Dorig = '2000', '01', '01' # Month and days need to be 2-digits format
 
 # Input data information and formating
 inputdata = 'mercator_croco' # Input data dictionnary as defined in the Readers/ibc_reader.py

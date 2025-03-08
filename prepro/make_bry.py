@@ -57,9 +57,9 @@ import ibc_class as Inp
 #--- USER CHANGES ---------------------------------------------------------
 
 # Dates
-Yorig, Morig, Dorig = '2013', '01', '01' # origin of time as: days since Yorig-Morig-Dorig
 Ystart, Mstart = '2013', '01'   # Starting month
 Yend, Mend  = '2013','03'       # Ending month 
+Yorig, Morig, Dorig = '2000', '01', '01' # origin of time as: days since Yorig-Morig-Dorig
 
 # Input data information and formating
 inputdata = 'mercator_croco'    # Input data dictionnary as defined in the Readers/ibc_reader.py

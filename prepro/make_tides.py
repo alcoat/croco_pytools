@@ -48,11 +48,10 @@ import tides_class as Inp
 #--- USER CHANGES ---------------------------------------------------------
 
 # Dates
-# Origin year
-Yorig, Morig, Dorig = 2000, 1, 1 # 1900,1,1 if TIDES_MAS OR ANA_INITIAL+USE_CALENDAR defined in cppdef.h
 # Initial date
 Yini, Mini, Dini = 2013, 1, 1
-
+# Origin year
+Yorig, Morig, Dorig = 2000, 1, 1 # 1900,1,1 if TIDES_MAS OR ANA_INITIAL+USE_CALENDAR defined in cppdef.h
 
 # Input data information and formating
 # Note: if you are using a tpxo dataset please be sure to have somewhere in 
