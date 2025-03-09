@@ -457,9 +457,10 @@ class CROCO():
                 lev=prt_grd[1][-1]
                 if not lev.isnumeric():
                     grid_name='croco_grd.nc.1'
+                    output_file=output_file+grid_name
                 else:
                     grid_name=prt_grd[1][0:-1]+str(int(lev)+1)
-                output_file=output_file+grid_name
+                    output_file=grid_name
 		 
         nc = netcdf.Dataset(output_file, 'w', format='NETCDF4')
 

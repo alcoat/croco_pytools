@@ -250,7 +250,7 @@ class MainWindow(HasTraits):
     inputs_smth = Instance(Inputs_smth, ())
     inputs_zm = Instance(Inputs_zm, ())
     inputs_c2c = Instance(Inputs_c2c, ())
-    inputs_smth_c2c = Instance(Inputs_smth_c2c, ())
+    inputs_smth_c2c = Instance(Inputs_smth, ())
 
     outputs = Instance(Outputs, ())
     opt_file = File(value=output_file,

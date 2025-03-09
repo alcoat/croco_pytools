@@ -305,7 +305,9 @@ class getdata():
             if lon[i]<lon[i-1]:        # between 180/-180 in the
                 lon[i] = lon[i]+360      # middle
         ####
-        geolim = [crocogrd.lonmin(),crocogrd.lonmax(),crocogrd.latmin(),crocogrd.latmax()]
+        buffer_zone = np.abs(lon[-1] - lon[-2])*2
+        print('buffer zone is ', buffer_zone)
+        geolim=[crocogrd.lonmin()-buffer_zone,crocogrd.lonmax()+buffer_zone,crocogrd.latmin()-buffer_zone,crocogrd.latmax()+buffer_zone]
 
         jmin = self.indx_bound(lat.data, geolim[2])
         jmax = self.indx_bound(lat.data, geolim[-1])
