@@ -58,8 +58,8 @@ else:
 
 # Dates limits
 Yorig = 1950                 # year defining the origin of time as: days since Yorig-01-01
-Ystart, Mstart = 1980,2   # Starting month
-Yend, Mend  = 1980,2  # Ending month
+Ystart, Mstart = 2005,1   # Starting month
+Yend, Mend  = 2005,2  # Ending month
 
 # -------------------------------------------------
 # OPTIONS :
@@ -83,7 +83,7 @@ if extrapolation_sst:
 # Extrapolation of all atmospheric data to the coast
 # Cut data from the atmospheric land/sea mask
 # Need to have a masked variable (for example sst data)
-drowning = True
+drowning = False
 if drowning: 
     data_with_mask = 'sst' # Name from variable dictionnary
     drowning_interp = 'nearest' # 'nearest' or 'cloughtocher' (= cubic, not recommended)
@@ -163,7 +163,6 @@ if __name__ == "__main__":
 # LOOP ON VARIABLES
 # -----------------------------------
             for var in variables.raw_name: 
-                print(var)
                 if var == 'msl' and not READ_PATM:
                     continue
                 elif var == 'lon' or var == 'lat' or var == 'dswrf' or var == 'sst':
@@ -302,7 +301,7 @@ if __name__ == "__main__":
                     
                     # Reduced land_mask in lon and lat :
                     if extrapolation_sst or drowning:
-                        land_mask = land_mask[iy_min:iy_max,ix_min:ix_max]
+                        land_mask_cut = land_mask[iy_min:iy_max,ix_min:ix_max]
 
 # -----------------------------------------------------
 # GROUP BY MONTHS OR DAYS DEPEND ON THE WANTED OUTPUT :
@@ -363,7 +362,7 @@ if __name__ == "__main__":
                         sst = flip_data(data_grouped[i][variables.get_var('sst')])
                         sst = unit_conversion(sst,'sst',variables)
                         if extrapolation_sst:
-                            sst = extrapolation(sst.values,sst.lon.values,sst.lat.values,land_mask,sst_interp)
+                            sst = extrapolation(sst.values,sst.lon.values,sst.lat.values,land_mask_cut,sst_interp)
                         else:
                             sst = sst.values
                         data = strd_calculation(data,sst,variables,croco_variables)
@@ -393,10 +392,10 @@ if __name__ == "__main__":
 # If drowning, will extrapolate the sea data to the land data :
 # -------------------------------------------------------------
                     if drowning:
-                        data_extra = extrapolation(data.values,data.lon.values,data.lat.values,land_mask,drowning_interp)
+                        data_extra = extrapolation(data.values,data.lon.values,data.lat.values,land_mask_cut,drowning_interp)
                         
                         if drowning_plot and year_inprocess == Ystart and month_inprocess == Mstart:
-                            extrapolation_plot(data,data_extra,land_mask,drowning_plot_folder)
+                            extrapolation_plot(data,data_extra,land_mask_cut,drowning_plot_folder)
                             
                         data = xr.DataArray(data_extra, dims = data.dims, coords = data.coords, name = data.name, attrs = data.attrs) 
                         
