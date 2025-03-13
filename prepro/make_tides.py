@@ -48,11 +48,10 @@ import tides_class as Inp
 #--- USER CHANGES ---------------------------------------------------------
 
 # Dates
-# Origin year
-Yorig, Morig, Dorig = 2000, 1, 1 # 1900,1,1 if TIDES_MAS OR ANA_INITIAL+USE_CALENDAR defined in cppdef.h
 # Initial date
 Yini, Mini, Dini = 2013, 1, 1
-
+# Origin year
+Yorig, Morig, Dorig = 2000, 1, 1 # 1900,1,1 if TIDES_MAS OR ANA_INITIAL+USE_CALENDAR defined in cppdef.h
 
 # Input data information and formating
 # Note: if you are using a tpxo dataset please be sure to have somewhere in 
@@ -80,7 +79,7 @@ croco_filename = 'croco_frc.nc'
 tides = ['M2','S2','N2','K2','K1','O1','P1','Q1','Mf','Mm']
 
 cur = True # Set to True if you to compute currents
-pot = False # Set to True if you to compute potiential tides
+pot = True # Set to True if you to compute potiential tides
 
 # Nodal correction
 Correction_ssh = True
@@ -199,9 +198,15 @@ for i,tide in enumerate(tides) :
         tndx=i
     else:
         # read ntime/periods dimension and find the closest wave
-        tndx=np.argwhere(abs(inpdat.ntides-period)<1e-4)
+        tndx=np.argwhere(abs(inpdat.ntides-period)<1e-3)
         if len(tndx)==0:
             sys.exit('  Did not find wave %s in input file' % tide)
+        elif len(tndx)>1: # increase the precision
+            tndx=np.argwhere(abs(inpdat.ntides-period)<1e-4)
+            if len(tndx)==0:
+                sys.exit('  Did not find wave %s in input file' % tide)
+            else:
+                tndx=tndx[0]
         else:
             tndx=tndx[0]
 

@@ -20,6 +20,7 @@ import numpy as np
 import sys
 sys.path.append("./Modules/")
 import os
+import shutil
 import toolsf
 
 #--- USER CHANGES ---------------------------------------------------------
@@ -64,8 +65,8 @@ if make_ini:
     toolsf.r2r_init(chd_grd,ts,tb,hc,n,prt_grd,prt_his_ini,rec,all_tracers)
 
     # move files into croco_dir
-    os.rename('croco_chd_ini.nc', croco_dir + 'croco_chd_ini.nc')
-    os.rename('croco_init_diag.nc', croco_dir + 'croco_init_diag.nc')
+    shutil.move('croco_chd_ini.nc', croco_dir + 'croco_chd_ini.nc')
+    shutil.move('croco_init_diag.nc', croco_dir + 'croco_init_diag.nc')
 
 # --- Make bry ------------------------------------------------------------
 if make_bry:
@@ -91,4 +92,5 @@ if make_bry:
     toolsf.r2r_bry(chd_grd,ts,tb,hc,n,obc_cond,prt_grd,all_files,all_tracers)
 
     # move files into croco_dir
-    os.rename('croco_chd_bry.nc', croco_dir + 'croco_chd_bry.nc')
+    shutil.move('croco_chd_bry.nc', croco_dir + 'croco_chd_bry.nc')
+
