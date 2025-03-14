@@ -53,8 +53,8 @@ class getdata():
                              currentu[0].replace(currentu[0].split('/')[-1],
                              'grid*'))
                 # check transport units to change to m2/s
-                if ('cm' in self.ncglo['u_part1'].attrs['units'] or 
-                    'centimeter' in self.ncglo['u_part1'].attrs['units']):
+                if ('units' not in self.ncglo['u_part1'].attrs or
+                     self.ncglo['u_part1'].attrs['units'] in [ 'cm', 'centimeter']):
                    coef = 100
                 elif ('mm' in self.ncglo['u_part1'].attrs['units'] or
                     'millimeter' in self.ncglo['u_part1'].attrs['units']):
