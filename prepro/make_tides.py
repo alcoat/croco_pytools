@@ -113,7 +113,7 @@ if tide_def["multi_files"]:
         input_file_ssh = []
         input_file_u = []
         input_file_v = []
-        for inp in tides:
+        for inp in tide_def['tides']:
             if path.isfile(
                 tide_def["input_dir"] + tide_def["elev_file"].replace("<tides>", inp)
             ):
@@ -139,7 +139,7 @@ if tide_def["multi_files"]:
                     )
                 )
 
-            if cur:
+            if tide_def['cur']:
                 if path.isfile(
                     tide_def["input_dir"] + tide_def["u_file"].replace("<tides>", inp)
                 ):
@@ -177,7 +177,7 @@ if tide_def["multi_files"]:
                     sys.exit("Northward current file for wave %s is missing" % inp)
 
         input_file_ssh = list(input_file_ssh)
-        if cur:
+        if tide_def['cur']:
             input_file_u = list(input_file_u)
             input_file_v = list(input_file_v)
         else:
@@ -185,7 +185,7 @@ if tide_def["multi_files"]:
             input_file_v = None
     else:
         input_file_ssh = list(tide_def["input_dir"] + tide_def["elev_file"])
-        if cur:
+        if tide_def['cur']:
             input_file_u = list(tide_def["input_dir"] + tide_def["u_file"])
             input_file_v = list(tide_def["input_dir"] + tide_def["v_file"])
         else:
@@ -283,13 +283,13 @@ for i, tide in enumerate(tide_def["tides"]):
         correc_phase = mkB + np.deg2rad(t0 / (period * 10))
 
     # --- Start loop on var ------------------------------------------
-    for vars in todo:
+    for lvars in todo:
         # get data
-        if vars == "H":
+        if lvars == "H":
             print("\n  Processing tidal elevation")
             print("  -------------------------")
             (tide_complex, NzGood) = interp_tools.interp_tides(
-                inpdat, vars, -1, crocogrd, tndx, tndx, tide_def["input_type"]
+                inpdat, lvars, -1, crocogrd, tndx, tndx, tide_def["input_type"]
             )
             if tide_def["Correction_ssh"]:
                 tide_amp = np.ma.abs(tide_complex) * correc_amp
@@ -316,11 +316,11 @@ for i, tide in enumerate(tide_def["tides"]):
             nc.variables["tide_Eamp"][i, :] = tide_amp * crocogrd.maskr
 
         #########################
-        elif vars == "cur":
+        elif lvars == "cur":
             print("\n  Processing tidal currents")
             print("  -------------------------")
             (u_tide_complex, v_tide_complex, NzGood) = interp_tools.interp_tides(
-                inpdat, vars, -1, crocogrd, tndx, tndx, tide_def["input_type"]
+                inpdat, lvars, -1, crocogrd, tndx, tndx, tide_def["input_type"]
             )
 
             if tide_def["Correction_uv"]:
@@ -379,7 +379,7 @@ for i, tide in enumerate(tide_def["tides"]):
             nc.variables["tide_Cangle"][i, :, :] = inclination[:, :] * crocogrd.maskr
             nc.variables["tide_Cphase"][i, :, :] = phase[:, :] * crocogrd.maskr
         #########################
-        elif vars == "pot":
+        elif lvars == "pot":
             print("\n  Processing equilibrium tidal potential")
             print("  --------------------------------------")
             try:
