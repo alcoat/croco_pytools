@@ -3,7 +3,7 @@ include Makedefs
 
 # compile flags
 CPPFLAGS = -I$(NETCDFINC)
-FCFLAGS = -c -I$(NETCDFINC) -I$(PWD) $(FFLAGS)
+FCFLAGS = -c -I$(NETCDFINC) -I$(PWD) $(F2PYFLAGS)
 
 # lib flags
 LDFC = $(NETCDFLIB)
