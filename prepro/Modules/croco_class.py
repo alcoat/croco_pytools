@@ -23,7 +23,8 @@ class CROCO_grd(object):
         self.maskr = nc_tools.read_nc(filename,'mask_rho')
         self.angle = nc_tools.read_nc(filename,'angle')
         self.h = nc_tools.read_nc(filename,'h')
-        self.hraw = nc_tools.read_nc(filename,'hraw')
+        # NOT AVAILABLE WITH EXISTING GRID
+        #self.hraw = nc_tools.read_nc(filename,'hraw')
         self.f = nc_tools.read_nc(filename,'f')
         self.umask= self.maskr[:,0:-1]*self.maskr[:,1:]
         self.vmask= self.maskr[0:-1,:]*self.maskr[1:,:]
@@ -36,13 +37,13 @@ class CROCO_grd(object):
         self.sc_r = None
         nc.close
     def mask3d(self):
-        return np.tile(self.maskr, (np.int(self.N), 1, 1))
+        return np.tile(self.maskr, (np.int32(self.N), 1, 1))
 
     def umask3d(self):
-        return np.tile(self.umask, (np.int(self.N), 1, 1))
+        return np.tile(self.umask, (np.int32(self.N), 1, 1))
 
     def vmask3d(self):
-        return np.tile(self.vmask, (np.int(self.N), 1, 1))   
+        return np.tile(self.vmask, (np.int32(self.N), 1, 1))   
 
     def lonmin(self):
         return np.min(self.lon)
