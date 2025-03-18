@@ -22,6 +22,6 @@ def lookvar(topo_file):
         dico = {"lon": "longitude", "lat": "latitude", "topo": "H0", "zaxis": "down"}
     # gebco file
     elif "gebco" in topo_file.split("/")[-1].lower():
-        dico = {"lon": "lon", "lat": "lat", "topo": "topo", "zaxis": "up"}
+        dico = {"lon": "lon", "lat": "lat", "topo": "elevation", "zaxis": "up"}
 
     return dico
