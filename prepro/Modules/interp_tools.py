@@ -7,11 +7,10 @@ import numpy as np
 import pyinterp
 import pyinterp.backends.xarray as pyxr
 import pyinterp.fill as pyfi
-import scipy.interpolate as itp
+import scipy.interpolate
+import scipy.spatial
 import xarray as xr
 from progressbar import progressbar
-from scipy.interpolate import griddata
-from scipy.spatial import Delaunay
 from sigmagrid_tools import ztosigma
 
 #
@@ -53,7 +52,7 @@ def get_tri_coef(X, Y, newX, newY, verbose=0):
     # Compute Delaunay triangulation
     if verbose == 1:
         tstart = tm.time()
-    tri = Delaunay(Xp)
+    tri = scipy.spatial.Delaunay(Xp)
     if verbose == 1:
         print("Delaunay Triangulation", tm.time() - tstart)
 
@@ -326,7 +325,7 @@ def interp_tracers(inputfile, vname, k, crocogrd, dtmin, dtmax, prev=0, nxt=0, b
                 make_xarray(Vinfilled, Lon, Lat)
             )
         else:
-            spline = itp.NearestNDInterpolator(
+            spline = scipy.interpolate.NearestNDInterpolator(
                 (Lon[igood].ravel(), Lat[igood].ravel()), Vin[tt, igood[0], igood[1]]
             )
             Vinfilled = np.copy(np.squeeze(Vin[tt, :]))
@@ -627,7 +626,7 @@ def interp_tides(
                     make_xarray(impartfilled, Lon, Lat)
                 )
             else:
-                r_spline = itp.NearestNDInterpolator(
+                r_spline = scipy.interpolate.NearestNDInterpolator(
                     (Lon[igood].ravel(), Lat[igood].ravel()),
                     rpart[tt, igood[0], igood[1]],
                 )
@@ -638,7 +637,7 @@ def interp_tides(
                 r_val_interpolator = pyinterp.backends.xarray.Grid2D(
                     make_xarray(rpartfilled, Lon, Lat)
                 )
-                i_spline = itp.NearestNDInterpolator(
+                i_spline = scipy.interpolate.NearestNDInterpolator(
                     (Lon[igood].ravel(), Lat[igood].ravel()),
                     impart[tt, igood[0], igood[1]],
                 )
@@ -779,12 +778,12 @@ def compute_uvbar_ogcm(
     Nbad = np.size(ibad)
 
     # 0: Precompute the interpolator spline only once
-    splineU = itp.NearestNDInterpolator(
+    splineU = scipy.interpolate.NearestNDInterpolator(
         (Lon_ogcm[igood].ravel(), Lat_ogcm[igood].ravel()),
         ubar_ogcm_one[igood[0], igood[1]],
     )
 
-    splineV = itp.NearestNDInterpolator(
+    splineV = scipy.interpolate.NearestNDInterpolator(
         (Lon_ogcm[igood].ravel(), Lat_ogcm[igood].ravel()),
         vbar_ogcm_one[igood[0], igood[1]],
     )
