@@ -51,30 +51,49 @@ import ibc_class
 import interp_tools
 import sigmagrid_tools as sig_tools
 
+import logging
+
+logger = logging.getLogger()
+handler = logging.StreamHandler(sys.stderr)
+handler.setFormatter(
+    logging.Formatter(
+        fmt=(
+            "[%(asctime)s %(levelname)s] "
+            "[%(filename)s:%(lineno)s - %(funcName)s() ] "
+            "%(message)s"
+        ),
+        datefmt="%H:%M:%S",
+    )
+)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 # --- USER CHANGES ---------------------------------------------------------
 ini_def = {
     # Dates
     # starting date
-    "Yini": "2013",  # Month and days need to be 2-digits format
-    "Mini": "01",  # Month and days need to be 2-digits format
-    "Dini": "01",  # Month and days need to be 2-digits format
-    "Hini": "12",  # Month and days need to be 2-digits format
+    "Yini": "2025",  # Month and days need to be 2-digits format
+    "Mini": "03",  # Month and days need to be 2-digits format
+    "Dini": "17",  # Month and days need to be 2-digits format
+    "Hini": "00",  # Month and days need to be 2-digits format
     # reference time (default = ini time)
     "Yorig": "2000",  # Month and days need to be 2-digits format
     "Morig": "01",  # Month and days need to be 2-digits format
     "Dorig": "01",  # Month and days need to be 2-digits format
     # Input data information and formating
-    "inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
+    #"inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
+    "inputdata": "mercator",  # Input data dictionnary as defined in the Readers/ibc_reader.py
     "input_dir": "../../MERCATOR_GLOB_2013/",
     "input_prefix": "mercator_",
-    "input_file": "../../MERCATOR_GLOB_2013/mercator_Y2013M01.cdf",
-    "multi_files": False,  # If variables are in different netcdf
-    # "input_file" : { 'ssh'  : '../../MERCATOR_GLOB_2013/mercator_ETAN.Y2013M01.nc',\
-    #                   'temp' : '../../MERCATOR_GLOB_2013/mercator_THETA.Y2013M01.nc',\
-    #                   'salt' : '../../MERCATOR_GLOB_2013/mercator_SALT.Y2013M01.nc',\
-    #                   'u'    : '../../MERCATOR_GLOB_2013/mercator_EVEL.Y2013M01.nc',\
-    #                   'v'    : '../../MERCATOR_GLOB_2013/mercator_NVEL.Y2013M01.nc'\
-    #                },
+    #"multi_files": False,  # If variables are in different netcdf
+    #"input_file": "../../MERCATOR_GLOB_2013/mercator_Y2013M01.cdf",
+    "multi_files": True,  # If variables are in different netcdf
+    "input_file" : { 'ssh'  : '../../MERCATOR/glo12_rg_6h-i_*-2D-zos_fcst_R20250317.nc',\
+                      'temp' : '../../MERCATOR/glo12_rg_6h-i_*-3D-thetao_fcst_R20250317.nc',\
+                       'salt' : '../../MERCATOR/glo12_rg_6h-i_*-3D-so_fcst_R20250317.nc',\
+                       'u'    : '../../MERCATOR/glo12_rg_6h-i_*-3D-uovo_fcst_R20250317.nc',\
+                       'v'    : '../../MERCATOR/glo12_rg_6h-i_*-3D-uovo_fcst_R20250317.nc'\
+                    },
     # time index to use in the file
     "tndx": 0,
     # default value to consider a z-level fine to be used
@@ -82,8 +101,10 @@ ini_def = {
     # tracers
     "tracers": ["temp", "salt"],
     # CROCO grid informations
-    "croco_dir": "../../CROCO_FILES/",
-    "croco_grd": "croco_grd.nc",
+    #"croco_dir": "../../CROCO_FILES/",
+    #"croco_grd": "croco_grd.nc",
+    "croco_dir": "../",
+    "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     "sigma_params": {
         "theta_s": 7,
         "theta_b": 2,
@@ -233,4 +254,4 @@ if __name__ == "__main__":
             nc.variables["ubar"][0, :, :] = ubar * crocogrd.umask
             nc.variables["vbar"][0, :, :] = vbar * crocogrd.vmask
 
-    nc.close()
+        nc.close()
