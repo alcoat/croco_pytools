@@ -165,7 +165,11 @@ class CROCO_grd(object):
 
 class CROCO():
 
-    def create_ini_nc(self, filename, grdobj, created_by='make_ini.py',tracers=['temp','salt']):#fillval
+    @staticmethod
+    def create_ini_nc(filename, grdobj, created_by='make_ini.py',tracers=['temp','salt']):#fillval
+        """
+        Create empty skeleton of ini file
+        """
         # Global attributes
         nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
         nc.created = datetime.now().isoformat()

@@ -146,11 +146,10 @@ if __name__ == "__main__":
     print(" Making initial file: " + ini_filename)
     print(" ")
 
-    # --- Create the initial file -----------------------------------------
+    # --- Create the empty initial file -----------------------------------
 
     croco_class.CROCO.create_ini_nc(
-        None,
-        "".join((ini_def["croco_dir"] + ini_filename)),
+        ini_def["croco_dir"] + ini_filename,
         crocogrd,
         tracers=ini_def["tracers"],
     )
