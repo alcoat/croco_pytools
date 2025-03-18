@@ -47,26 +47,29 @@ from main_window import *
 
 grid_def = {
     # Grid center [degree]
-    "tra_lon": 15,  # Longitude of the grid center
-    "tra_lat": -32,  # Latitude of the grid center
+    #"tra_lon": 15,  # Longitude of the grid center
+    #"tra_lat": -32,  # Latitude of the grid center
+    "tra_lon": 0.625,  # Longitude of the grid center
+    "tra_lat": 37.875,  # Latitude of the grid center
     # Grid size [km]
     "size_x": 1556,
     "size_y": 1334,
     # Grid number of points
     # Note: grid resolution is grid size / number of points
-    "nx": 39,
-    "ny": 40,
+    "nx": 973,
+    "ny": 703,
     # Grid rotation [degree]
     "rot": 0,
     # Smoothing parameters
     # (see online documentation for more details)
-    "hmin": 50,  # Minimum depth [m]
+    "hmin": 25,  # Minimum depth [m]
     "hmax": 6000,  # Maximum depth [m]
     "interp_rad": 2,  # Interpolation radius in number of points (usually between 2 and 8)
     "rfact": 0.2,  # Maximum r-fact to reach (the lower it is, the smoother it will be)
     "smooth_meth": "lsmooth",  # Smoothing method ('smooth', 'lsmooth', 'lsmooth_legacy', 'lsmooth2', 'lsmooth1', 'cond_rx0_topo')
     # Topo/Bathy file
-    "topofile": "/home/opsys/DATA/BATHYMETRIE/ETOPO/ETOPO2v2c_f4.nc",
+    #"topofile": "/home/opsys/DATA/BATHYMETRIE/ETOPO/ETOPO2v2c_f4.nc",
+    "topofile": "/home/opsys/DATA/BATHYMETRIE/GEBCO/GEBCO_2023.nc",
     # Coastline file (for the mask)
     "shp_file": "/home/opsys/DATA/SHORELINE/GSHHG/GSHHS_shp-2.3.7/i/GSHHS_i_L1.shp",
     # Single Connect [Mask water not connected to the main water body]
