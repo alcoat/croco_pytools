@@ -72,26 +72,27 @@ bry_def = {
     "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     # Input data information and formating
-    #"inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
+    # "inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
     "inputdata": "mercator",  # Input data dictionnary as defined in the Readers/ibc_reader.py
     "input_dir": "../../MERCATOR/",
     "input_prefix": "glo12_rg_6h-i_*",  # Please use * to include all files
-    #"multi_files": False,
-    #"input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
+    # "multi_files": False,
+    # "input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
     "multi_files": True,
-    'input_file' : {'ssh':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*zos*.nc')),\
-                      'temp':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*thetao*.nc')),\
-                      'salt':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*so*.nc')),\
-                      'u':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*uovo*.nc')),\
-                      'v':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*uovo*.nc'))\
-                    },
+    "input_file": {
+        "ssh": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*zos*.nc")),
+        "temp": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*thetao*.nc")),
+        "salt": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*so*.nc")),
+        "u": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*uovo*.nc")),
+        "v": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*uovo*.nc")),
+    },
     # default value to consider a z-level fine to be used
     "Nzgoodmin": 4,
     # Tracers
     "tracers": ["temp", "salt"],
     # CROCO grid informations
     "croco_dir": "../",
-    #"croco_grd": "croco_grd.nc",
+    # "croco_grd": "croco_grd.nc",
     "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     "sigma_params": {
         "theta_s": 7,
@@ -137,8 +138,10 @@ if __name__ == "__main__":
     )
 
     dtenddt = plt.datetime.datetime(
-        int(bry_def["Yend"]), int(bry_def["Mend"]),
-        int(bry_def["Dend"]), int(bry_def["Hend"]),
+        int(bry_def["Yend"]),
+        int(bry_def["Mend"]),
+        int(bry_def["Dend"]),
+        int(bry_def["Hend"]),
     )
 
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
@@ -409,8 +412,8 @@ if __name__ == "__main__":
 
                     elif lvars == "velocity":
 
-                        cosa = np.cos(eval("".join(("crocogrd.angle_", boundary))))
-                        sina = np.sin(eval("".join(("crocogrd.angle_", boundary))))
+                        cosa = np.cos(getattr(crocogrd, "angle_" + boundary))
+                        sina = np.sin(getattr(crocogrd, "angle_" + boundary))
 
                         [
                             ubar_ogcm,
@@ -450,18 +453,14 @@ if __name__ == "__main__":
                                 grd_tools.rho2u(z_rho),
                                 np.nan,
                                 np.nan,
-                            )[0] / grd_tools.rho2u(
-                                eval("".join(("crocogrd.h_" + boundary)))
-                            )
+                            )[0] / grd_tools.rho2u(getattr(crocogrd, "h_" + boundary))
                             vbar_croco = sig_tools.vintegr4D(
                                 v,
                                 grd_tools.rho2v(z_w),
                                 grd_tools.rho2v(z_rho),
                                 np.nan,
                                 np.nan,
-                            )[0] / grd_tools.rho2v(
-                                eval("".join(("crocogrd.h_" + boundary)))
-                            )
+                            )[0] / grd_tools.rho2v(getattr(crocogrd, "h_" + boundary))
 
                             u = u - np.tile(
                                 ubar_croco[:, np.newaxis, :, :],
@@ -499,22 +498,22 @@ if __name__ == "__main__":
                     indices2D = "[:,-1,:]"  # T,j=last,I
 
                 mask_zet = np.tile(
-                    eval("".join(("crocogrd.maskr_", boundary))), [zeta.shape[0], 1, 1]
+                    getattr(crocogrd, "maskr_" + boundary), [zeta.shape[0], 1, 1]
                 )
                 if "velocity" in var_loop:
                     mask_u = np.tile(
-                        eval("".join(("crocogrd.umask_", boundary))),
+                        getattr(crocogrd, "umask_" + boundary),
                         [u.shape[0], u.shape[1], 1, 1],
                     )
                     mask_v = np.tile(
-                        eval("".join(("crocogrd.vmask_", boundary))),
+                        getattr(crocogrd, "vmask_" + boundary),
                         [u.shape[0], u.shape[1], 1, 1],
                     )
                     mask_ubar = np.tile(
-                        eval("".join(("crocogrd.umask_", boundary))), [u.shape[0], 1, 1]
+                        getattr(crocogrd, "umask_" + boundary), [u.shape[0], 1, 1]
                     )
                     mask_vbar = np.tile(
-                        eval("".join(("crocogrd.vmask_", boundary))), [v.shape[0], 1, 1]
+                        getattr(crocogrd, "vmask_" + boundary), [v.shape[0], 1, 1]
                     )
 
                 nc.variables["zeta_" + str(boundary)][:] = eval(
@@ -536,7 +535,7 @@ if __name__ == "__main__":
                 if "tracers" in var_loop:
                     for varname, value in zip(trac_dict.keys(), trac_dict.values()):
                         mask_tra = np.tile(
-                            eval("".join(("crocogrd.maskr_", boundary))),
+                            getattr(crocogrd, "maskr_" + boundary),
                             [value.shape[0], value.shape[1], 1, 1],
                         )
                         nc.variables[f"{varname}_{boundary}"][:] = eval(
