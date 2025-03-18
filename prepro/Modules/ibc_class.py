@@ -26,7 +26,11 @@ class getdata:
                 dataxr = xr.open_dataset(inputfile)
                 self.depth = dataxr[self.var["depth"]]
 
-                self.ncglo = {"ssh": dataxr, "u": dataxr, "v": dataxr}
+                self.ncglo = {
+                    "ssh": dataxr.squeeze(self.var["depth"]),
+                    "u": dataxr,
+                    "v": dataxr,
+                }
                 for trc in tracers:
                     self.ncglo[trc] = dataxr
 
@@ -35,7 +39,9 @@ class getdata:
                 self.depth = dataxr[self.var["depth"]]
 
                 self.ncglo = {
-                    "ssh": xr.open_mfdataset(glob.glob(inputfile["ssh"])),
+                    "ssh": xr.open_mfdataset(glob.glob(inputfile["ssh"])).squeeze(
+                        self.var["depth"]
+                    ),
                     "u": xr.open_mfdataset(glob.glob(inputfile["u"])),
                     "v": xr.open_mfdataset(glob.glob(inputfile["v"])),
                 }
@@ -78,7 +84,12 @@ class getdata:
                 dataxr = xr.open_mfdataset(
                     inputfile, chunks={self.var["depth"]: len(self.depth)}
                 )
-                self.ncglo = {"ssh": dataxr, "u": dataxr, "v": dataxr, "time": dataxr}
+                self.ncglo = {
+                    "ssh": dataxr.squeeze(self.var["depth"]),
+                    "u": dataxr,
+                    "v": dataxr,
+                    "time": dataxr,
+                }
 
                 for trc in tracers:
                     self.ncglo[trc] = dataxr
@@ -92,7 +103,7 @@ class getdata:
                         inputfile["ssh"],
                         combine="nested",
                         concat_dim=self.var["time_dim"],
-                    ),
+                    ).squeeze(self.var["depth"]),
                     "u": xr.open_mfdataset(
                         inputfile["u"],
                         combine="nested",
