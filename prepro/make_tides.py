@@ -64,23 +64,34 @@ tide_def = {
     #       convention a-b*i for complex.
     #       Also, if you have already preprocess TPXO, make sure that you have correct units and
     #       u,v are in m/s and not m**2/s
-    "inputdata": "tpxo7_croco",  # Input data dictionnary as defined in the Readers/tides_reader.py
-    "input_dir": "/home/opsys/DATA/TIDE/OSU/",
-    "input_file": "TPXO7.nc",  # Leave empty if you have multiple files
-    "input_type": "Re_Im",  # Format of the input data 'Amp_Phase'or 'Re_Im'
-    "multi_files": False,  # Set to True if several input files
-    "waves_separated": False,  # Set to True if input files waves are separated
-    "elev_file": "h_<tides>_tpxo9_atlas_30_v5.nc",  # elevation file names. if wave_separated put <tides> where wave name is found
-    "u_file": "u_<tides>_tpxo9_atlas_30_v5.nc",  # eastward currents file names. if wave_separated put <tides> where wave name is found
-    "v_file": "u_<tides>_tpxo9_atlas_30_v5.nc",  # northward currents file names. if wave_separated put <tides> where wave name is found
+    #"inputdata": "tpxo7_croco",  # Input data dictionnary as defined in the Readers/tides_reader.py
+    #"input_dir": "/home/opsys/DATA/TIDE/OSU/",
+    #"input_file": "TPXO7.nc",  # Leave empty if you have multiple files
+    "inputdata": "fes2014",
+    "input_dir": "/home/opsys/DATA/TIDE/FES/fes2014/",
+    "input_file": "FES2014.nc",
+    #"input_type": "Re_Im",  # Format of the input data 'Amp_Phase'or 'Re_Im'
+    "input_type": "Amp_Phase",  # Format of the input data 'Amp_Phase'or 'Re_Im'
+    #"multi_files": False,  # Set to True if several input files
+    "multi_files": True,  # Set to True if several input files
+    #"waves_separated": False,  # Set to True if input files waves are separated
+    "waves_separated": True,  # Set to True if input files waves are separated
+    #"elev_file": "h_<tides>_tpxo9_atlas_30_v5.nc",  # elevation file names. if wave_separated put <tides> where wave name is found
+    #"u_file": "u_<tides>_tpxo9_atlas_30_v5.nc",  # eastward currents file names. if wave_separated put <tides> where wave name is found
+    #"v_file": "u_<tides>_tpxo9_atlas_30_v5.nc",  # northward currents file names. if wave_separated put <tides> where wave name is found
+    "elev_file": "ocean_tide_extrapolated/<tides>.nc",  # elevation file names. if wave_separated put <tides> where wave name is found
+    "u_file": "fes2014a_currents/eastward_velocity/<tides>.nc",  # eastward currents file names. if wave_separated put <tides> where wave name is found
+    "v_file": "fes2014a_currents/northward_velocity/<tides>.nc",  # northward currents file names. if wave_separated put <tides> where wave name is found
     # CROCO grid informations
     "croco_dir": "../",
-    "croco_grd": "croco_grd.nc",
+    #"croco_grd": "croco_grd.nc",
+    "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     # Tide file informations
     "croco_filename": "croco_frc.nc",
     "tides": ["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "Mf", "Mm"],
     "cur": True,  # Set to True if you to compute currents
-    "pot": True,  # Set to True if you to compute potiential tides
+    #"pot": True,  # Set to True if you to compute potiential tides
+    "pot": False,  # Set to True if you to compute potiential tides
     # Nodal correction
     "Correction_ssh": True,
     "Correction_uv": True,
