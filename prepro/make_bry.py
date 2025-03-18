@@ -60,34 +60,35 @@ import sigmagrid_tools as sig_tools
 
 bry_def = {
     # Dates
-    "Ystart": "2013",  # Starting month
-    "Mstart": "01",  # Starting month
-    "Yend": "2013",  # Ending month
+    "Ystart": "2025",  # Starting month
+    "Mstart": "03",  # Starting month
+    "Yend": "2025",  # Ending month
     "Mend": "03",  # Ending month
     "Yorig": "2000",  # origin of time as: days since Yorig-Morig-Dorig
     "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     # Input data information and formating
-    "inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
-    "input_dir": "../../MERCATOR_GLOB_2013/",
-    "input_prefix": "mercator_*",  # Please use * to include all files
-    "multi_files": False,
-    # if multi_files: # Multiple data files. Time is read in ssh file
-    #'input_file' : {'ssh':sorted(glob.glob('../../MERCATOR_GLOB_2013/mercator_*ETAN.*.nc')),\
-    #                  'temp':sorted(glob.glob('../../MERCATOR_GLOB_2013/mercator_*THETA.*.nc')),\
-    #                  'salt':sorted(glob.glob('../../MERCATOR_GLOB_2013/mercator_*SALT.*.nc')),\
-    #                  'u':sorted(glob.glob('../../MERCATOR_GLOB_2013/mercator_*EVEL.*.nc')),\
-    #                  'v':sorted(glob.glob('../../MERCATOR_GLOB_2013/mercator_*NVEL.*.nc'))\
-    #                },
-    # else:  # glob all files
-    "input_file": sorted(glob.glob("../../MERCATOR_GLOB_2013/mercator_*")),
+    #"inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
+    "inputdata": "mercator",  # Input data dictionnary as defined in the Readers/ibc_reader.py
+    "input_dir": "../../MERCATOR/",
+    "input_prefix": "glo12_rg_6h-i_*",  # Please use * to include all files
+    #"multi_files": False,
+    #"input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
+    "multi_files": True,
+    'input_file' : {'ssh':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*zos*.nc')),\
+                      'temp':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*thetao*.nc')),\
+                      'salt':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*so*.nc')),\
+                      'u':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*uovo*.nc')),\
+                      'v':sorted(glob.glob('../../MERCATOR/glo12_rg_6h-i_*uovo*.nc'))\
+                    },
     # default value to consider a z-level fine to be used
     "Nzgoodmin": 4,
     # Tracers
     "tracers": ["temp", "salt"],
     # CROCO grid informations
     "croco_dir": "../",
-    "croco_grd": "croco_grd.nc",
+    #"croco_grd": "croco_grd.nc",
+    "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     "sigma_params": {
         "theta_s": 7,
         "theta_b": 2,
@@ -97,12 +98,12 @@ bry_def = {
     # Bry file informations
     "bry_filename": "croco_bry.nc",  # output will be put in croco_dir by default
     "obc_dict": {
-        "south": 1,
+        "south": 0,
         "west": 1,
         "east": 1,
-        "north": 1,
+        "north": 0,
     },  # open boundaries (1=open , [S W E N])
-    "output_file_format": "MONTHLY",  # How outputs are spit (MONTHLY,YEARLY,FULL)
+    "output_file_format": "FULL",  # How outputs are spit (MONTHLY,YEARLY,FULL)
     "cycle_bry": 0.0,
     # Conserv OGCM transport option
     "conserv": 1,  # Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport
