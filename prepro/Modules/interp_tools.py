@@ -131,15 +131,9 @@ def get_delaunay_bry(lon_bry, lat_bry, inputfile, bdy):
     #
     # get grid positions
     #
-    LonU_bry, LatU_bry = eval("".join(("inputfile.lonU" + bdy))), eval(
-        "".join(("inputfile.latU" + bdy))
-    )
-    LonV_bry, LatV_bry = eval("".join(("inputfile.lonV" + bdy))), eval(
-        "".join(("inputfile.latV" + bdy))
-    )
-    LonT_bry, LatT_bry = eval("".join(("inputfile.lonT" + bdy))), eval(
-        "".join(("inputfile.latT" + bdy))
-    )
+    LonU_bry, LatU_bry = getattr(inputfile, "lonU" + bdy), getattr(inputfile, "latU"+bdy)
+    LonV_bry, LatV_bry = getattr(inputfile, "lonV" + bdy), getattr(inputfile, "latV"+bdy)
+    LonT_bry, LatT_bry = getattr(inputfile, "lonT" + bdy), getattr(inputfile, "latT"+bdy)
 
     #
     # Get the 2D interpolation coefficients
@@ -250,17 +244,11 @@ def interp_tracers(inputfile, vname, k, crocogrd, dtmin, dtmax, prev=0, nxt=0, b
     nc = inputfile.ncglo
     varinp = inputfile.var
     if vname in ["u", "ubar"]:
-        Lon, Lat = eval("".join(("inputfile.lonU" + bdy))), eval(
-            "".join(("inputfile.latU" + bdy))
-        )
+        Lon, Lat = getattr(inputfile, "lonU"+bdy), getattr(inputfile, "latU"+bdy)
     elif vname in ["v", "vbar"]:
-        Lon, Lat = eval("".join(("inputfile.lonV" + bdy))), eval(
-            "".join(("inputfile.latV" + bdy))
-        )
+        Lon, Lat = getattr(inputfile, "lonV"+bdy), getattr(inputfile, "latV"+bdy)
     else:
-        Lon, Lat = eval("".join(("inputfile.lonT" + bdy))), eval(
-            "".join(("inputfile.latT" + bdy))
-        )
+        Lon, Lat = getattr(inputfile, "lonT"+bdy), getattr(inputfile, "latT"+bdy)
 
     # 0: Precompute valid indices (igood) and bad indices (ibad)
 
@@ -312,8 +300,8 @@ def interp_tracers(inputfile, vname, k, crocogrd, dtmin, dtmax, prev=0, nxt=0, b
             bound = "east"
         elif bdy == "N":
             bound = "north"
-        crocolon = eval("".join(("crocogrd.lon_", bound)))
-        crocolat = eval("".join(("crocogrd.lat_", bound)))
+        crocolon = getattr(crocogrd, "lon_" + bound)
+        crocolat = getattr(crocogrd, "lat_" + bound)
     else:
         crocolon = crocogrd.lon
         crocolat = crocogrd.lat
@@ -557,17 +545,11 @@ def interp_tides(
 
     for field in var:
         if field == "u":
-            Lon, Lat = eval("".join(("inputfile.lonU" + bdy))), eval(
-                "".join(("inputfile.latU" + bdy))
-            )
+            Lon, Lat = getattr(inputfile, "lonU" + bdy), getattr(inputfile, "latU" + bdy) 
         elif field == "v":
-            Lon, Lat = eval("".join(("inputfile.lonV" + bdy))), eval(
-                "".join(("inputfile.latV" + bdy))
-            )
+            Lon, Lat = getattr(inputfile, "lonV" + bdy), getattr(inputfile, "latV" + bdy) 
         else:
-            Lon, Lat = eval("".join(("inputfile.lonT" + bdy))), eval(
-                "".join(("inputfile.latT" + bdy))
-            )
+            Lon, Lat = getattr(inputfile, "lonT" + bdy), getattr(inputfile, "latT" + bdy) 
 
         # 1: Read data
         if dtmin != dtmax:
@@ -601,8 +583,8 @@ def interp_tides(
                 bound = "east"
             elif bdy == "N":
                 bound = "north"
-            crocolon = eval("".join(("crocogrd.lon_", bound)))
-            crocolat = eval("".join(("crocogrd.lat_", bound)))
+            crocolon = getattr(crocogrd, "lon_"+bound)
+            crocolat = getattr(crocogrd, "lat_"+bound)
         else:
             crocolon = crocogrd.lon
             crocolat = crocogrd.lat
@@ -719,9 +701,9 @@ def compute_uvbar_ogcm(
     # 0: Read input data informations
     nc = inputfile.ncglo
     varinp = inputfile.var
-    Lon_ogcm, Lat_ogcm = eval("".join(("inputfile.lonT" + bdy))), eval(
-        "".join(("inputfile.latT" + bdy))
-    )
+
+    Lon_ogcm = getattr(inputfile, "lonT" + bdy)
+    Lat_ogcm = getattr(inputfile, "latT" + bdy)
 
     # 1: Read data
     if dtmin != dtmax:
@@ -844,12 +826,12 @@ def compute_uvbar_ogcm(
         elif bdy == "N":
             bound = "north"
 
-        crocolon = eval("".join(("crocogrd.lon_", bound)))
-        crocolat = eval("".join(("crocogrd.lat_", bound)))
-        crocolonu = eval("".join(("crocogrd.lonu_", bound)))
-        crocolatu = eval("".join(("crocogrd.latu_", bound)))
-        crocolonv = eval("".join(("crocogrd.lonv_", bound)))
-        crocolatv = eval("".join(("crocogrd.latv_", bound)))
+        crocolon = getattr(crocogrd, "lon_"+bound)
+        crocolat = getattr(crocogrd, "lat_"+bound)
+        crocolonu = getattr(crocogrd, "lonu_"+bound)
+        crocolatu = getattr(crocogrd, "latu_"+bound)
+        crocolonv = getattr(crocogrd, "lonv_"+bound)
+        crocolatv = getattr(crocogrd, "latv_"+bound)
     else:
         crocolon = crocogrd.lon
         crocolat = crocogrd.lat
