@@ -192,12 +192,12 @@ class CROCO():
         # Create the variables and write...
         nc.createVariable('theta_s', 'f', ('one'), zlib=True)
         nc.variables['theta_s'].long_name = 'S-coordinate surface control parameter'
-        nc.variables['theta_s'].units = 'nondimensional'
+        #nc.variables['theta_s'].units = 'nondimensional'
         nc.variables['theta_s'][:] = grdobj.theta_s
 
         nc.createVariable('theta_b', 'f', ('one'), zlib=True)
         nc.variables['theta_b'].long_name = 'S-coordinate bottom control parameter'
-        nc.variables['theta_b'].units = 'nondimensional'
+        #nc.variables['theta_b'].units = 'nondimensional'
         nc.variables['theta_b'][:] = grdobj.theta_b
 
         nc.createVariable('Tcline', 'f', ('one'), zlib=True)
@@ -212,21 +212,21 @@ class CROCO():
 
         nc.createVariable('s_rho', 'f8', ('s_rho'))
         nc.variables['s_rho'].long_name = 'S-coordinate at RHO-points'
-        nc.variables['s_rho'].units = 'nondimensional'
+        #nc.variables['s_rho'].units = 'nondimensional'
         nc.variables['s_rho'].valid_min = -1.
         nc.variables['s_rho'].valid_max = 0.
         nc.variables['s_rho'][:] = grdobj.s_rho()
 
         nc.createVariable('Cs_rho', 'f8', ('s_rho'), zlib=True)
         nc.variables['Cs_rho'].long_name = 'S-coordinate stretching curves at RHO-points'
-        nc.variables['Cs_rho'].units = 'nondimensional'
+        #nc.variables['Cs_rho'].units = 'nondimensional'
         nc.variables['Cs_rho'].valid_min = -1.
         nc.variables['Cs_rho'].valid_max = 0.
         nc.variables['Cs_rho'][:] = grdobj.Cs_r()
 
         nc.createVariable('Cs_w', 'f8', ('s_w'), zlib=True)
         nc.variables['Cs_w'].long_name = 'S-coordinate stretching curves at w-points'
-        nc.variables['Cs_w'].units = 'nondimensional'
+        #nc.variables['Cs_w'].units = 'nondimensional'
         nc.variables['Cs_w'].valid_min = -1.
         nc.variables['Cs_w'].valid_max = 0.
         nc.variables['Cs_w'][:] = grdobj.Cs_w()
@@ -331,12 +331,12 @@ class CROCO():
         # Create the variables and write...
         nc.createVariable('theta_s', 'f', ('one'))
         nc.variables['theta_s'].long_name = 'S-coordinate surface control parameter'
-        nc.variables['theta_s'].units = 'nondimensional'
+        #nc.variables['theta_s'].units = 'nondimensional'
         nc.variables['theta_s'][:] = grdobj.theta_s
 
         nc.createVariable('theta_b', 'f', ('one'))
         nc.variables['theta_b'].long_name = 'S-coordinate bottom control parameter'
-        nc.variables['theta_b'].units = 'nondimensional'
+        #nc.variables['theta_b'].units = 'nondimensional'
         nc.variables['theta_b'][:] = grdobj.theta_b
 
         nc.createVariable('Tcline', 'f', ('one'))
@@ -351,21 +351,21 @@ class CROCO():
 
         nc.createVariable('s_rho', 'f8', ('s_rho'))
         nc.variables['s_rho'].long_name = 'S-coordinate at RHO-points'
-        nc.variables['s_rho'].units = 'nondimensional'
+        #nc.variables['s_rho'].units = 'nondimensional'
         nc.variables['s_rho'].valid_min = -1.
         nc.variables['s_rho'].valid_max = 0.
         nc.variables['s_rho'][:] = grdobj.s_rho()
 
         nc.createVariable('Cs_rho', 'f8', ('s_rho'))
         nc.variables['Cs_rho'].long_name = 'S-coordinate stretching curves at RHO-points'
-        nc.variables['Cs_rho'].units = 'nondimensional'
+        #nc.variables['Cs_rho'].units = 'nondimensional'
         nc.variables['Cs_rho'].valid_min = -1.
         nc.variables['Cs_rho'].valid_max = 0.
         nc.variables['Cs_rho'][:] = grdobj.Cs_r()
 
         nc.createVariable('Cs_w', 'f8', ('s_w'))
         nc.variables['Cs_w'].long_name = 'S-coordinate stretching curves at w-points'
-        nc.variables['Cs_w'].units = 'nondimensional'
+        #nc.variables['Cs_w'].units = 'nondimensional'
         nc.variables['Cs_w'].valid_min = -1.
         nc.variables['Cs_w'].valid_max = 0.
         nc.variables['Cs_w'][:] = grdobj.Cs_w()
