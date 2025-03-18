@@ -115,7 +115,7 @@ class getdata:
                         concat_dim=self.var["time_dim"],
                     ),
                     "time": xr.open_mfdataset(
-                        inputfile["ssh"],
+                        inputfile["u"],
                         combine="nested",
                         concat_dim=self.var["time_dim"],
                     ),
@@ -252,8 +252,13 @@ class getdata:
                     ] = self.handle_periodicity(crocogrd, "v", bdy="north")
 
         # keep only one dataarray per variable
+        time_ax = None
+        if "time" in self.ncglo:
+            time_ax = self.ncglo["time"][self.var["time"]]
         for ll in self.ncglo.keys():
             self.ncglo[ll] = self.ncglo[ll][self.var[ll]]
+            if time_ax is not None:
+                self.ncglo[ll] = self.ncglo[ll].sel(time = time_ax)
 
     #####################################
     def indx_bound(self, x, x0):
