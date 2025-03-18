@@ -2,6 +2,7 @@ import numpy as np
 import netCDF4 as netcdf
 import xarray as xr
 import ibc_reader as dico
+import glob
 '''
 This class need to:
     - open netcdf
@@ -25,15 +26,15 @@ class getdata():
                     self.ncglo[trc] = dataxr 
         
             else:
-                dataxr=xr.open_dataset(inputfile['u'])
+                dataxr=xr.open_mfdataset(glob.glob(inputfile['u']))
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
             
-                self.ncglo   = { 'ssh'  : xr.open_dataset(inputfile['ssh']),\
-                                 'u'    : xr.open_dataset(inputfile['u']),\
-                                 'v'    : xr.open_dataset(inputfile['v'])\
+                self.ncglo   = { 'ssh'  : xr.open_mfdataset(glob.glob(inputfile['ssh'])),\
+                                 'u'    : xr.open_mfdataset(glob.glob(inputfile['u'])),\
+                                 'v'    : xr.open_mfdataset(glob.glob(inputfile['v']))\
                                }
                 for trc in tracers:
-                    self.ncglo[trc] = xr.open_dataset(inputfile[trc])
+                    self.ncglo[trc] = xr.open_mfdataset(glob.glob(inputfile[trc]))
 
 
             [self.lonT ,self.latT ,self.idmin  ,self.idmax  ,self.jdmin  ,self.jdmax  ,self.period  ]  = self.handle_periodicity(crocogrd,'r')
@@ -56,7 +57,7 @@ class getdata():
             else:
                 dataxr=xr.open_mfdataset(inputfile['u'])
                 self.depth=eval(''.join(("dataxr."+self.var['depth']))) # read depth in temp file (they are the same in all files)
-                
+
                 self.ncglo   = { 'ssh'  : xr.open_mfdataset(inputfile['ssh'],combine='nested',concat_dim=self.var['time_dim']) ,\
                                  'u'    : xr.open_mfdataset(inputfile['u'],combine='nested',concat_dim=self.var['time_dim']),\
                                  'v'    : xr.open_mfdataset(inputfile['v'],combine='nested',concat_dim=self.var['time_dim']),\
