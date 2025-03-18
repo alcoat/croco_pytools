@@ -62,8 +62,12 @@ bry_def = {
     # Dates
     "Ystart": "2025",  # Starting month
     "Mstart": "03",  # Starting month
+    "Dstart": "17",  # Starting month
+    "Hstart": "00",  # Starting month
     "Yend": "2025",  # Ending month
     "Mend": "03",  # Ending month
+    "Dend": "26",  # Ending month
+    "Hend": "18",  # Ending month
     "Yorig": "2000",  # origin of time as: days since Yorig-Morig-Dorig
     "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
@@ -122,7 +126,7 @@ if __name__ == "__main__":
 
     # Put start and end date to the right format
     start_date = (
-        bry_def["Ystart"] + bry_def["Mstart"] + "01" + "12"
+        bry_def["Ystart"] + bry_def["Mstart"] + bry_def["Dstart"] + bry_def["Hstart"]
     )  # defaut start day is 1st
 
     dtstrdt = plt.datetime.datetime(
@@ -133,17 +137,16 @@ if __name__ == "__main__":
     )
 
     dtenddt = plt.datetime.datetime(
-        int(bry_def["Yend"]), int(bry_def["Mend"]), 1, 12
-    ) + relativedelta(
-        months=1, days=-1
-    )  # Last day of the ending month
+        int(bry_def["Yend"]), int(bry_def["Mend"]),
+        int(bry_def["Dend"]), int(bry_def["Hend"]),
+    )
 
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
 
     # --- Load croco_grd --------------------------------------------------
 
     crocogrd = Croco.CROCO_grd(
-        "".join((bry_def["croco_dir"], bry_def["croco_grd"])), bry_def["sigma_params"]
+        bry_def["croco_dir"] + bry_def["croco_grd"], bry_def["sigma_params"]
     )
 
     # --- Initialize boundary vars ----------------------------------------
