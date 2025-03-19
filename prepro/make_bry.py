@@ -42,19 +42,20 @@ The script works as follow:
 import glob as glob
 import sys
 
-import netCDF4 as netcdf
-import numpy as np
-import pylab as plt
-import xarray as xr
 from dateutil.relativedelta import relativedelta
 
-sys.path.append("./Modules/")
-sys.path.append("./Readers/")
 import Cgrid_transformation_tools as grd_tools
 import croco_class as Croco
 import ibc_class as Inp
 import interp_tools
+import netCDF4 as netcdf
+import numpy as np
+import pylab as plt
 import sigmagrid_tools as sig_tools
+import xarray as xr
+
+sys.path.append("./Modules/")
+sys.path.append("./Readers/")
 
 # --- USER CHANGES ---------------------------------------------------------
 
@@ -95,10 +96,10 @@ bry_def = {
     # "croco_grd": "croco_grd.nc",
     "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     "sigma_params": {
-        "theta_s": 7,
-        "theta_b": 2,
-        "N": 32,
-        "hc": 200,
+        "theta_s": 6,
+        "theta_b": 0,
+        "N": 40,
+        "hc": 350,
     },  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
     # Bry file informations
     "bry_filename": "croco_bry.nc",  # output will be put in croco_dir by default

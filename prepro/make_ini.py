@@ -106,10 +106,10 @@ ini_def = {
     "croco_dir": "../",
     "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
     "sigma_params": {
-        "theta_s": 7,
-        "theta_b": 2,
-        "N": 32,
-        "hc": 200,
+        "theta_s": 6,
+        "theta_b": 0,
+        "N": 40,
+        "hc": 350,
     },  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
     # Ini file informations
     "ini_filename": "croco_ini.nc",  # output will be put in croco_dir by default
