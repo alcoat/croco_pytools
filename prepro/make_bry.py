@@ -69,7 +69,7 @@ bry_def = {
     "Mend": "03",  # Ending month
     "Dend": "26",  # Ending month
     "Hend": "18",  # Ending month
-    "Yorig": "2000",  # origin of time as: days since Yorig-Morig-Dorig
+    "Yorig": "1900",  # origin of time as: days since Yorig-Morig-Dorig
     "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     # Input data information and formating
@@ -81,11 +81,11 @@ bry_def = {
     # "input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
     "multi_files": True,
     "input_file": {
-        "ssh": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*zos*.nc")),
-        "temp": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*thetao*.nc")),
-        "salt": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*so*.nc")),
-        "u": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*uovo*.nc")),
-        "v": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*uovo*.nc")),
+        "ssh": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025031700.nc")),
+        "temp": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025031700.nc")),
+        "salt": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025031700.nc")),
+        "u": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc")),
+        "v": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc")),
     },
     # default value to consider a z-level fine to be used
     "Nzgoodmin": 4,
@@ -486,17 +486,17 @@ if __name__ == "__main__":
 
                 # handle indices (as 2 points where taken next to bdy)
                 if str(boundary) == "west" and is_open:
-                    indices3D = "[:,:,:,0]"  # T,N,J,i=0
-                    indices2D = "[:,:,0]"  # T,J,i=0
+                    indices3D = (slice(None,None),slice(None,None),slice(None,None),0)  # T,N,J,i=0
+                    indices2D = (slice(None,None),slice(None,None),0) # T,J,i=0
                 elif str(boundary) == "east" and is_open:
-                    indices3D = "[:,:,:,-1]"  # T,N,J,i=last
-                    indices2D = "[:,:,-1]"  # T,J,i=last
+                    indices3D = (slice(None,None),slice(None,None),slice(None,None),-1)  # T,N,J,i=last
+                    indices2D = (slice(None,None),slice(None,None),-1) # T,J,i=last
                 elif str(boundary) == "south" and is_open:
-                    indices3D = "[:,:,0,:]"  # T,N,j=0,I
-                    indices2D = "[:,0,:]"  # T,j=0,I
+                    indices3D = (slice(None,None),slice(None,None),0,slice(None,None))  # T,N,j=0,I
+                    indices2D = (slice(None,None),0, slice(None,None)) # T,j=0,I
                 elif str(boundary) == "north" and is_open:
-                    indices3D = "[:,:,-1,:]"  # T,N,j=last,I
-                    indices2D = "[:,-1,:]"  # T,j=last,I
+                    indices3D = (slice(None,None),slice(None,None),-1,slice(None,None))  # T,N,j=last,I
+                    indices2D = (slice(None,None),-1, slice(None,None)) # T,j=last,I
 
                 mask_zet = np.tile(
                     getattr(crocogrd, "maskr_" + boundary), [zeta.shape[0], 1, 1]
@@ -517,21 +517,11 @@ if __name__ == "__main__":
                         getattr(crocogrd, "vmask_" + boundary), [v.shape[0], 1, 1]
                     )
 
-                nc.variables["zeta_" + str(boundary)][:] = eval(
-                    "".join(("zeta", indices2D))
-                ) * eval("".join(("mask_zet", indices2D)))
-                nc.variables["u_" + str(boundary)][:] = eval(
-                    "".join(("u", indices3D))
-                ) * eval("".join(("mask_u", indices3D)))
-                nc.variables["v_" + str(boundary)][:] = eval(
-                    "".join(("v", indices3D))
-                ) * eval("".join(("mask_v", indices3D)))
-                nc.variables["ubar_" + str(boundary)][:] = eval(
-                    "".join(("ubar", indices2D))
-                ) * eval("".join(("mask_ubar", indices2D)))
-                nc.variables["vbar_" + str(boundary)][:] = eval(
-                    "".join(("vbar", indices2D))
-                ) * eval("".join(("mask_vbar", indices2D)))
+                nc.variables["zeta_" + str(boundary)][:] = zeta[indices2D] * mask_zet[indices2D]
+                nc.variables["u_" + str(boundary)][:] = u[indices3D]* mask_u[indices3D]
+                nc.variables["v_" + str(boundary)][:] = v[indices3D] * mask_v[indices3D] 
+                nc.variables["ubar_" + str(boundary)][:] = ubar[indices2D] * mask_ubar[indices2D] 
+                nc.variables["vbar_" + str(boundary)][:] = vbar[indices2D] * mask_vbar[indices2D]
 
                 if "tracers" in var_loop:
                     for varname, value in zip(trac_dict.keys(), trac_dict.values()):
@@ -539,9 +529,7 @@ if __name__ == "__main__":
                             getattr(crocogrd, "maskr_" + boundary),
                             [value.shape[0], value.shape[1], 1, 1],
                         )
-                        nc.variables[f"{varname}_{boundary}"][:] = eval(
-                            f"value{indices3D}"
-                        ) * eval("".join(("mask_tra", indices3D)))
+                        nc.variables[f"{varname}_{boundary}"][:] = value[indices3D] * mask_tra[indices3D]
 
                 # handle prev and nxt + save
 
