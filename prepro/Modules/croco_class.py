@@ -190,7 +190,7 @@ class CROCO():
         nc.createDimension('eta_v', grdobj.lon.shape[0] - 1)
         nc.createDimension('s_rho', grdobj.N)
         nc.createDimension('s_w', grdobj.N + 1)
-        nc.createDimension('time', None)
+        nc.createDimension('scrum_time', None)
         nc.createDimension('one', 1)
 
         # Create the variables and write...
@@ -235,11 +235,11 @@ class CROCO():
         nc.variables['Cs_w'].valid_max = 0.
         nc.variables['Cs_w'][:] = grdobj.Cs_w()
 
-        nc.createVariable('ocean_time', 'f8', ('time'), zlib=True)
+        nc.createVariable('ocean_time', 'f8', ('scrum_time'), zlib=True)
         nc.variables['ocean_time'].long_name = 'time since initialization'
         nc.variables['ocean_time'].units     = 'seconds'
 
-        nc.createVariable('scrum_time', 'f8', ('time'), zlib=True)
+        nc.createVariable('scrum_time', 'f8', ('scrum_time'), zlib=True)
         nc.variables['scrum_time'].long_name = 'time since initialization'
         nc.variables['scrum_time'].units     = 'seconds'
 
@@ -283,22 +283,22 @@ class CROCO():
         for varname, value in zip(prog_vars.keys(), prog_vars.values()):
 
             if 'rho3d' in value[0]:
-                dims = ('time', 's_rho', 'eta_rho', 'xi_rho')
+                dims = ('scrum_time', 's_rho', 'eta_rho', 'xi_rho')
 
             elif 'u3d' in value[0]:
-                dims = ('time', 's_rho', 'eta_rho', 'xi_u')
+                dims = ('scrum_time', 's_rho', 'eta_rho', 'xi_u')
 
             elif 'v3d' in value[0]:
-                dims = ('time', 's_rho', 'eta_v', 'xi_rho')
+                dims = ('scrum_time', 's_rho', 'eta_v', 'xi_rho')
 
             elif 'u2d' in value[0]:
-                dims = ('time', 'eta_rho', 'xi_u')
+                dims = ('scrum_time', 'eta_rho', 'xi_u')
 
             elif 'v2d' in value[0]:
-                dims = ('time', 'eta_v', 'xi_rho')
+                dims = ('scrum_time', 'eta_v', 'xi_rho')
 
             elif 'rho2d' in value[0]:
-                dims = ('time', 'eta_rho', 'xi_rho')
+                dims = ('scrum_time', 'eta_rho', 'xi_rho')
 
             else: error
 
