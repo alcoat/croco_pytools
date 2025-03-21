@@ -61,7 +61,7 @@ class CROCO_grd(object):
         '''
         Depths at vertical rho points
         '''
-        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sig_tools.scoord2z('r', zeta=zeta, topo=getattr(self, "h"+bdy), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[0]
 
 
@@ -69,7 +69,7 @@ class CROCO_grd(object):
         '''
         S-coordinate stretching curves at rho points
         '''
-        return sig_tools.scoord2z('r', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sig_tools.scoord2z('r', zeta=zeta, topo=getattr(self, "h"+bdy), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[1]
 
 
@@ -77,89 +77,89 @@ class CROCO_grd(object):
         '''
         Depths at vertical w points
         '''
-        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sig_tools.scoord2z('w', zeta=zeta, topo=getattr(self, "h"+bdy), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[0]
 
     def Cs_w(self, zeta=0., bdy="", scoord='new2008'):
         '''
         S-coordinate stretching curves at w points
         '''
-        return sig_tools.scoord2z('w', zeta=zeta, topo=eval(''.join(("self.h",bdy))), theta_s=self.theta_s, theta_b=self.theta_b,\
+        return sig_tools.scoord2z('w', zeta=zeta, topo=getattr(self, "h"+bdy), theta_s=self.theta_s, theta_b=self.theta_b,\
                 N=self.N,hc=self.hc,scoord=scoord)[1]
     def s_rho(self):
         return ((np.arange(1,self.N+1,dtype=np.float64))-self.N-0.5)/self.N
     def s_w(self):
         return (np.arange(self.N+1,dtype=np.float64)-self.N)/self.N
 
-    def WEST_grid(self,indices="[:,0:2]"):
+    def WEST_grid(self,indices=(slice(None,None), slice(0,2))):
         '''
         Defines some vars for Western grid
         '''
-        self.h_west=eval(''.join(('self.h',indices)))
-        self.lon_west=eval(''.join(('self.lon',indices)))
-        self.lat_west=eval(''.join(('self.lat',indices)))
-        self.lonu_west=eval(''.join(('self.lonu',indices)))
-        self.latu_west=eval(''.join(('self.latu',indices)))
-        self.lonv_west=eval(''.join(('self.lonv',indices)))
-        self.latv_west=eval(''.join(('self.latv',indices)))
-        self.maskr_west=eval(''.join(('self.maskr',indices)))
-        self.umask_west=eval(''.join(('self.umask',indices)))
-        self.vmask_west=eval(''.join(('self.vmask',indices)))
-        self.angle_west=eval(''.join(('self.angle',indices)))
+        self.h_west=self.h[indices]
+        self.lon_west=self.lon[indices]
+        self.lat_west=self.lat[indices]
+        self.lonu_west=self.lonu[indices]
+        self.latu_west=self.latu[indices]
+        self.lonv_west=self.lonv[indices]
+        self.latv_west=self.latv[indices]
+        self.maskr_west=self.maskr[indices]
+        self.umask_west=self.umask[indices]
+        self.vmask_west=self.vmask[indices]
+        self.angle_west=self.angle[indices]
 
         return self
 
-    def EAST_grid(self,indices="[:,-2:]"):
+    def EAST_grid(self,indices=(slice(None,None), slice(-2,None))):
         '''
         Defines some vars for Western grid
         '''
-        self.h_east=eval(''.join(('self.h',indices)))
-        self.lon_east=eval(''.join(('self.lon',indices)))
-        self.lat_east=eval(''.join(('self.lat',indices)))
-        self.lonu_east=eval(''.join(('self.lonu',indices)))
-        self.latu_east=eval(''.join(('self.latu',indices)))
-        self.lonv_east=eval(''.join(('self.lonv',indices)))
-        self.latv_east=eval(''.join(('self.latv',indices)))
-        self.maskr_east=eval(''.join(('self.maskr',indices)))
-        self.umask_east=eval(''.join(('self.umask',indices)))
-        self.vmask_east=eval(''.join(('self.vmask',indices)))
-        self.angle_east=eval(''.join(('self.angle',indices)))
+        self.h_east=self.h[indices]
+        self.lon_east=self.lon[indices]
+        self.lat_east=self.lat[indices]
+        self.lonu_east=self.lonu[indices]
+        self.latu_east=self.latu[indices]
+        self.lonv_east=self.lonv[indices]
+        self.latv_east=self.latv[indices]
+        self.maskr_east=self.maskr[indices]
+        self.umask_east=self.umask[indices]
+        self.vmask_east=self.vmask[indices]
+        self.angle_east=self.angle[indices]
 
         return self
 
-    def SOUTH_grid(self,indices="[0:2,:]"):
+    def SOUTH_grid(self,indices=(slice(0,2), slice(None,None))):
         '''
         Defines some vars for Western grid
         '''
-        self.h_south=eval(''.join(('self.h',indices)))
-        self.lon_south=eval(''.join(('self.lon',indices)))
-        self.lat_south=eval(''.join(('self.lat',indices)))
-        self.lonu_south=eval(''.join(('self.lonu',indices)))
-        self.latu_south=eval(''.join(('self.latu',indices)))
-        self.lonv_south=eval(''.join(('self.lonv',indices)))
-        self.latv_south=eval(''.join(('self.latv',indices)))
-        self.maskr_south=eval(''.join(('self.maskr',indices)))
-        self.umask_south=eval(''.join(('self.umask',indices)))
-        self.vmask_south=eval(''.join(('self.vmask',indices)))
-        self.angle_south=eval(''.join(('self.angle',indices)))
+        self.h_south=self.h[indices]
+        self.lon_south=self.lon[indices]
+        self.lat_south=self.lat[indices]
+        self.lonu_south=self.lonu[indices]
+        self.latu_south=self.latu[indices]
+        self.lonv_south=self.lonv[indices]
+        self.latv_south=self.latv[indices]
+        self.maskr_south=self.maskr[indices]
+        self.umask_south=self.umask[indices]
+        self.vmask_south=self.vmask[indices]
+        self.angle_south=self.angle[indices]
 
         return self
 
-    def NORTH_grid(self,indices="[-2:,:]"):
+    def NORTH_grid(self,indices=(slice(-2,None),slice(None,None))):
         '''
         Defines some vars for Western grid
         '''
-        self.h_north=eval(''.join(('self.h',indices)))
-        self.lon_north=eval(''.join(('self.lon',indices)))
-        self.lat_north=eval(''.join(('self.lat',indices)))
-        self.lonu_north=eval(''.join(('self.lonu',indices)))
-        self.latu_north=eval(''.join(('self.latu',indices)))
-        self.lonv_north=eval(''.join(('self.lonv',indices)))
-        self.latv_north=eval(''.join(('self.latv',indices)))
-        self.maskr_north=eval(''.join(('self.maskr',indices)))
-        self.umask_north=eval(''.join(('self.umask',indices)))
-        self.vmask_north=eval(''.join(('self.vmask',indices)))
-        self.angle_north=eval(''.join(('self.angle',indices)))
+        self.h_north=self.h[indices]
+        self.lon_north=self.lon[indices]
+        self.lat_north=self.lat[indices]
+        self.lonu_north=self.lonu[indices]
+        self.latu_north=self.latu[indices]
+        self.lonv_north=self.lonv[indices]
+        self.latv_north=self.latv[indices]
+        self.maskr_north=self.maskr[indices]
+        self.umask_north=self.umask[indices]
+        self.vmask_north=self.vmask[indices]
+        self.angle_north=self.angle[indices]
 
         return self
 
