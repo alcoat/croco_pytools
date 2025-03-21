@@ -394,11 +394,11 @@ for i, tide in enumerate(tide_def["tides"]):
             print("\n  Processing equilibrium tidal potential")
             print("  --------------------------------------")
             try:
-                coef = eval("".join(("inpdat.pot_tide.", tide.lower())))
+                coef = getattr(inpdat.pot_tide, tide.lower())
             except:
                 try:
                     # some waves start with a number (ex: 2N2) and python do not like it
-                    coef = eval("".join(("inpdat.pot_tide._", tide.lower())))
+                    coef = getattr(inpdat.pot_tide, tide.lower()) 
                 except:
                     print("No potential prameter defined for wave %s" % input_wav)
                     coef = [1, 0]
