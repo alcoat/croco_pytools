@@ -77,7 +77,7 @@ ini_def = {
     "Dini": "17",  # Month and days need to be 2-digits format
     "Hini": "00",  # Month and days need to be 2-digits format
     # reference time (default = ini time)
-    "Yorig": "2000",  # Month and days need to be 2-digits format
+    "Yorig": "1900",  # Month and days need to be 2-digits format
     "Morig": "01",  # Month and days need to be 2-digits format
     "Dorig": "01",  # Month and days need to be 2-digits format
     # Input data information and formating
@@ -88,12 +88,13 @@ ini_def = {
     #"multi_files": False,  # If variables are in different netcdf
     #"input_file": "../../MERCATOR_GLOB_2013/mercator_Y2013M01.cdf",
     "multi_files": True,  # If variables are in different netcdf
-    "input_file" : { 'ssh'  : '../../MERCATOR/glo12_rg_6h-i_*-2D-zos_fcst_R20250317.nc',\
-                      'temp' : '../../MERCATOR/glo12_rg_6h-i_*-3D-thetao_fcst_R20250317.nc',\
-                       'salt' : '../../MERCATOR/glo12_rg_6h-i_*-3D-so_fcst_R20250317.nc',\
-                       'u'    : '../../MERCATOR/glo12_rg_6h-i_*-3D-uovo_fcst_R20250317.nc',\
-                       'v'    : '../../MERCATOR/glo12_rg_6h-i_*-3D-uovo_fcst_R20250317.nc'\
-                    },
+    "input_file": {
+        "ssh": "../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025031700.nc",
+        "temp": "../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025031700.nc",
+        "salt": "../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025031700.nc",
+        "u": "../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc",
+        "v": "../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc",
+    },
     # time index to use in the file
     "tndx": 0,
     # default value to consider a z-level fine to be used
@@ -173,8 +174,10 @@ if __name__ == "__main__":
     if ini_date_num != day_zero_num:
         tstart = ini_date_num - day_zero_num  # days
 
-    scrumt = tstart * 3600 * 24  # convert in second
+    #scrumt = tstart * 3600 * 24  # convert in second
     oceant = tstart * 3600 * 24
+    scrumt = tstart 
+    #oceant = tstart 
     tend = 0.0
 
     #  --- Compute and save variables on CROCO grid ---------------
@@ -190,7 +193,7 @@ if __name__ == "__main__":
             nc.Input_data_type = ini_def["inputdata"]
             nc.variables["ocean_time"][:] = oceant
             nc.variables["scrum_time"][:] = scrumt
-            nc.variables["scrum_time"].units = "seconds since %s-%s-%s 00:00:00" % (
+            nc.variables["scrum_time"].units = "days since %s-%s-%s 00:00:00" % (
                 ini_def["Yorig"],
                 ini_def["Morig"],
                 ini_def["Dorig"],
