@@ -41,8 +41,8 @@ class getdata:
         dataxr_ssh = xr.concat(xr_list_ssh, dim="ntides", data_vars="different")
 
         self.ncglo = {
-            "ssh_part1": eval("".join(("dataxr_ssh." + self.var["H_" + part1_suf]))),
-            "ssh_part2": eval("".join(("dataxr_ssh." + self.var["H_" + part2_suf]))),
+            "ssh_part1": dataxr_ssh[self.var["H_" + part1_suf]],
+            "ssh_part2": dataxr_ssh[self.var["H_" + part2_suf]],
         }
 
         # Handling current variables
@@ -56,18 +56,10 @@ class getdata:
                 xr_list_v += [xr.open_dataset(inpt)]
             dataxr_v = xr.concat(xr_list_v, dim="ntides", data_vars="different")
 
-            self.ncglo["u_part1"] = eval(
-                "".join(("dataxr_u." + self.var["U_" + part1_suf]))
-            )
-            self.ncglo["u_part2"] = eval(
-                "".join(("dataxr_u." + self.var["U_" + part2_suf]))
-            )
-            self.ncglo["v_part1"] = eval(
-                "".join(("dataxr_v." + self.var["V_" + part1_suf]))
-            )
-            self.ncglo["v_part2"] = eval(
-                "".join(("dataxr_v." + self.var["V_" + part2_suf]))
-            )
+            self.ncglo["u_part1"] = dataxr_u[self.var["U_" + part1_suf]]
+            self.ncglo["u_part2"] = dataxr_u[self.var["U_" + part2_suf]]
+            self.ncglo["v_part1"] = dataxr_v[self.var["V_" + part1_suf]]
+            self.ncglo["v_part2"] = dataxr_v[self.var["V_" + part2_suf]]
 
             if "tpxo" in inputdata and "transport" in self.ncglo["u_part1"].long_name:
                 # set transport to velocity
@@ -92,20 +84,20 @@ class getdata:
                     #                   if len(grd_file)>0 and os.path.exists(grd_file[0]):
                     print("Found " + grd_file[0] + " for grid file")
                     xar = xr.open_dataset(grd_file[0])
-                    hu = eval("".join((f"xar.{self.var['topou']}")))
-                    hv = eval("".join((f"xar.{self.var['topov']}")))
+                    hu = xar[self.var['topou']]
+                    hv = xar[self.var['topov']]
                 except:
                     try:
-                        hu = eval("".join((f"dataxr_u.{self.var['topou']}")))
-                        hv = eval("".join((f"dataxr_v.{self.var['topov']}")))
+                        hu = dataxr_u[self.var['topou']]
+                        hv = dataxr_v[self.var['topov']]
                     except:
                         try:
-                            hu = eval("".join((f"dataxr_u.{self.var['topor']}")))
-                            hv = eval("".join((f"dataxr_v.{self.var['topor']}")))
+                            hu = dataxr_u[self.var['topor']]
+                            hv = dataxr_v[self.var['topor']]
                         except:
                             try:
-                                hu = eval("".join((f"dataxr_ssh.{self.var['topor']}")))
-                                hv = eval("".join((f"dataxr_ssh.{self.var['topor']}")))
+                                hu = dataxr_ssh[self.var['topor']]
+                                hv = dataxr_ssh[self.var['topor']]
                             except:
                                 sys.exit(
                                     "Need either a grid file or topo in tpxo file to correct transport."
@@ -124,7 +116,7 @@ class getdata:
         # If all waves are in one file, reads period along record dimension
         if len(inputfile) == 1 and self.ncglo["ssh_part1"].ndim == 3:
             rcd_dim = self.ncglo["ssh_part1"].dims[0]
-            self.ntides = np.array((eval("".join(("dataxr_ssh." + rcd_dim + ".data")))))
+            self.ntides = np.array(dataxr_ssh[rcd_dim].data)
 
         # If len(inputfile)==1 and wave dimension is 2-d, need to add a dummy dimension
         for key in self.ncglo:
@@ -232,8 +224,8 @@ class getdata:
         # Checking that var in format [ntides,lat,lon]
         for key in self.ncglo:
             if "u" in self.ncglo[key]:
-                nx = eval("".join(("dataxr_u." + self.var["lonu"]))).shape[0]
-                ny = eval("".join(("dataxr_u." + self.var["latu"]))).shape[-1]
+                nx = dataxr_u[self.var["lonu"]].shape[0]
+                ny = dataxr_u[self.var["latu"]].shape[-1]
                 if (
                     self.ncglo[key][:].shape[1] != ny
                     and self.ncglo[key][:].shape[2] != nx
@@ -245,8 +237,8 @@ class getdata:
                     dim = self.ncglo[key].dims
                     self.ncglo[key] = self.ncglo[key].transpose(dim[0], dim[2], dim[1])
             elif "v" in self.ncglo[key]:
-                nx = eval("".join(("dataxr_v." + self.var["lonv"]))).shape[0]
-                ny = eval("".join(("dataxr_v." + self.var["latv"]))).shape[-1]
+                nx = dataxr_v[self.var["lonv"]].shape[0]
+                ny = dataxr_v[self.var["latv"]].shape[-1]
                 if (
                     self.ncglo[key][:].shape[1] != ny
                     and self.ncglo[key][:].shape[2] != nx
@@ -258,8 +250,8 @@ class getdata:
                     dim = self.ncglo[key].dims
                     self.ncglo[key] = self.ncglo[key].transpose(dim[0], dim[2], dim[1])
             else:
-                nx = eval("".join(("dataxr_ssh." + self.var["lonr"]))).shape[0]
-                ny = eval("".join(("dataxr_ssh." + self.var["latr"]))).shape[-1]
+                nx = dataxr_ssh[self.var["lonr"]].shape[0]
+                ny = dataxr_ssh[self.var["latr"]].shape[-1]
                 if (
                     self.ncglo[key][:].shape[1] != ny
                     and self.ncglo[key][:].shape[2] != nx
@@ -388,8 +380,8 @@ class getdata:
         print("Reading coordinate file for grid: " + grid)
         print("-----------------------------------")
 
-        lon = eval("".join(("data." + self.var["lon" + grid])))
-        lat = eval("".join(("data." + self.var["lat" + grid])))
+        lon = data[self.var["lon" + grid]]
+        lat = data[self.var["lat" + grid]]
 
         if len(lon.shape) == 2:  # Some datasets are a bit different
             if lon[0, 1] - lon[0, 0] == 0:  # axes are swicthed
@@ -591,25 +583,25 @@ class getdata:
         by runing
         """
         if vname in ["u", "u_part1", "u_part2"]:
-            imin = eval("".join(("self.idminU" + bdy)))
-            imax = eval("".join(("self.idmaxU" + bdy)))
-            jmin = eval("".join(("self.jdminU" + bdy)))
-            jmax = eval("".join(("self.jdmaxU" + bdy)))
-            period = eval("".join(("self.periodU" + bdy)))
+            imin = getattr(self, "idminU" + bdy)
+            imax = getattr(self, "idmaxU" + bdy)
+            jmin = getattr(self, "jdminU" + bdy)
+            jmax = getattr(self, "jdmaxU" + bdy)
+            period = getattr(self, "periodU" + bdy)
             grdid = "u"
         elif vname in ["v", "v_part1", "v_part2"]:
-            imin = eval("".join(("self.idminV" + bdy)))
-            imax = eval("".join(("self.idmaxV" + bdy)))
-            jmin = eval("".join(("self.jdminV" + bdy)))
-            jmax = eval("".join(("self.jdmaxV" + bdy)))
-            period = eval("".join(("self.periodV" + bdy)))
+            imin = getattr(self, "idminV" + bdy)
+            imax = getattr(self, "idmaxV" + bdy)
+            jmin = getattr(self, "jdminV" + bdy)
+            jmax = getattr(self, "jdmaxV" + bdy)
+            period = getattr(self, "periodV" + bdy)
             grdid = "v"
         else:
-            imin = eval("".join(("self.idmin" + bdy)))
-            imax = eval("".join(("self.idmax" + bdy)))
-            jmin = eval("".join(("self.jdmin" + bdy)))
-            jmax = eval("".join(("self.jdmax" + bdy)))
-            period = eval("".join(("self.period" + bdy)))
+            imin = getattr(self, "idmin" + bdy)
+            imax = getattr(self, "idmax" + bdy)
+            jmin = getattr(self, "jdmin" + bdy)
+            jmax = getattr(self, "jdmax" + bdy)
+            period = getattr(self, "period" + bdy)
             grdid = "r"
 
         try:
@@ -1048,10 +1040,10 @@ class getdata:
             pu = 0
 
         try:
-            mkb = eval("".join(("phase_mkb.", input_wav.lower())))
+            mkb = getattr(phase_mkb, input_wav.lower())
         except:
             try:
-                mkb = eval("".join(("phase_mkb._", input_wav.lower())))
+                mkb = getattr(phase_mkb, "._" + input_wav.lower())
             except:
                 print("No phase_mkB defined for wave %s" % input_wav)
                 mkb = 0
