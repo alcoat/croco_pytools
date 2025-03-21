@@ -1,4 +1,4 @@
-# CROCO_PYTOOLS - RELEASE 1.0.3
+# CROCO_PYTOOLS - DEVELOPMENT BRANCH (not stable)
 
 This is a python redesign of the matlab pre- and post-processing tools for CROCO
 (croco_tools) developed over the last 20 years.
