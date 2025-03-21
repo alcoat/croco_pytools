@@ -32,8 +32,8 @@ def topo_periodicity(topo_file, geolim):
     except:
         sys.exit(''.join(('ERROR: \n', 'Topo file -> ',topo_file ,' does not exist... ')))
     
-    topo_lon = eval(''.join(("nc."+topo_type['lon']+'.values')))
-    topo_lat = eval(''.join(("nc."+topo_type['lat']+'.values')))
+    topo_lon = nc[topo_type['lon']].values
+    topo_lat = nc[topo_type['lat']].values
     if topo_lon.ndim==2: # gebco is a bit different
         topo_lon = np.linspace(topo_lon[0,0],
                                topo_lon[0,-1], num=topo_lon.shape[1])
@@ -137,11 +137,11 @@ def topo_periodicity(topo_file, geolim):
         nx_lon=imax-imin+1
         start1=imin ; end1=start1+nx_lon ; count1=nx_lon
         if gebco:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
+            topo = topo_fact*nc[topo_type['topo']].values
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
+            topo = topo_fact*nc[topo_type['topo']][start2:end2, start1:end1].values
         nc.close()
 
         ishft=imin
@@ -168,11 +168,11 @@ def topo_periodicity(topo_file, geolim):
         start1=0 ; end1=start1+imax+1; count1=imax+1
 
         if gebco:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
+            topo = topo_fact*nc[topo_type['topo']].values
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
+            topo = topo_fact*nc[topo_type['topo']][start2:end2, start1:end1].values
         for j in range(0,count2):
             for i in range(0,count1):
                 htopo[j,nx_lon-imax+i-1]=topo[j,i]
@@ -192,11 +192,11 @@ def topo_periodicity(topo_file, geolim):
         print('second...')
         start1=imin ; count1=period-imin; end1=start1+count1
         if gebco:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'.values')))
+            topo = topo_fact*nc[topo_type['topo']].values
             topo = np.reshape(topo, (topo_lat.size, topo_lon.size))
             topo = topo[start2:end2, start1:end1]
         else:
-            topo = topo_fact*eval(''.join(("nc."+topo_type['topo']+'[start2:end2, start1:end1]'+'.values')))
+            topo = topo_fact*nc[topo_type['topo']][start2:end2, start1:end1].values
         nc.close()
 
         for j in range(0,count2):
@@ -298,7 +298,7 @@ class GetTopo():
         return outputs
 
 class GetMask():
-    def outline(lon, lat):
+    def outline(self, lon, lat):
         '''
         Return lon, lat of perimeter around the grid
         '''
@@ -307,7 +307,7 @@ class GetMask():
                               var[::-1, -1], var[0, ::-1][1:]])
         return func(lon), func(lat)
 
-    def process_mask(maskin):
+    def process_mask(self, maskin):
  
         print('Processing mask to close narrow bay and narrow land (1 point wide)')
         maskout=np.copy(maskin)
