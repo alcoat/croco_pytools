@@ -1,7 +1,7 @@
 import netCDF4 as netcdf
 import numpy as np
 
-def read_nc(filename,varname, indices="[:]"):
+def read_nc(filename,varname, indices=(slice(None,None))):
     '''
     Read a variable in a netcdf using netCDF4.Dataset
 
@@ -15,7 +15,7 @@ def read_nc(filename,varname, indices="[:]"):
     '''
     try:
         with netcdf.Dataset(filename,'r') as nc:
-            var = eval(''.join(("nc.variables[varname]", indices)))
+            var = nc.variables[varname][indices]
     except Exception:
         raise
    #
@@ -25,7 +25,7 @@ def read_nc(filename,varname, indices="[:]"):
         return var
 
 
-def read_nc_mf(filename,varname,indices="[:]",time_dim='time'):
+def read_nc_mf(filename,varname,indices=(slice(None,None)),time_dim='time'):
     '''
     Read a variable in multiple netcdf using netCDF4.MFDataset
 
@@ -44,12 +44,12 @@ def read_nc_mf(filename,varname,indices="[:]",time_dim='time'):
         try:
             # Load over unlimited dimension
             with netcdf.MFDataset(filename) as nc:
-                    var =  eval(''.join(("nc.variables[varname]", indices)))
+                    var =  nc.variables[varname][indices]
         except Exception:
             try:
                 # Load over time dimension
                 with netcdf.MFDataset(filename, aggdim=time_dim) as nc:
-                    var =  eval(''.join(("nc.variables[varname]", indices)))
+                    var =  nc.variables[varname][indices]
             except Exception:
                 print("Vars can not be loaded along %s. Please specify time_dim in read_nc_mf." % time_dim)
     except Exception:
