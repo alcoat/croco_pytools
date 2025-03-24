@@ -141,7 +141,12 @@ def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
     
     
     # coords = [c for c in ds.coords if c not in ['t','s','s_w']]
-    coords = [c for c in ds.coords if c in ['t','s','s_w','lat','lon']]
+    coords = [
+        c
+        for c in ds.coords
+        if c in ["t", "s", "s_w", "lat", "lon", "y", "y_v", "x", "x_u"]
+    ]
+
     ds = ds.reset_coords()
     ds = ds.set_coords(coords)
         
@@ -216,16 +221,25 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     # compute horizontal coordinates
 
     ds = model.ds
-    if 'x_u' in ds.dims:
-        ds['lon_u'] = grid.interp(ds.lon,'x')
-        ds['lat_u'] = grid.interp(ds.lat,'x')
-    if 'y_v' in ds.dims:
-        ds['lon_v'] = grid.interp(ds.lon,'y')
-        ds['lat_v'] = grid.interp(ds.lat,'y')
-    if 'x_u' in ds.dims and 'y_v' in ds.dims: 
-        ds['lon_p'] = grid.interp(ds.lon_v,'x')
-        ds['lat_p'] = grid.interp(ds.lat_u,'y')
-    _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
+    
+    try:
+        # spherical grid
+        if "x_u" in ds.dims:
+            ds["lon_u"] = grid.interp(ds.lon, "x")
+            ds["lat_u"] = grid.interp(ds.lat, "x")
+        if "y_v" in ds.dims:
+            ds["lon_v"] = grid.interp(ds.lon, "y")
+            ds["lat_v"] = grid.interp(ds.lat, "y")
+        if "x_u" in ds.dims and "y_v" in ds.dims:
+            ds["lon_p"] = grid.interp(ds.lon_v, "x")
+            ds["lat_p"] = grid.interp(ds.lat_u, "y")
+        _coords = [
+            d for d in ds.data_vars.keys() if d.startswith(tuple(["lon", "lat"]))
+        ]
+    except Exception:
+        # Cartesian grid
+        _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(["x", "y"]))]
+    
     ds = ds.set_coords(_coords)
     
     
@@ -513,7 +527,7 @@ def order_dims(var):
             # for dim in ["T", "Z", "Y", "X"]
             # if dim in var.reset_coords(drop=True).cf.axes
             dim
-            for dim in ["t", "s", "s_w", "y", "y_v" "x", "x_u"]
+            for dim in ["t", "s", "s_w", "z", "z_u", "z_v", "y", "y_v" "x", "x_u"]
             if dim in var.dims
         ]
     )
@@ -868,7 +882,7 @@ def to_grid_point(
 
     if vcoord is not None:
         assert vcoord in ["s_rho", "rho", "r", "s_w", "w"], (
-            'scoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % scoord
+            'vcoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % vcoord
         )
         if vcoord in ["s_rho", "rho", "r"]:
             var = to_s_rho(var, xgrid, vboundary=vboundary, vfill_value=vfill_value)
@@ -913,6 +927,10 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
 
     h = ds.h if h is None else h
     z_sfc = 0*ds.h if z_sfc is None else z_sfc
+    
+    # zeta fix for wet-dry
+    if hasattr(ds, "Dcrit"):
+        z_sfc = z_sfc.where(z_sfc > (ds.Dcrit - h), ds.Dcrit - h)
 
     # switch horizontal grid if needed
     if hgrid in ['u','v','p']:
@@ -936,7 +954,7 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
         z0 = hc*sc + (h-hc)*cs
         z = z0 + (1+z0/h) * z_sfc
     elif vtransform == 2:
-        z0 = (hc * sc + h * cs) / (hc + h)
+        z0 = (hc * sc + np.abs(h) * cs) / (hc + np.abs(h))
         z = z0 * (z_sfc + h) + z_sfc
 
     # reorder spatial dimensions and place them last
