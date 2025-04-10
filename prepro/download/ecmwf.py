@@ -24,7 +24,7 @@ fxx += list(range(144, 240+6, 6))
 
 searchString='(?:10[uv]:|:2t:|:2d:|:msl:|:ssr:|:str:|:tp:)'
 
-outdir = pathlib.Path("/home/coat/dev/CROCO/ECMWF")
+outdir = pathlib.Path("../../../ECMWF")
 
 while True:
     FH = herbie.FastHerbie([start_date], model="ecmwf", product="oper", fxx=fxx, save_dir=outdir)
