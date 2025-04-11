@@ -3,6 +3,8 @@
 import cdsapi
 import datetime
 import pathlib
+import csv
+import pandas
 import xarray
 
 start_date = datetime.datetime(2025,4,6)
@@ -66,8 +68,8 @@ request = {
 outpathname = pathlib.Path(f"../../../GLOFAS/glofas_{start_date:%Y%m%d}.nc")
 outpathname.parent.mkdir(parents=True, exist_ok=True)
 
-client = cdsapi.Client()
-client.retrieve(dataset, request).download(outpathname)
+#client = cdsapi.Client()
+#client.retrieve(dataset, request).download(outpathname)
 
 ds = xarray.open_dataset(outpathname)
 ds = ds.squeeze("forecast_reference_time")
@@ -80,7 +82,14 @@ for name, pos in rivers.items():
      print(name, ilon,ilat)
      ds_data = ds.isel(longitude=slice(ilon-2,ilon+3), latitude=slice(ilat-2,ilat+3)).max(["longitude", "latitude"])
      df_data = ds_data.to_dataframe()
+     df_data.index = df_data.index - pandas.Timedelta(12, unit="h")
      outpname = pathlib.Path(f"../../../GLOFAS/{name}_{start_date:%Y%m%d}.csv")
+     outpname = pathlib.Path(f"../../../GLOFAS/{name}.dat")
      outpname.parent.mkdir(parents=True, exist_ok=True)
-     df_data.to_csv(outpname)
+     with open(outpname, mode='w') as f:
+         f.write("#\n")
+         f.write("#\n")
+         f.write("#\n")
+         f.write("#\n")
+     df_data.to_csv(outpname, mode="a", sep=" ", header=False, quotechar=" ", date_format="%d/%m/%Y %H:%M:%S")
 
