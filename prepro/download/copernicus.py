@@ -7,12 +7,15 @@ import xarray
 import copernicusmarine
 import croco_class
 
-start_date = "2025-03-17 00:00"
+start_date = "2025-04-06 00:00"
 pd_start_date = pandas.Timestamp(start_date)
 pd_end_date = pd_start_date + datetime.timedelta(days=9,hours=18)
 
-grdpathname = "../../croco_gibrtwo_inno_energy_grd.nc"
-destpath = "/home/coat/dev/CROCO/MERCATOR"
+configname = "croco_med"
+grdpathname = "/home/shom_simuref/CROCO/fournitures_22AC05/MED_1.8/CROCO_FILES/test2.nc"
+#configname = "croco_gibr"
+#grdpathname = "../../croco_gibrtwo_inno_energy_grd.nc"
+destpath = "/home6/datawork/acoat/CROCO/MERCATOR"
 
 datasets = [
    { "id": "cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i", "vars": [ "uo", "vo" ] },
