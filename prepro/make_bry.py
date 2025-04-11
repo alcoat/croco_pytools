@@ -62,13 +62,13 @@ sys.path.append("./Readers/")
 bry_def = {
     # Dates
     "Ystart": "2025",  # Starting month
-    "Mstart": "03",  # Starting month
-    "Dstart": "17",  # Starting month
+    "Mstart": "04",  # Starting month
+    "Dstart": "06",  # Starting month
     "Hstart": "00",  # Starting month
     "Yend": "2025",  # Ending month
-    "Mend": "03",  # Ending month
-    "Dend": "26",  # Ending month
-    "Hend": "18",  # Ending month
+    "Mend": "04",  # Ending month
+    "Dend": "10",  # Ending month
+    "Hend": "00",  # Ending month
     "Yorig": "1900",  # origin of time as: days since Yorig-Morig-Dorig
     "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
     "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
@@ -81,32 +81,46 @@ bry_def = {
     # "input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
     "multi_files": True,
     "input_file": {
-        "ssh": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025031700.nc")),
-        "temp": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025031700.nc")),
-        "salt": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025031700.nc")),
-        "u": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc")),
-        "v": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc")),
+        "ssh": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025040600.nc")),
+        "temp": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025040600.nc")),
+        "salt": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025040600.nc")),
+        "u": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025040600.nc")),
+        "v": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025040600.nc")),
     },
     # default value to consider a z-level fine to be used
     "Nzgoodmin": 4,
     # Tracers
     "tracers": ["temp", "salt"],
     # CROCO grid informations
-    "croco_dir": "../",
-    # "croco_grd": "croco_grd.nc",
-    "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
+    #"croco_dir": "../",
+    "croco_dir": "/home6/datawork/acoat/CROCO/CROCO_MED/FORCING/",
+    "croco_grd": "croco_grd.nc",
+    #"croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
+    #"sigma_params": {
+    #    "theta_s": 6,
+    #    "theta_b": 0,
+    #    "N": 40,
+    #    "hc": 350,
+    #},  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
     "sigma_params": {
         "theta_s": 6,
         "theta_b": 0,
-        "N": 40,
-        "hc": 350,
-    },  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+        "N": 80,
+        "hc": 100,
+    }, 
+
     # Bry file informations
     "bry_filename": "croco_bry.nc",  # output will be put in croco_dir by default
+    #"obc_dict": {
+    #    "south": 0,
+    #    "west": 1,
+    #    "east": 1,
+    #    "north": 0,
+    #},  # open boundaries (1=open , [S W E N])
     "obc_dict": {
-        "south": 0,
+        "south": 1,
         "west": 1,
-        "east": 1,
+        "east": 0,
         "north": 0,
     },  # open boundaries (1=open , [S W E N])
     "output_file_format": "FULL",  # How outputs are spit (MONTHLY,YEARLY,FULL)
