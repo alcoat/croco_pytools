@@ -1,3 +1,4 @@
+import os
 import numpy as np
 import xarray as xr
 import cf_xarray as cfxr
@@ -43,7 +44,10 @@ def open_files(model, gridname, filenames,
     """
     def _preprocess(ds,**prepro_kwargs):
         for key, value in prepro_kwargs.items():
-            ds = ds.sel({key:value}, method='nearest')
+            try:
+                ds = ds.sel({key:value}, method='nearest')
+            except:
+                ds = ds.isel({key:value})
         return ds
     partial_func = partial(_preprocess, **prepro_kwargs)
               
@@ -92,6 +96,7 @@ def open_catalog(model, gridname, catalog, source=None,
                  xperiodic=False,
                  yperiodic=False,
                  verbose=False,
+                 **prepro_kwargs,
                 ):
     """
     open files through an intake catalog
@@ -111,6 +116,14 @@ def open_catalog(model, gridname, catalog, source=None,
         grid: the associated xgcm grid
                        
     """
+
+    def _preprocess(ds,**prepro_kwargs):
+        for key, value in prepro_kwargs.items():
+            try:
+                ds = ds.sel({key:value}, method='nearest')
+            except:
+                ds = ds.isel({key:value})
+        return ds
     
     try : 
         # open intake catalog
@@ -127,7 +140,7 @@ def open_catalog(model, gridname, catalog, source=None,
         print('   ', cat[source])
     # open the source as a dataset
     try:
-        ds = cat[source].to_dask() # chunks={'time_counter': 50})
+        ds = cat[source].to_dask().pipe(lambda x: _preprocess(x, **prepro_kwargs))
     except:
         print('May be the source is not found in the yaml catalog')
         return
@@ -227,10 +240,10 @@ def find_var(model,varname,ds,gd):
         
     if varname in gd and good_type(gd[varname]):
         return to_dataarray(model,varname,gd[varname])
-    elif varname in ds and good_type(ds[varname]):
-        return to_dataarray(model,varname,ds[vvarnamear])
     elif varname in gd.attrs and good_type(gd.attrs[varname]):
         return to_dataarray(model,varname,gd.attrs[varname])
+    elif varname in ds and good_type(ds[varname]):
+        return to_dataarray(model,varname,ds[vvarnamear])
     elif varname in ds.attrs and good_type(ds.attrs[varname]):
         return to_dataarray(model,varname,ds.attrs[varname])
     else:
@@ -311,10 +324,16 @@ def move_singletons_as_attrs(ds, ignore=[]):
     """
     for c,co in ds.coords.items():
         if len(co.dims)==0:
-            ds = ds.drop_vars(c).assign_attrs({c: co.values})
+            if isinstance(co.values, np.datetime64):
+                ds = ds.drop_vars(c).assign_attrs({c: str(co.values)})
+            else:
+                ds = ds.drop_vars(c).assign_attrs({c: co.values})
     for k,v in ds.data_vars.items():
         if len(v.dims)==0:
-            ds = ds.drop_vars(k).assign_attrs({k: v.values})
+            if isinstance(v.values, np.datetime64):
+                ds = ds.drop_vars(k).assign_attrs({k: str(v.values)})
+            else:
+                ds = ds.drop_vars(k).assign_attrs({k: v.values})
     return ds
 
 def fix_nochunk_encoding(da):
