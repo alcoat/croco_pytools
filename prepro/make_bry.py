@@ -41,9 +41,6 @@ The script works as follow:
 
 import glob as glob
 import sys
-import yaml
-
-from dateutil.relativedelta import relativedelta
 
 import Cgrid_transformation_tools as grd_tools
 import croco_class as Croco
@@ -51,18 +48,20 @@ import ibc_class as Inp
 import interp_tools
 import netCDF4 as netcdf
 import numpy as np
-import pylab as plt
 import pandas
+import pylab as plt
 import sigmagrid_tools as sig_tools
 import xarray as xr
+import yaml
+from dateutil.relativedelta import relativedelta
 
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
 
-def run_make_bry():
-    with open('make_bry_def.yml', 'r', encoding='utf8') as infile:
-       bry_def = yaml.safe_load(infile)
 
+def run_make_bry():
+    with open("make_bry_def.yml", "r", encoding="utf8") as infile:
+        bry_def = yaml.safe_load(infile)
 
     origindate = pandas.Timestamp(bry_def["origindate"])
     # Put origin date to the right format
@@ -111,7 +110,7 @@ def run_make_bry():
     elif bry_def["output_file_format"].upper() == "YEARLY":
         if plt.datetime.datetime.strptime(
             str(startloc), "%Y-%m-%d %H:%M:%S"
-        ).year == int(bri_def["Yend"]):
+        ).year == int(end_date.year):
             endloc = plt.num2date(dtend).replace(tzinfo=None)
         else:
             endloc = plt.datetime.datetime(int(start_date[:4]), 12, 31, 12)
@@ -290,7 +289,9 @@ def run_make_bry():
         nc.variables["bry_time"].cycle = bry_def["cycle_bry"]
         nc.variables["bry_time"][:] = bry_time
         if bry_def["cycle_bry"] == 0:
-            nc.variables["bry_time"].units = f"days since {origindate:%Y-%m-%d %H:%M:%S}"
+            nc.variables["bry_time"].units = (
+                f"days since {origindate:%Y-%m-%d %H:%M:%S}"
+            )
         # --- Loop on boundaries ------------------------------------------
 
         if len(bry_def["tracers"]) == 0:
