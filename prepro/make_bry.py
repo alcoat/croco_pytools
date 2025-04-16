@@ -41,6 +41,7 @@ The script works as follow:
 
 import glob as glob
 import sys
+import yaml
 
 from dateutil.relativedelta import relativedelta
 
@@ -51,113 +52,48 @@ import interp_tools
 import netCDF4 as netcdf
 import numpy as np
 import pylab as plt
+import pandas
 import sigmagrid_tools as sig_tools
 import xarray as xr
 
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
 
-# --- USER CHANGES ---------------------------------------------------------
-
-bry_def = {
-    # Dates
-    "Ystart": "2025",  # Starting month
-    "Mstart": "04",  # Starting month
-    "Dstart": "06",  # Starting month
-    "Hstart": "00",  # Starting month
-    "Yend": "2025",  # Ending month
-    "Mend": "04",  # Ending month
-    "Dend": "10",  # Ending month
-    "Hend": "00",  # Ending month
-    "Yorig": "1900",  # origin of time as: days since Yorig-Morig-Dorig
-    "Morig": "01",  # origin of time as: days since Yorig-Morig-Dorig
-    "Dorig": "01",  # origin of time as: days since Yorig-Morig-Dorig
-    # Input data information and formating
-    # "inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
-    "inputdata": "mercator",  # Input data dictionnary as defined in the Readers/ibc_reader.py
-    "input_dir": "../../MERCATOR/",
-    "input_prefix": "glo12_rg_6h-i_*",  # Please use * to include all files
-    # "multi_files": False,
-    # "input_file": sorted(glob.glob("../../MERCATOR/glo12_rg_6h-i_*")),
-    "multi_files": True,
-    "input_file": {
-        "ssh": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025040600.nc")),
-        "temp": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025040600.nc")),
-        "salt": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025040600.nc")),
-        "u": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025040600.nc")),
-        "v": sorted(glob.glob("../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025040600.nc")),
-    },
-    # default value to consider a z-level fine to be used
-    "Nzgoodmin": 4,
-    # Tracers
-    "tracers": ["temp", "salt"],
-    # CROCO grid informations
-    #"croco_dir": "../",
-    "croco_dir": "/home6/datawork/acoat/CROCO/CROCO_MED/FORCING/",
-    "croco_grd": "croco_grd.nc",
-    #"croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
-    #"sigma_params": {
-    #    "theta_s": 6,
-    #    "theta_b": 0,
-    #    "N": 40,
-    #    "hc": 350,
-    #},  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
-    "sigma_params": {
-        "theta_s": 6,
-        "theta_b": 0,
-        "N": 80,
-        "hc": 100,
-    }, 
-
-    # Bry file informations
-    "bry_filename": "croco_bry.nc",  # output will be put in croco_dir by default
-    #"obc_dict": {
-    #    "south": 0,
-    #    "west": 1,
-    #    "east": 1,
-    #    "north": 0,
-    #},  # open boundaries (1=open , [S W E N])
-    "obc_dict": {
-        "south": 1,
-        "west": 1,
-        "east": 0,
-        "north": 0,
-    },  # open boundaries (1=open , [S W E N])
-    "output_file_format": "FULL",  # How outputs are spit (MONTHLY,YEARLY,FULL)
-    "cycle_bry": 0.0,
-    # Conserv OGCM transport option
-    "conserv": 1,  # Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport
-}
-
-# --- END USER CHANGES -----------------------------------------------------
+def run_make_bry():
+    with open('make_bry_def.yml', 'r', encoding='utf8') as infile:
+       bry_def = yaml.safe_load(infile)
 
 
-if __name__ == "__main__":
-
+    origindate = pandas.Timestamp(bry_def["origindate"])
     # Put origin date to the right format
-    day_zero_num = plt.datetime.datetime(
-        int(bry_def["Yorig"]), int(bry_def["Morig"]), int(bry_def["Dorig"])
-    )
+    day_zero_num = origindate.to_pydatetime()
+    #day_zero_num = plt.datetime.datetime(origindate.to_pydatetime())
+    #    int(bry_def["Yorig"]), int(bry_def["Morig"]), int(bry_def["Dorig"])
+    #)
     day_zero_num = plt.date2num(day_zero_num)
 
     # Put start and end date to the right format
-    start_date = (
-        bry_def["Ystart"] + bry_def["Mstart"] + bry_def["Dstart"] + bry_def["Hstart"]
-    )  # defaut start day is 1st
+    start_date = pandas.Timestamp(bry_def["begindate"])
+    #start_date = (
+    #    bry_def["Ystart"] + bry_def["Mstart"] + bry_def["Dstart"] + bry_def["Hstart"]
+    #)  # defaut start day is 1st
 
-    dtstrdt = plt.datetime.datetime(
-        int(start_date[:4]),
-        int(start_date[4:6]),
-        int(start_date[6:8]),
-        int(start_date[8:]),
-    )
+    dtstrdt = start_date.to_pydatetime()
+    #dtstrdt = plt.datetime.datetime(
+    #    int(start_date[:4]),
+    #    int(start_date[4:6]),
+    #    int(start_date[6:8]),
+    #    int(start_date[8:]),
+    #)
 
-    dtenddt = plt.datetime.datetime(
-        int(bry_def["Yend"]),
-        int(bry_def["Mend"]),
-        int(bry_def["Dend"]),
-        int(bry_def["Hend"]),
-    )
+    end_date = pandas.Timestamp(bry_def["enddate"])
+    dtenddt = end_date.to_pydatetime()
+    #dtenddt = plt.datetime.datetime(
+    #    int(bry_def["Yend"]),
+    #    int(bry_def["Mend"]),
+    #    int(bry_def["Dend"]),
+    #    int(bry_def["Hend"]),
+    #)
 
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
 
@@ -187,7 +123,8 @@ if __name__ == "__main__":
 
     # --- Work on date format for the loop in time ------------------------
 
-    startloc = plt.datetime.datetime(int(start_date[:4]), int(start_date[4:6]), 1)
+    startloc = start_date.to_pydatetime().replace(day=1)
+    #startloc = plt.datetime.datetime(int(start_date[:4]), int(start_date[4:6]), 1)
     if bry_def["output_file_format"].upper() == "MONTHLY":
         endloc = startloc + relativedelta(months=1, days=-1, hours=12)
     elif bry_def["output_file_format"].upper() == "YEARLY":
@@ -372,11 +309,12 @@ if __name__ == "__main__":
         nc.variables["bry_time"].cycle = bry_def["cycle_bry"]
         nc.variables["bry_time"][:] = bry_time
         if bry_def["cycle_bry"] == 0:
-            nc.variables["bry_time"].units = "days since %s-%s-%s 00:00:00" % (
-                bry_def["Yorig"],
-                bry_def["Morig"],
-                bry_def["Dorig"],
-            )
+            nc.variables["bry_time"].units = f"days since {origindate:%Y-%m-%d %H:%M:%S}"
+            #nc.variables["bry_time"].units = "days since %s-%s-%s 00:00:00" % (
+            #    bry_def["Yorig"],
+            #    bry_def["Morig"],
+            #    bry_def["Dorig"],
+            #)
         # --- Loop on boundaries ------------------------------------------
 
         if len(bry_def["tracers"]) == 0:
@@ -500,17 +438,37 @@ if __name__ == "__main__":
 
                 # handle indices (as 2 points where taken next to bdy)
                 if str(boundary) == "west" and is_open:
-                    indices3D = (slice(None,None),slice(None,None),slice(None,None),0)  # T,N,J,i=0
-                    indices2D = (slice(None,None),slice(None,None),0) # T,J,i=0
+                    indices3D = (
+                        slice(None, None),
+                        slice(None, None),
+                        slice(None, None),
+                        0,
+                    )  # T,N,J,i=0
+                    indices2D = (slice(None, None), slice(None, None), 0)  # T,J,i=0
                 elif str(boundary) == "east" and is_open:
-                    indices3D = (slice(None,None),slice(None,None),slice(None,None),-1)  # T,N,J,i=last
-                    indices2D = (slice(None,None),slice(None,None),-1) # T,J,i=last
+                    indices3D = (
+                        slice(None, None),
+                        slice(None, None),
+                        slice(None, None),
+                        -1,
+                    )  # T,N,J,i=last
+                    indices2D = (slice(None, None), slice(None, None), -1)  # T,J,i=last
                 elif str(boundary) == "south" and is_open:
-                    indices3D = (slice(None,None),slice(None,None),0,slice(None,None))  # T,N,j=0,I
-                    indices2D = (slice(None,None),0, slice(None,None)) # T,j=0,I
+                    indices3D = (
+                        slice(None, None),
+                        slice(None, None),
+                        0,
+                        slice(None, None),
+                    )  # T,N,j=0,I
+                    indices2D = (slice(None, None), 0, slice(None, None))  # T,j=0,I
                 elif str(boundary) == "north" and is_open:
-                    indices3D = (slice(None,None),slice(None,None),-1,slice(None,None))  # T,N,j=last,I
-                    indices2D = (slice(None,None),-1, slice(None,None)) # T,j=last,I
+                    indices3D = (
+                        slice(None, None),
+                        slice(None, None),
+                        -1,
+                        slice(None, None),
+                    )  # T,N,j=last,I
+                    indices2D = (slice(None, None), -1, slice(None, None))  # T,j=last,I
 
                 mask_zet = np.tile(
                     getattr(crocogrd, "maskr_" + boundary), [zeta.shape[0], 1, 1]
@@ -531,11 +489,17 @@ if __name__ == "__main__":
                         getattr(crocogrd, "vmask_" + boundary), [v.shape[0], 1, 1]
                     )
 
-                nc.variables["zeta_" + str(boundary)][:] = zeta[indices2D] * mask_zet[indices2D]
-                nc.variables["u_" + str(boundary)][:] = u[indices3D]* mask_u[indices3D]
-                nc.variables["v_" + str(boundary)][:] = v[indices3D] * mask_v[indices3D] 
-                nc.variables["ubar_" + str(boundary)][:] = ubar[indices2D] * mask_ubar[indices2D] 
-                nc.variables["vbar_" + str(boundary)][:] = vbar[indices2D] * mask_vbar[indices2D]
+                nc.variables["zeta_" + str(boundary)][:] = (
+                    zeta[indices2D] * mask_zet[indices2D]
+                )
+                nc.variables["u_" + str(boundary)][:] = u[indices3D] * mask_u[indices3D]
+                nc.variables["v_" + str(boundary)][:] = v[indices3D] * mask_v[indices3D]
+                nc.variables["ubar_" + str(boundary)][:] = (
+                    ubar[indices2D] * mask_ubar[indices2D]
+                )
+                nc.variables["vbar_" + str(boundary)][:] = (
+                    vbar[indices2D] * mask_vbar[indices2D]
+                )
 
                 if "tracers" in var_loop:
                     for varname, value in zip(trac_dict.keys(), trac_dict.values()):
@@ -543,7 +507,9 @@ if __name__ == "__main__":
                             getattr(crocogrd, "maskr_" + boundary),
                             [value.shape[0], value.shape[1], 1, 1],
                         )
-                        nc.variables[f"{varname}_{boundary}"][:] = value[indices3D] * mask_tra[indices3D]
+                        nc.variables[f"{varname}_{boundary}"][:] = (
+                            value[indices3D] * mask_tra[indices3D]
+                        )
 
                 # handle prev and nxt + save
 
@@ -562,3 +528,9 @@ if __name__ == "__main__":
                 endloc = plt.datetime.datetime(int(yearloc.year), 12, 31, 12)
         elif bry_def["output_file_format"].upper() == "FULL":
             endloc = startloc
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(run_make_bry())

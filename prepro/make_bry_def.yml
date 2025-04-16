@@ -1,0 +1,47 @@
+# Starting date
+begindate: 20250415T00
+# Ending date
+enddate: 20250416T00
+# Origin date in bry file
+origindate: 19000101T00
+# Input data information and formating
+#Input data dictionnary as defined in the Readers/ibc_reader.py
+inputdata: mercator
+input_dir: ../../../MERCATOR/
+input_prefix: glo12_rg_6h-i_* # # Please use * to include all files
+multi_files: true
+input_file:
+  salt: ../../../MERCATOR/gibr_cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  ssh: ../../../MERCATOR/gibr_cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_20250415T0000_20250420T0000.nc
+  temp: ../../../MERCATOR/gibr_cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  u: ../../../MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  v: ../../../MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+# default value to consider a z-level fine to be used
+Nzgoodmin: 4
+# Tracers
+tracers:
+- temp
+- salt
+# CROCO grid informations
+croco_dir: ../
+croco_grd: croco_gibrtwo_inno_energy_grd.nc
+# Vertical streching, sig_surf/sig_bot/ nb level/critical depth
+sigma_params:
+  theta_s: 6
+  theta_b: 0
+  N: 40
+  hc: 350
+# output will be put in croco_dir by default
+bry_filename: croco_bry.nc
+# open boundaries (1=open , [S W E N])
+obc_dict:
+  east: 1
+  north: 0
+  south: 0
+  west: 1
+# How outputs are spit (MONTHLY,YEARLY,FULL)
+output_file_format: FULL
+cycle_bry: 0.0
+# Conserv OGCM transport option
+# Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport
+conserv: 1
