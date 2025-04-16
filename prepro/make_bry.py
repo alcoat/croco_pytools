@@ -67,33 +67,15 @@ def run_make_bry():
     origindate = pandas.Timestamp(bry_def["origindate"])
     # Put origin date to the right format
     day_zero_num = origindate.to_pydatetime()
-    #day_zero_num = plt.datetime.datetime(origindate.to_pydatetime())
-    #    int(bry_def["Yorig"]), int(bry_def["Morig"]), int(bry_def["Dorig"])
-    #)
     day_zero_num = plt.date2num(day_zero_num)
 
     # Put start and end date to the right format
     start_date = pandas.Timestamp(bry_def["begindate"])
-    #start_date = (
-    #    bry_def["Ystart"] + bry_def["Mstart"] + bry_def["Dstart"] + bry_def["Hstart"]
-    #)  # defaut start day is 1st
 
     dtstrdt = start_date.to_pydatetime()
-    #dtstrdt = plt.datetime.datetime(
-    #    int(start_date[:4]),
-    #    int(start_date[4:6]),
-    #    int(start_date[6:8]),
-    #    int(start_date[8:]),
-    #)
 
     end_date = pandas.Timestamp(bry_def["enddate"])
     dtenddt = end_date.to_pydatetime()
-    #dtenddt = plt.datetime.datetime(
-    #    int(bry_def["Yend"]),
-    #    int(bry_def["Mend"]),
-    #    int(bry_def["Dend"]),
-    #    int(bry_def["Hend"]),
-    #)
 
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
 
@@ -124,7 +106,6 @@ def run_make_bry():
     # --- Work on date format for the loop in time ------------------------
 
     startloc = start_date.to_pydatetime().replace(day=1)
-    #startloc = plt.datetime.datetime(int(start_date[:4]), int(start_date[4:6]), 1)
     if bry_def["output_file_format"].upper() == "MONTHLY":
         endloc = startloc + relativedelta(months=1, days=-1, hours=12)
     elif bry_def["output_file_format"].upper() == "YEARLY":
@@ -310,11 +291,6 @@ def run_make_bry():
         nc.variables["bry_time"][:] = bry_time
         if bry_def["cycle_bry"] == 0:
             nc.variables["bry_time"].units = f"days since {origindate:%Y-%m-%d %H:%M:%S}"
-            #nc.variables["bry_time"].units = "days since %s-%s-%s 00:00:00" % (
-            #    bry_def["Yorig"],
-            #    bry_def["Morig"],
-            #    bry_def["Dorig"],
-            #)
         # --- Loop on boundaries ------------------------------------------
 
         if len(bry_def["tracers"]) == 0:
@@ -433,7 +409,7 @@ def run_make_bry():
 
                 # --- Saving in netcdf ------------------------------------------------
 
-                print("\nSaving %sern boundary in Netcdf" % boundary)
+                print(f"\nSaving {boundary}ern boundary in Netcdf")
                 print("----------------------------------")
 
                 # handle indices (as 2 points where taken next to bdy)
