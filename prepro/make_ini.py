@@ -1,7 +1,4 @@
-__author__ = "Mathieu Le Corre"
-__email__ = "mathieu.le.corre@shom.fr"
-__date__ = "2022-09"
-__license__ = "GPL3"
+#!/usr/bin/env python
 """
 ===========================================================================
 Further Information:  
@@ -32,6 +29,10 @@ The script works as follow:
     - Writes data in netcdf
 ===========================================================================
 """
+__author__ = "Mathieu Le Corre"
+__email__ = "mathieu.le.corre@shom.fr"
+__date__ = "2022-09"
+__license__ = "GPL3"
 
 # --- Dependencies ---------------------------------------------------------
 
@@ -41,17 +42,19 @@ from datetime import datetime
 
 import netCDF4 as netcdf
 import numpy as np
+import pandas
 import pylab as plt
+import yaml
 
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
+import logging
+
 import Cgrid_transformation_tools as grd_tools
 import croco_class
 import ibc_class
 import interp_tools
 import sigmagrid_tools as sig_tools
-
-import logging
 
 logger = logging.getLogger()
 handler = logging.StreamHandler(sys.stderr)
@@ -68,64 +71,16 @@ handler.setFormatter(
 logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-# --- USER CHANGES ---------------------------------------------------------
-ini_def = {
-    # Dates
-    # starting date
-    "Yini": "2025",  # Month and days need to be 2-digits format
-    "Mini": "03",  # Month and days need to be 2-digits format
-    "Dini": "17",  # Month and days need to be 2-digits format
-    "Hini": "00",  # Month and days need to be 2-digits format
-    # reference time (default = ini time)
-    "Yorig": "1900",  # Month and days need to be 2-digits format
-    "Morig": "01",  # Month and days need to be 2-digits format
-    "Dorig": "01",  # Month and days need to be 2-digits format
-    # Input data information and formating
-    #"inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
-    "inputdata": "mercator",  # Input data dictionnary as defined in the Readers/ibc_reader.py
-    "input_dir": "../../MERCATOR_GLOB_2013/",
-    "input_prefix": "mercator_",
-    #"multi_files": False,  # If variables are in different netcdf
-    #"input_file": "../../MERCATOR_GLOB_2013/mercator_Y2013M01.cdf",
-    "multi_files": True,  # If variables are in different netcdf
-    "input_file": {
-        "ssh": "../../MERCATOR/cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_2025031700.nc",
-        "temp": "../../MERCATOR/cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_2025031700.nc",
-        "salt": "../../MERCATOR/cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_2025031700.nc",
-        "u": "../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc",
-        "v": "../../MERCATOR/cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_2025031700.nc",
-    },
-    # time index to use in the file
-    "tndx": 0,
-    # default value to consider a z-level fine to be used
-    "Nzgoodmin": 4,
-    # tracers
-    "tracers": ["temp", "salt"],
-    # CROCO grid informations
-    #"croco_dir": "../../CROCO_FILES/",
-    #"croco_grd": "croco_grd.nc",
-    "croco_dir": "../",
-    "croco_grd": "croco_gibrtwo_inno_energy_grd.nc",
-    "sigma_params": {
-        "theta_s": 6,
-        "theta_b": 0,
-        "N": 40,
-        "hc": 350,
-    },  # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
-    # Ini file informations
-    "ini_filename": "croco_ini.nc",  # output will be put in croco_dir by default
-    # Conserv OGCM transport option
-    "conserv": 1,  # Correct the horizontal transport i.e. remove
-    # the integrated tranport and add the OGCM transport
-}
 
-# --- END USER CHANGES -----------------------------------------------------
+def run_make_ini():
+    with open("make_ini_def.yml", "r", encoding="utf8") as infile:
+        ini_def = yaml.safe_load(infile)
 
-if __name__ == "__main__":
+    inputdata = ini_def["inputdata"]
     # edit ini_filename to add starting date
+    begindate = pandas.Timestamp(ini_def["begindate"])
     ini_filename = ini_def["ini_filename"].replace(
-        ".nc",
-        "_%s_Y%sM%s.nc" % (ini_def["inputdata"], ini_def["Yini"], ini_def["Mini"]),
+        ".nc", f"_{inputdata}_{begindate:Y%YM%m}.nc"
     )
 
     # Load croco_grd
@@ -156,17 +111,11 @@ if __name__ == "__main__":
     )
 
     # --- Handle initial time ---------------------------------------------
-    ini_date_num = datetime(
-        int(ini_def["Yini"]),
-        int(ini_def["Mini"]),
-        int(ini_def["Dini"]),
-        int(ini_def["Hini"]),
-    )
+    ini_date_num = begindate.to_pydatetime()
     ini_date_num = plt.date2num(ini_date_num)
 
-    day_zero_num = datetime(
-        int(ini_def["Yorig"]), int(ini_def["Morig"]), int(ini_def["Dorig"])
-    )
+    origindate = pandas.Timestamp(ini_def["origindate"])
+    day_zero_num = origindate.to_pydatetime()
     day_zero_num = plt.date2num(day_zero_num)
 
     tstart = 0
@@ -174,10 +123,10 @@ if __name__ == "__main__":
     if ini_date_num != day_zero_num:
         tstart = ini_date_num - day_zero_num  # days
 
-    #scrumt = tstart * 3600 * 24  # convert in second
+    # scrumt = tstart * 3600 * 24  # convert in second
     oceant = tstart * 3600 * 24
-    scrumt = tstart 
-    #oceant = tstart 
+    scrumt = tstart
+    # oceant = tstart
     tend = 0.0
 
     #  --- Compute and save variables on CROCO grid ---------------
@@ -193,10 +142,8 @@ if __name__ == "__main__":
             nc.Input_data_type = ini_def["inputdata"]
             nc.variables["ocean_time"][:] = oceant
             nc.variables["scrum_time"][:] = scrumt
-            nc.variables["scrum_time"].units = "days since %s-%s-%s 00:00:00" % (
-                ini_def["Yorig"],
-                ini_def["Morig"],
-                ini_def["Dorig"],
+            nc.variables["scrum_time"].units = (
+                "days since {origindate:%Y-%m-%d %H:%M:%S}"
             )
             nc.variables["tstart"][:] = tstart
             nc.variables["tend"][:] = tend
@@ -257,3 +204,7 @@ if __name__ == "__main__":
             nc.variables["vbar"][0, :, :] = vbar * crocogrd.vmask
 
         nc.close()
+
+
+if __name__ == "__main__":
+    sys.exit(run_make_ini())
