@@ -1,14 +1,12 @@
 # Starting date
 begindate: 20250415T00
 # Ending date
-enddate: 20250416T00
+enddate: 20250420T00
 # Origin date in bry file
 origindate: 19000101T00
 # Input data information and formating
 #Input data dictionnary as defined in the Readers/ibc_reader.py
 inputdata: mercator
-input_dir: ../../../MERCATOR/
-input_prefix: glo12_rg_6h-i_* # # Please use * to include all files
 multi_files: true
 input_file:
   salt: ../../../MERCATOR/gibr_cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
@@ -23,8 +21,8 @@ tracers:
 - temp
 - salt
 # CROCO grid informations
-croco_dir: ../
-croco_grd: croco_gibrtwo_inno_energy_grd.nc
+croco_dir: /home/opsys/data/CROCO/GTT_CROCO
+croco_grd: CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc
 # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
 sigma_params:
   theta_s: 6
@@ -32,15 +30,15 @@ sigma_params:
   N: 40
   hc: 350
 # output will be put in croco_dir by default
-bry_filename: croco_bry.nc
+bry_filename: FORCING/croco_obc_{date_b:%Y%m%dT%H%M}_{date_e:%Y%m%dT%H%M}.nc
 # open boundaries (1=open , [S W E N])
 obc_dict:
   east: 1
   north: 0
   south: 0
   west: 1
-# How outputs are spit (MONTHLY,YEARLY,FULL)
-output_file_format: FULL
+# How outputs are split (DAILY, MONTHLY,YEARLY,FULL)
+output_file_format: DAILY
 cycle_bry: 0.0
 # Conserv OGCM transport option
 # Correct the horizontal transport i.e. remove the integrated tranport and add the OGCM transport
