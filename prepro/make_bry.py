@@ -1,13 +1,10 @@
-__author__ = "Mathieu Le Corre"
-__email__ = "mathieu.le.corre@shom.fr"
-__date__ = "2022-09"
-__license__ = "GPL3"
+#!/usr/bin/env python
 
 """
 ===========================================================================
-Further Information:  
+Further Information:
   http://www.croco-ocean.org
-  
+
 This file is part of CROCOTOOLS
 
 Create a CROCO bounday files
@@ -36,10 +33,15 @@ The script works as follow:
 
 ===========================================================================
 """
+__author__ = "Mathieu Le Corre"
+__email__ = "mathieu.le.corre@shom.fr"
+__date__ = "2022-09"
+__license__ = "GPL3"
 
 # --- Dependencies ---------------------------------------------------------
 
 import glob as glob
+import pathlib
 import sys
 
 import Cgrid_transformation_tools as grd_tools
@@ -79,10 +81,9 @@ def run_make_bry():
     dtstr, dtend = plt.date2num(dtstrdt), plt.date2num(dtenddt)
 
     # --- Load croco_grd --------------------------------------------------
-
-    crocogrd = Croco.CROCO_grd(
-        bry_def["croco_dir"] + bry_def["croco_grd"], bry_def["sigma_params"]
-    )
+    croco_dir = pathlib.Path(bry_def["croco_dir"])
+    grid_pathname = croco_dir / bry_def["croco_grd"]
+    crocogrd = Croco.CROCO_grd(grid_pathname, bry_def["sigma_params"])
 
     # --- Initialize boundary vars ----------------------------------------
 
@@ -103,57 +104,53 @@ def run_make_bry():
     )
 
     # --- Work on date format for the loop in time ------------------------
+    output_file_format = bry_def["output_file_format"].upper()
+    startloc = start_date
+    # startloc = pandas.offsets.MonthBegin().rollback(start_date)
+    if output_file_format == "DAILY":
+        endloc = startloc + pandas.Timedelta(1, unit="day")
+    elif output_file_format == "MONTHLY":
+        startloc = pandas.offsets.MonthBegin().rollback(start_date)
+        endloc = startloc + pandas.tseries.offsets.DateOffset(months=1)
+    elif output_file_format == "YEARLY":
+        startloc = pandas.offsets.YearBegin().rollback(start_date)
+        endloc = startloc + pandas.tseries.offsets.DateOffset(years=1)
+        # if plt.datetime.datetime.strptime(
+        #    str(startloc), "%Y-%m-%d %H:%M:%S"
+        # ).year == int(end_date.year):
+        #    endloc = plt.num2date(dtend).replace(tzinfo=None)
+        # else:
+        #    endloc = plt.datetime.datetime(int(start_date[:4]), 12, 31, 12)
 
-    startloc = start_date.to_pydatetime().replace(day=1)
-    if bry_def["output_file_format"].upper() == "MONTHLY":
-        endloc = startloc + relativedelta(months=1, days=-1, hours=12)
-    elif bry_def["output_file_format"].upper() == "YEARLY":
-        if plt.datetime.datetime.strptime(
-            str(startloc), "%Y-%m-%d %H:%M:%S"
-        ).year == int(end_date.year):
-            endloc = plt.num2date(dtend).replace(tzinfo=None)
-        else:
-            endloc = plt.datetime.datetime(int(start_date[:4]), 12, 31, 12)
-
-    elif bry_def["output_file_format"].upper() == "FULL":
-        endloc = plt.num2date(dtend).replace(tzinfo=None)
+    elif output_file_format == "FULL":
+        endloc = end_date  # plt.num2date(dtend).replace(tzinfo=None)
     else:
         print(
-            '\n Output file format "%s" is not setup. Pease change it to MONTHLY, YEARLY or FULL'
+            f'\n Output file format "{output_file_format}" is not setup. Pease change it to DAILY, MONTHLY, YEARLY or FULL'
         )
         sys.exit()
 
     # --- Start time loop loop in time ------------------------------------
 
-    while plt.date2num(endloc) <= dtend:
+    while endloc <= end_date:
 
         # Load full time dataset
-        time = plt.date2num(inpdat.ncglo["time"].values)
+        time = pandas.DatetimeIndex(inpdat.ncglo["time"].values)
         # find index for the time range
-        ind = np.where((time > plt.date2num(startloc)) & (time <= plt.date2num(endloc)))
+        ind = np.where((time > startloc) & (time <= endloc))
 
         if len(ind[0]) == 0:
             print("\nData is missing for range %s to %s" % (startloc, endloc))
             sys.exit()
 
         [dtmin, dtmax] = np.min(ind), np.max(ind)
-        # create monthly file
-        tmp_date = plt.datetime.datetime.strptime(str(startloc), "%Y-%m-%d %H:%M:%S")
+
+        # create file
+        tmp_date = startloc
         # file name depending on format chosen
-        if bry_def["output_file_format"].upper() == "MONTHLY":
-            bdy_filename = bry_def["croco_dir"] + bry_def["bry_filename"].replace(
-                ".nc",
-                "_%s_Y%sM%02i.nc"
-                % (bry_def["inputdata"], tmp_date.year, tmp_date.month),
-            )
-        elif bry_def["output_file_format"].upper() == "YEARLY":
-            bdy_filename = bry_def["croco_dir"] + bry_def["bry_filename"].replace(
-                ".nc", "_%s_Y%s.nc" % (bry_def["inputdata"], tmp_date.year)
-            )
-        elif bry_def["output_file_format"].upper() == "FULL":
-            bdy_filename = bry_def["croco_dir"] + bry_def["bry_filename"].replace(
-                ".nc", "_%s.nc" % (bry_def["inputdata"])
-            )
+        bdy_filename = croco_dir / bry_def["bry_filename"].format(
+            date_b=startloc, date_e=endloc
+        )
 
         Croco.CROCO.create_bry_nc(
             None,
@@ -165,29 +162,21 @@ def run_make_bry():
         )
         #
         print("\n-----------------------------------")
-        if bry_def["output_file_format"].upper() == "MONTHLY":
-            print(" Processing Year %s - Month %02i" % (tmp_date.year, tmp_date.month))
-        elif bry_def["output_file_format"].upper() == "YEARLY":
-            print(" Processing Year %s" % (tmp_date.year))
-        elif bry_def["output_file_format"].upper() == "FULL":
-            tmp_end_date = plt.datetime.datetime.strptime(
-                str(endloc), "%Y-%m-%d %H:%M:%S"
-            )
-            print(
-                " Processing from Year %s - Month %02i  to Year %s - Month %02i"
-                % (tmp_date.year, tmp_date.month, tmp_end_date.year, tmp_end_date.month)
-            )
-            del tmp_end_date
+        print(
+            " Processing Year %s - Month %02i - Day : %02i"
+            % (startloc.year, startloc.month, startloc.day)
+        )
+        print(
+            "         to Year %s - Month %02i - Day : %02i"
+            % (endloc.year, endloc.month, endloc.day)
+        )
 
         # Check if there is at least 1 point by month when doing Yearly or full
         if bry_def["output_file_format"].upper() != "MONTHLY":
             tmp_str_date = startloc
             tmp_end_date = tmp_str_date + relativedelta(months=1, days=-1, hours=12)
             while plt.date2num(tmp_end_date) <= plt.date2num(endloc):
-                ind_tmp = np.where(
-                    (time > plt.date2num(tmp_str_date))
-                    & (time <= plt.date2num(tmp_end_date))
-                )
+                ind_tmp = np.where((time > tmp_str_date) & (time <= tmp_end_date))
                 tmp_date = plt.datetime.datetime.strptime(
                     str(tmp_str_date), "%Y-%m-%d %H:%M:%S"
                 )
@@ -208,10 +197,7 @@ def run_make_bry():
         tmp_end_date = endloc
         prev_month_str = tmp_str_date + relativedelta(months=-1)
         prev_month_end = tmp_str_date + relativedelta(days=-1, hours=12)
-        ind_prev = np.where(
-            (time > plt.date2num(prev_month_str))
-            & (time < plt.date2num(prev_month_end))
-        )
+        ind_prev = np.where((time > prev_month_str) & (time < prev_month_end))
         if len(ind_prev[0]) == 0:
             print("   No data for the previous month: using current month")
             prev = 1
@@ -224,10 +210,7 @@ def run_make_bry():
         #
         next_month_str = tmp_end_date + relativedelta(days=1)
         next_month_end = next_month_str + relativedelta(months=1, days=-1, hours=12)
-        ind_next = np.where(
-            (time > plt.date2num(next_month_str))
-            & (time < plt.date2num(next_month_end))
-        )
+        ind_next = np.where((time > next_month_str) & (time < next_month_end))
         if len(ind_next[0]) == 0:
             print("   No data for the next month: using current month")
             nxt = 1
@@ -239,8 +222,8 @@ def run_make_bry():
 
         del next_month_str, next_month_end, ind_next, tmp_str_date, tmp_end_date
 
-        if (
-            np.nanvar(np.gradient(time[dtmin : dtmax + 1])) >= 5
+        if time[dtmin : dtmax + 1].std() >= pandas.Timedelta(
+            5, unit="days"
         ):  # Abnormal distribution of days
             Question = (
                 input(
@@ -256,7 +239,7 @@ def run_make_bry():
 
         ## --- Handle bry_time --------------------------------------------
 
-        bry_time = time[dtmin : dtmax + 1] - day_zero_num
+        bry_time = (time[dtmin : dtmax + 1] - origindate).total_seconds() / 86400.0
         if prev == 1 and len(bry_time) == 1:
             prev_time = plt.date2num(
                 plt.num2date(bry_time[0]) + relativedelta(days=-30)
@@ -494,10 +477,13 @@ def run_make_bry():
         # --- END writting netcdf ---------------------------------------------
 
         # --- Preparing time for next loop ------------------------------------
-        startloc = endloc + relativedelta(days=1, hours=-12)
-        if bry_def["output_file_format"].upper() == "MONTHLY":
+        # startloc = endloc + relativedelta(days=1, hours=-12)
+        startloc = endloc
+        if output_file_format == "DAILY":
+            endloc = startloc + pandas.Timedelta(1, unit="day")
+        elif output_file_format == "MONTHLY":
             endloc = startloc + relativedelta(months=1, days=-1, hour=12)
-        elif bry_def["output_file_format"].upper() == "YEARLY":
+        elif output_file_format == "YEARLY":
             yearloc = plt.datetime.datetime.strptime(str(startloc), "%Y-%m-%d %H:%M:%S")
             if yearloc.year == int(bry_def["Yend"]):
                 endloc = plt.num2date(dtend).replace(tzinfo=None)
