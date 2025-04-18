@@ -39,6 +39,7 @@ __license__ = "GPL3"
 import glob
 import sys
 from datetime import datetime
+import pathlib
 
 import netCDF4 as netcdf
 import numpy as np
@@ -76,36 +77,38 @@ def run_make_ini():
     with open("make_ini_def.yml", "r", encoding="utf8") as infile:
         ini_def = yaml.safe_load(infile)
 
-    inputdata = ini_def["inputdata"]
+    inputdata_type = ini_def["inputdata"]
+
     # edit ini_filename to add starting date
     begindate = pandas.Timestamp(ini_def["begindate"])
-    ini_filename = ini_def["ini_filename"].replace(
-        ".nc", f"_{inputdata}_{begindate:Y%YM%m}.nc"
-    )
+    ini_filename = ini_def["ini_filename"].format(date_b=begindate)
 
     # Load croco_grd
+    croco_dir = pathlib.Path(ini_def["croco_dir"])
+    grid_pathname = croco_dir / ini_def["croco_grd"]
     crocogrd = croco_class.CROCO_grd(
-        "".join((ini_def["croco_dir"], ini_def["croco_grd"])), ini_def["sigma_params"]
+        grid_pathname, ini_def["sigma_params"]
     )
 
     # --- Load input (restricted to croco_grd) ----------------------------
 
     inpdat = ibc_class.getdata(
-        ini_def["inputdata"],
+        inputdata_type,
         ini_def["input_file"],
         crocogrd,
         ini_def["multi_files"],
         ini_def["tracers"],
     )
 
+    ini_filepath = croco_dir / ini_filename
     print(" ")
-    print(" Making initial file: " + ini_filename)
+    print(" Making initial file: %s" % ini_filepath)
     print(" ")
 
     # --- Create the empty initial file -----------------------------------
 
     croco_class.CROCO.create_ini_nc(
-        ini_def["croco_dir"] + ini_filename,
+        ini_filepath,
         crocogrd,
         tracers=ini_def["tracers"],
     )
@@ -133,13 +136,14 @@ def run_make_ini():
 
     for l_vars in ["ssh", "tracers", "velocity"]:
         print(f"\nProcessing *{l_vars}*")
-        nc = netcdf.Dataset(ini_def["croco_dir"] + ini_filename, "a")
+
+        nc = netcdf.Dataset(ini_filepath, "a")
         if l_vars == "ssh":
             (zeta, NzGood) = interp_tools.interp_tracers(
                 inpdat, l_vars, -1, crocogrd, ini_def["tndx"], ini_def["tndx"]
             )
             nc.variables["zeta"][0, :, :] = zeta * crocogrd.maskr
-            nc.Input_data_type = ini_def["inputdata"]
+            nc.Input_data_type = inputdata_type
             nc.variables["ocean_time"][:] = oceant
             nc.variables["scrum_time"][:] = scrumt
             nc.variables["scrum_time"].units = (
