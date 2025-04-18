@@ -22,7 +22,8 @@ tracers:
 - salt
 # CROCO grid informations
 croco_dir: /home/opsys/data/CROCO/GTT_CROCO
-croco_grd: CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc
+croco_grd: CROCO_FILES/croco_gibrtwo_edited_grd.nc
+#croco_grd: CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc
 # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
 sigma_params:
   theta_s: 6

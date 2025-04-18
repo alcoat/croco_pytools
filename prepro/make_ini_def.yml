@@ -5,17 +5,15 @@ origindate: 19000101T00
 # Input data information and formating
 #"inputdata": "mercator_croco",  # Input data dictionnary as defined in the Readers/ibc_reader.py
 inputdata: mercator
-input_dir: ../../../MERCATOR
-input_prefix: mercator_
 #"multi_files": False,  # If variables are in different netcdf
 #"input_file": "../../MERCATOR_GLOB_2013/mercator_Y2013M01.cdf",
 multi_files: true # If variables are in different netcdf
 input_file:
-  salt: ../../../MERCATOR/gibr_cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
-  ssh: ../../../MERCATOR/gibr_cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_20250415T0000_20250420T0000.nc
-  temp: ../../../MERCATOR/gibr_cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
-  u: ../../../MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
-  v: ../../../MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  salt: /home/opsys/data/CROCO/GTT_CROCO/MERCATOR/gibr_cmems_mod_glo_phy-so_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  ssh: /home/opsys/data/CROCO/GTT_CROCO/MERCATOR/gibr_cmems_mod_glo_phy_anfc_merged-sl_PT1H-i_20250415T0000_20250420T0000.nc
+  temp: /home/opsys/data/CROCO/GTT_CROCO/MERCATOR/gibr_cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  u: /home/opsys/data/CROCO/GTT_CROCO/MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
+  v: /home/opsys/data/CROCO/GTT_CROCO/MERCATOR/gibr_cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i_20250415T0000_20250420T0000.nc
 # time index to use in the file
 tndx: 0
 # default value to consider a z-level fine to be used
@@ -25,8 +23,9 @@ tracers:
 - temp
 - salt
 # CROCO grid informations
-croco_dir: ../
-croco_grd: croco_gibrtwo_inno_energy_grd.nc
+croco_dir: /home/opsys/data/CROCO/GTT_CROCO
+croco_grd: CROCO_FILES/croco_gibrtwo_edited_grd.nc
+#croco_grd: CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc
 # Vertical streching, sig_surf/sig_bot/ nb level/critical depth
 sigma_params:
   N: 40
@@ -34,7 +33,7 @@ sigma_params:
   theta_b: 0
   theta_s: 6
 # Ini file informations
-ini_filename: croco_ini.nc
+ini_filename: FORCING/croco_ic_{date_b:%Y%m%dT%H%M}.nc
 # Conserv OGCM transport option
 conserv: 1
 
