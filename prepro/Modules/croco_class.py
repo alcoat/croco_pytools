@@ -174,7 +174,7 @@ class CROCO():
         nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
         nc.created = datetime.now().isoformat()
         nc.type  = 'CROCO initial file produced by %s' % created_by
-        nc.grd_file = grdobj.grid_file
+        nc.grd_file = str(grdobj.grid_file)
         nc.hc = grdobj.hc
         nc.theta_s = grdobj.theta_s
         nc.theta_b = grdobj.theta_b
@@ -313,7 +313,7 @@ class CROCO():
         nc = netcdf.Dataset(filename, 'w', format='NETCDF4')
         nc.created = datetime.now().isoformat()
         nc.type = 'CROCO boundary file produced by %s' %created_by
-        nc.grd_file = grdobj.grid_file
+        nc.grd_file = str(grdobj.grid_file)
         nc.hc = grdobj.hc
         nc.theta_s = grdobj.theta_s
         nc.theta_b = grdobj.theta_b
