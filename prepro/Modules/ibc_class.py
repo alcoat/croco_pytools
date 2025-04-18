@@ -328,7 +328,6 @@ class getdata:
                 lon[i] = lon[i] + 360  # middle
         ####
         buffer_zone = np.abs(lon[-1] - lon[-2]) * 2
-        print("buffer zone is ", buffer_zone)
         if bdy is not None:
             geolim = [
                 np.min(getattr(crocogrd, "lon_" + bdy)) - buffer_zone,
