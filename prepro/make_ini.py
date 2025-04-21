@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
 ===========================================================================
-Further Information:  
+Further Information:
   http://www.croco-ocean.org
-  
+
 This file is part of CROCOTOOLS
 
 Create a CROCO initial file
@@ -36,12 +36,12 @@ __license__ = "GPL3"
 
 # --- Dependencies ---------------------------------------------------------
 
-import glob
-import sys
-from datetime import datetime
+import logging
 import pathlib
+import sys
+import argparse
 
-import netCDF4 as netcdf
+import netCDF4
 import numpy as np
 import pandas
 import pylab as plt
@@ -49,7 +49,6 @@ import yaml
 
 sys.path.append("./Modules/")
 sys.path.append("./Readers/")
-import logging
 
 import Cgrid_transformation_tools as grd_tools
 import croco_class
@@ -73,8 +72,28 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 
+def get_args():
+    """ get args """
+    parser = argparse.ArgumentParser(
+        description="make initial condition",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--config_file",
+        type=pathlib.Path,
+        default=pathlib.Path("make_ini_def.yml"),
+        help="Config file",
+    )
+    args = parser.parse_args()
+
+    return args
+
+
 def run_make_ini():
-    with open("make_ini_def.yml", "r", encoding="utf8") as infile:
+    """ main """
+    args = get_args()
+    with open(args.config_file, "r", encoding="utf8") as infile:
         ini_def = yaml.safe_load(infile)
 
     inputdata_type = ini_def["inputdata"]
@@ -86,9 +105,7 @@ def run_make_ini():
     # Load croco_grd
     croco_dir = pathlib.Path(ini_def["croco_dir"])
     grid_pathname = croco_dir / ini_def["croco_grd"]
-    crocogrd = croco_class.CROCO_grd(
-        grid_pathname, ini_def["sigma_params"]
-    )
+    crocogrd = croco_class.CROCO_grd(grid_pathname, ini_def["sigma_params"])
 
     # --- Load input (restricted to croco_grd) ----------------------------
 
@@ -102,7 +119,7 @@ def run_make_ini():
 
     ini_filepath = croco_dir / ini_filename
     print(" ")
-    print(" Making initial file: %s" % ini_filepath)
+    print(f" Making initial file: {ini_filepath}")
     print(" ")
 
     # --- Create the empty initial file -----------------------------------
@@ -137,7 +154,7 @@ def run_make_ini():
     for l_vars in ["ssh", "tracers", "velocity"]:
         print(f"\nProcessing *{l_vars}*")
 
-        nc = netcdf.Dataset(ini_filepath, "a")
+        nc = netCDF4.Dataset(ini_filepath, "a")
         if l_vars == "ssh":
             (zeta, NzGood) = interp_tools.interp_tracers(
                 inpdat, l_vars, -1, crocogrd, ini_def["tndx"], ini_def["tndx"]
@@ -208,7 +225,7 @@ def run_make_ini():
             nc.variables["vbar"][0, :, :] = vbar * crocogrd.vmask
 
         nc.close()
-
+    return 0
 
 if __name__ == "__main__":
     sys.exit(run_make_ini())

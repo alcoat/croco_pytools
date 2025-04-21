@@ -40,15 +40,19 @@ __license__ = "GPL3"
 
 # --- Dependencies ---------------------------------------------------------
 
+import argparse
 import glob as glob
 import pathlib
 import sys
+
+sys.path.append("./Modules/")
+sys.path.append("./Readers/")
 
 import Cgrid_transformation_tools as grd_tools
 import croco_class as Croco
 import ibc_class as Inp
 import interp_tools
-import netCDF4 as netcdf
+import netCDF4
 import numpy as np
 import pandas
 import pylab as plt
@@ -57,12 +61,29 @@ import xarray as xr
 import yaml
 from dateutil.relativedelta import relativedelta
 
-sys.path.append("./Modules/")
-sys.path.append("./Readers/")
+
+def get_args():
+    parser = argparse.ArgumentParser(
+        description="make boundary",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--config_file",
+        type=pathlib.Path,
+        default=pathlib.Path("make_bry_def.yml"),
+        help="Config file",
+    )
+    args = parser.parse_args()
+
+    return args
 
 
 def run_make_bry():
-    with open("make_bry_def.yml", "r", encoding="utf8") as infile:
+
+    args = get_args()
+
+    with open(args.config_file, "r", encoding="utf8") as infile:
         bry_def = yaml.safe_load(infile)
 
     origindate = pandas.Timestamp(bry_def["origindate"])
@@ -115,20 +136,13 @@ def run_make_bry():
     elif output_file_format == "YEARLY":
         startloc = pandas.offsets.YearBegin().rollback(start_date)
         endloc = startloc + pandas.tseries.offsets.DateOffset(years=1)
-        # if plt.datetime.datetime.strptime(
-        #    str(startloc), "%Y-%m-%d %H:%M:%S"
-        # ).year == int(end_date.year):
-        #    endloc = plt.num2date(dtend).replace(tzinfo=None)
-        # else:
-        #    endloc = plt.datetime.datetime(int(start_date[:4]), 12, 31, 12)
-
     elif output_file_format == "FULL":
         endloc = end_date  # plt.num2date(dtend).replace(tzinfo=None)
     else:
         print(
             f'\n Output file format "{output_file_format}" is not setup. Pease change it to DAILY, MONTHLY, YEARLY or FULL'
         )
-        sys.exit()
+        return 1
 
     # --- Start time loop loop in time ------------------------------------
 
@@ -141,7 +155,7 @@ def run_make_bry():
 
         if len(ind[0]) == 0:
             print("\nData is missing for range %s to %s" % (startloc, endloc))
-            sys.exit()
+            return 1
 
         [dtmin, dtmax] = np.min(ind), np.max(ind)
 
@@ -185,7 +199,7 @@ def run_make_bry():
                         "\nLacking %s data for  Y%s - M%02i"
                         % (bry_def["inputdata"], tmp_date.year, tmp_date.month)
                     )
-                    sys.exit()
+                    return 1
                 tmp_str_date = tmp_end_date + relativedelta(days=1, hours=-12)
                 tmp_end_date = tmp_str_date + relativedelta(months=1, days=-1, hours=12)
 
@@ -235,7 +249,7 @@ def run_make_bry():
             )
             if Question.lower() == ("n") or Question.lower() == ("no"):
                 print("Aborting")
-                sys.exit()
+                return 1
 
         ## --- Handle bry_time --------------------------------------------
 
@@ -266,7 +280,7 @@ def run_make_bry():
             bry_time = np.append(bry_time, nxt_time)
             del nxt_time
 
-        nc = netcdf.Dataset(bdy_filename, "a")
+        nc = netCDF4.Dataset(bdy_filename, "a")
 
         nc.Input_data_type = bry_def["inputdata"]
         nc.variables["bry_time"].cycle = bry_def["cycle_bry"]
