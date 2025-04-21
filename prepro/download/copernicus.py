@@ -95,7 +95,7 @@ def get_args():
     parser.add_argument(
         "--workdir",
         type=pathlib.Path,
-        default=pathlib.Path("/home/opsys/data/CROCO/GTT_CROCO/MERCATOR"),
+        default=pathlib.Path("/home/opsys/data/CROCO/GIBRTWO/MERCATOR"),
         help="working directory path",
     )
     parser.add_argument(
@@ -108,7 +108,7 @@ def get_args():
         "--grd",
         type=pathlib.Path,
         default=pathlib.Path(
-            "/home/opsys/data/CROCO/GTT_CROCO/CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc"
+            "/home/opsys/data/CROCO/GIBRTWO/CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc"
         ),
         help="grid pathname",
     )

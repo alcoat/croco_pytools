@@ -20,16 +20,6 @@ logging.basicConfig(
 )
 
 
-grd = croco_class.CROCO_grd("../../croco_gibrtwo_inno_energy_grd.nc")
-
-minimum_longitude = grd.lonmin() - 0.5
-maximum_longitude = grd.lonmax() + 0.5
-minimum_latitude = grd.latmin() - 0.5
-maximum_latitude = grd.latmax() + 0.5
-
-start_date = pandas.Timestamp("2025-03-17 00:00")
-
-
 def download(start_date, end_date, work_dir, grdpathname, cfg):
 
     grd = croco_class.CROCO_grd(grdpathname)
@@ -120,7 +110,7 @@ def get_args():
     parser.add_argument(
         "--workdir",
         type=pathlib.Path,
-        default=pathlib.Path("/home/opsys/data/CROCO/GTT_CROCO/ECMWF"),
+        default=pathlib.Path("/home/opsys/data/CROCO/GIBRTWO/ECMWF"),
         help="working directory path",
     )
     parser.add_argument(
@@ -133,7 +123,7 @@ def get_args():
         "--grd",
         type=pathlib.Path,
         default=pathlib.Path(
-            "/home/opsys/data/CROCO/GTT_CROCO/CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc"
+            "/home/opsys/data/CROCO/GIBRTWO/CROCO_FILES/croco_gibrtwo_inno_energy_grd.nc"
         ),
         help="grid pathname",
     )
