@@ -35,6 +35,7 @@ class getdata:
                     self.ncglo[trc] = dataxr
 
             else:
+                print("open ", inputfile["u"])
                 dataxr = xr.open_mfdataset(glob.glob(inputfile["u"]))
                 self.depth = dataxr[self.var["depth"]]
 
@@ -93,6 +94,7 @@ class getdata:
                     self.ncglo[trc] = dataxr
 
             else:
+                print("open ", inputfile["u"])
                 dataxr = xr.open_mfdataset(inputfile["u"])
                 self.depth = dataxr[self.var["depth"]]
 
