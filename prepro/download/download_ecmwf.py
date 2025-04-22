@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+"""
+Download ECMWF
+"""
 import logging
 import pathlib
 import sys
@@ -8,7 +11,6 @@ import cfgrib
 import croco_class
 import herbie
 import metpy.calc
-import numpy
 import pandas
 import xarray
 
@@ -20,8 +22,8 @@ logging.basicConfig(
 )
 
 
-def download(start_date, end_date, work_dir, grdpathname, cfg):
-
+def download(start_date, end_date, work_dir, grdpathname, outpath):
+    """ download data on grid """
     grd = croco_class.CROCO_grd(grdpathname)
 
     minimum_longitude = grd.lonmin() - 0.5
@@ -33,6 +35,11 @@ def download(start_date, end_date, work_dir, grdpathname, cfg):
     fxx += list(range(0, 144, 3))
     fxx += list(range(144, 240 + 6, 6))
 
+    for i, f in enumerate(fxx):
+        if start_date + pandas.Timedelta(f, unit="h") >= end_date:
+            break
+    if i+1<len(fxx):
+        fxx = fxx[:i+2]
     searchString = "(?:10[uv]:|:2t:|:2d:|:msl:|:ssr:|:str:|:tp:)"
 
     while True:
@@ -67,8 +74,10 @@ def download(start_date, end_date, work_dir, grdpathname, cfg):
     ds.time.encoding["units"] = "days since 1900-01-01T00:00:00Z"
 
     # RH: =100*(EXP((17.625*TD)/(243.04+TD))/EXP((17.625*T)/(243.04+T)))
-    # q :  equation 4.24, Pg 96 Practical Meteorolgy (Roland Stull) https://github.com/Unidata/MetPy/issues/791
-    # ds["rh2m"] = numpy.exp(17.625*ds["d2m"] / (243.04 + ds["d2m"])) / numpy.exp(17.625*ds["t2m"]/(243.04+ds["t2m"]))
+    # q :  equation 4.24, Pg 96 Practical Meteorolgy (Roland Stull)
+    # https://github.com/Unidata/MetPy/issues/791
+    # ds["rh2m"] = numpy.exp(17.625*ds["d2m"] / (243.04 + ds["d2m"])) /
+    # numpy.exp(17.625*ds["t2m"]/(243.04+ds["t2m"]))
     # ds["rh2m"] = xarray.where(ds['rh2m']<1, ds['rh2m'], 1)
     ds["hu2m"] = metpy.calc.relative_humidity_from_dewpoint(ds["t2m"], ds["d2m"])
     # ds["hu2m"] = xarray.where(ds['hu2m']<1, ds['hu2m'], 1)
@@ -90,12 +99,11 @@ def download(start_date, end_date, work_dir, grdpathname, cfg):
     )
     ds = ds.rename({"latitude": "lat", "longitude": "lon"})
     encoding = {var: {"zlib": True, "shuffle": True} for var in ds.data_vars}
-    outname = f"{cfg}_ecmwf_{start_date:%Y%m%d%H}.nc"
-    outpath = work_dir / outname
     ds.to_netcdf(outpath, encoding=encoding)
 
 
 def get_args():
+    """ get args """
     parser = argparse.ArgumentParser(
         description="Copernicus Mercator Download",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -134,14 +142,16 @@ def get_args():
 
 
 def run_main():
+    """ main """
     args = get_args()
 
+    today = pandas.Timestamp.utcnow().replace(
+        hour=0, minute=0, second=0, microsecond=0, nanosecond=0, tzinfo=None
+    )
     if args.begindate is not None:
-        begindate = args.begindate
+        begindate = min(args.begindate, today)
     else:
-        begindate = pandas.Timestamp.utcnow().replace(
-            hour=0, minute=0, second=0, microsecond=0, nanosecond=0, tzinfo=None
-        ) - pandas.Timedelta(1, unit="day")
+        begindate = today - pandas.Timedelta(1, unit="day")
     if args.enddate is not None:
         enddate = args.enddate
     else:
@@ -152,7 +162,9 @@ def run_main():
             # - pandas.Timedelta(6, unit="hour")
         )
 
-    download(begindate, enddate, args.workdir, args.grd, args.cfgname)
+    outname = f"{args.cfgname}_ecmwf_{args.begindate:%Y%m%d%H}.nc"
+    outpath = args.workdir / outname
+    download(begindate, enddate, args.workdir, args.grd, outpath)
 
     return 0
 
