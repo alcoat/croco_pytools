@@ -41,8 +41,8 @@ def download(start_date, end_date, work_dir, grdpathname, cfg):
     cm_request = {
         "username": "acoat",
         "password": "JAjyteva",
-        "start_datetime": start_date,
-        "end_datetime": end_date,
+        "start_datetime": start_date - pandas.Timedelta(6, unit='h'),
+        "end_datetime": end_date + pandas.Timedelta(12, unit='h'),
         "minimum_longitude": grd.lonmin() - buffer_zone,
         "maximum_longitude": grd.lonmax() + buffer_zone,
         "minimum_latitude": grd.latmin() - buffer_zone,
@@ -101,7 +101,7 @@ def get_args():
     parser.add_argument(
         "--cfgname",
         type=str,
-        default="gibr",
+        default="GIBRTWO",
         help="configuration name",
     )
     parser.add_argument(
