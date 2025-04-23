@@ -276,8 +276,8 @@ class getdata:
                 while x[i + 1] < x0:  # This algorithm computes "i" as
                     i = i + 1  # linear interpolation between x(1)
                     # and x(n) which should yield the
-            elif x[i] > x0:  # correct value for "i" right a way
-                while x[i] > x0:  # because array elements x(i) are
+            elif x[i] >= x0:  # correct value for "i" right a way
+                while x[i] >= x0:  # because array elements x(i) are
                     i = i - 1  # equidistantly spaced.  The while
                     # loops are here merely to address
                     # possible roundoff errors.
