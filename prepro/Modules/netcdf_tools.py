@@ -18,7 +18,7 @@ def read_nc(filename,varname, indices=(slice(None,None))):
             var = nc.variables[varname][indices]
     except Exception:
         raise
-   #
+    #
     if 'float32' in var.dtype.name:
         return var.astype(np.float64)
     else:
