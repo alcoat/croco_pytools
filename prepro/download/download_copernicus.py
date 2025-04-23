@@ -73,6 +73,10 @@ def download(start_date, end_date, work_dir, grdpathname, cfg):
             if time_ax is not None:
                 ds = ds.sel(time=time_ax)
         encoding = {var: {"zlib": True, "shuffle": True} for var in ds.data_vars}
+        ds.latitude.encoding["dtype"] = "float64"
+        ds.longitude.encoding["dtype"] = "float64"
+        ds.time.encoding["dtype"] = "float64"
+        ds.depth.encoding["dtype"] = "float64"
         outname = f"{cfg}_{did}_{start_date:%Y%m%dT%H%M}_{end_date:%Y%m%dT%H%M}.nc"
         outpath = work_dir / outname
         outpath.parent.mkdir(parents=True, exist_ok=True)
