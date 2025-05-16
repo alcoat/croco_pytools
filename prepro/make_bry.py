@@ -146,7 +146,7 @@ def run_make_bry():
 
     # --- Start time loop loop in time ------------------------------------
 
-    while endloc <= end_date:
+    while startloc < end_date:
 
         # Load full time dataset
         time = pandas.DatetimeIndex(inpdat.ncglo["time"].values)
