@@ -18,8 +18,11 @@ https://gitlab.inria.fr/croco-ocean/croco_pytools/-/releases
 
 ### Changed
 
-- PREPRO :
+
+PREPRO :
+  - Update documentation on readers and topo.reader "homonim" (see Issue #42)
   - Installation script install.py is now working with options (see Issue #43)
+
 
 
 ### Deprecated
