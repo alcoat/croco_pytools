@@ -1,33 +1,58 @@
 import os
-
-import matplotlib
 import numpy as np
+import matplotlib
 
 # We want matplotlib to use a wxPython backend
 matplotlib.use("WXAgg")
-from threading import Thread
-from time import sleep
-
-import cartopy.io.shapereader as shpreader
-import tools_make_grid
-import wx
-from button_actions import *
-from cartopy import crs as ccrs
-from cartopy import feature as cfeature
-from croco_class import CROCO
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.figure import Figure
-from tools_make_grid import EasyGrid, GetMask, GetTopo
+from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+from cartopy import crs as ccrs, feature as cfeature
+import cartopy.io.shapereader as shpreader
+from threading import Thread
+from time import sleep
+import wx
+
 from traits.api import *
-from traitsui.api import (CheckListEditor, DirectoryEditor, EnumEditor,
-                          FileEditor, Group, Handler, HGroup, HSplit, Item,
-                          View)
-from traitsui.basic_editor_factory import BasicEditorFactory
+from traitsui.api import (
+    View,
+    Item,
+    HGroup,
+    Group,
+    HSplit,
+    Handler,
+    EnumEditor,
+    FileEditor,
+    DirectoryEditor,
+    CheckListEditor,
+)
 from traitsui.menu import NoButtons
 from traitsui.wx.editor import Editor
 
-from make_grid import grid_def
+# from traitsui.wx.basic_editor_factory import BasicEditorFactory
+from traitsui.basic_editor_factory import BasicEditorFactory
+
+from button_actions import *
+import tools_make_grid
+from tools_make_grid import EasyGrid, GetTopo, GetMask
+from croco_class import CROCO
+from make_grid import (
+    tra_lon,
+    tra_lat,
+    size_x,
+    size_y,
+    nx,
+    ny,
+    rot,
+    hmin,
+    hmax,
+    interp_rad,
+    rfact,
+    topofile,
+    shp_file,
+    output_file,
+    sgl_connect,
+)
 
 
 #################################
@@ -90,43 +115,43 @@ class Inputs(HasTraits):
     )
 
     tra_lon = CFloat(
-        grid_def["tra_lon"],
+        tra_lon,
         desc="a central longitude",
         label="longitude",
     )
 
     tra_lat = CFloat(
-        grid_def["tra_lat"],
+        tra_lat,
         desc="a central latitude",
         label="latitude",
     )
 
     size_x = CFloat(
-        grid_def["size_x"],
+        size_x,
         desc="the mean distance along xi",
         label="x size [km]",
     )
 
     size_y = CFloat(
-        grid_def["size_y"],
+        size_y,
         desc="the mean distance along eta",
         label="y size [km]",
     )
 
     rot = CFloat(
-        grid_def["rot"],
+        rot,
         desc="rotation about longitude, latitude",
         label="rotation [deg]",
     )
 
     nx = CInt(
-        grid_def["nx"],
+        nx,
         desc="the number of points along xi",
         label="nx",
     )
 
     ny = CInt(
-        grid_def["ny"],
+        ny,
         desc="the number of points along eta",
         label="ny",
     )
@@ -146,25 +171,25 @@ class Inputs_smth(HasTraits):
     """
 
     depthmin = CFloat(
-        grid_def["hmin"],
+        hmin,
         desc="minimum depth",
         label="Minimum depth [m]",
     )
 
     depthmax = CFloat(
-        grid_def["hmax"],
+        hmax,
         desc="maximum depth",
         label="Maximum depth [m]",
     )
 
     smthr = CFloat(
-        grid_def["interp_rad"],
+        interp_rad,
         desc="Interpolation radius",
         label="Interp radius [nb croco points]",
     )
 
     rfact = CFloat(
-        grid_def["rfact"],
+        rfact,
         desc="maximum r-factor",
         label="r-factor",
     )
@@ -187,13 +212,13 @@ class Inputs_smth_c2c(HasTraits):
     """
 
     smthr = CFloat(
-        grid_def["interp_rad"],
+        interp_rad,
         desc="Interpolation radius",
         label="Interp radius [nb croco points]",
     )
 
     rfact = CFloat(
-        grid_def["rfact"],
+        rfact,
         desc="maximum r-factor",
         label="r-factor",
     )
@@ -216,43 +241,43 @@ class Inputs_zm(HasTraits):
     """
 
     tra_lon = CFloat(
-        grid_def["tra_lon"],
+        tra_lon,
         desc="a central longitude",
         label="longitude",
     )
 
     tra_lat = CFloat(
-        grid_def["tra_lat"],
+        tra_lat,
         desc="a central latitude",
         label="latitude",
     )
 
     size_x = CFloat(
-        grid_def["size_x"],
+        size_x,
         desc="the mean distance along xi",
         label="x size [km]",
     )
 
     size_y = CFloat(
-        grid_def["size_y"],
+        size_y,
         desc="the mean distance along eta",
         label="y size [km]",
     )
 
     rot = CFloat(
-        grid_def["rot"],
+        rot,
         desc="rotation about longitude, latitude",
         label="rotation [deg]",
     )
 
     nx = CInt(
-        grid_def["nx"],
+        nx,
         desc="the number of points along xi",
         label="nx",
     )
 
     ny = CInt(
-        grid_def["ny"],
+        ny,
         desc="the number of points along eta",
         label="ny",
     )
@@ -350,16 +375,12 @@ class MainWindow(HasTraits):
     inputs_smth_c2c = Instance(Inputs_smth, ())
 
     outputs = Instance(Outputs, ())
-    opt_file = File(
-        value=grid_def["output_file"], label="Output file", desc="Output path"
-    )
+    opt_file = File(value=output_file, label="Output file", desc="Output path")
     opt_file_zm = File(
-        value=grid_def["output_file"] + ".1", label="Output file", desc="Output path"
+        value=output_file + ".1", label="Output file", desc="Output path"
     )
     opt_dir = File(
-        value=os.path.dirname(grid_def["output_file"]) + "/",
-        label="Output dir",
-        desc="Output path",
+        value=os.path.dirname(output_file) + "/", label="Output dir", desc="Output path"
     )
 
     results_string = String()
@@ -386,19 +407,13 @@ class MainWindow(HasTraits):
 
     # Get file #
     croco_file = File(
-        value=grid_def["output_file"],
-        label="Parent grid file",
-        desc="Parent path and filename",
+        value=output_file, label="Parent grid file", desc="Parent path and filename"
     )
 
-    shp_file = File(
-        value=grid_def["shp_file"], label="Coastline file", desc="costline path"
-    )
+    shp_file = File(value=shp_file, label="Coastline file", desc="costline path")
 
     topo_file = File(
-        value=grid_def["topofile"],
-        label="Topography file",
-        desc="path and topography filename",
+        value=topofile, label="Topography file", desc="path and topography filename"
     )
 
     ## Functions and others ##
@@ -408,8 +423,8 @@ class MainWindow(HasTraits):
     save2netcdf = Instance(CROCO, ())
 
     single_connect = Bool(value=False, label="Single connect")
-    sglc_i = CInt(grid_def["sgl_connect"][1], label="i0")
-    sglc_j = CInt(grid_def["sgl_connect"][2], label="j0")
+    sglc_i = CInt(sgl_connect[1], label="i0")
+    sglc_j = CInt(sgl_connect[2], label="j0")
 
     merge = CInt(10, label="Merging area (nb points)")
     # checklist = List(editor=CheckListEditor(values=['South','West', 'East', 'North'], cols=4 ))
@@ -433,7 +448,7 @@ class MainWindow(HasTraits):
             "_",
             Item(
                 name="topo_file",
-                editor=FileEditor(filter=["*.nc"]),
+                editor=FileEditor(filter=["*.nc", "*.grd"]),
                 style="simple",
                 show_label=True,
                 springy=True,

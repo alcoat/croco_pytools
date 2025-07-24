@@ -5,25 +5,26 @@ The first step when creating a configuration is to build the grid on the
 region of interest. 
 The other steps (initial, boundary conditons...) are grid dependent, they
 will use the CROCO grid file.
-The routine to use to create a grid is ``make_grid.py``. 
+The script used to create a grid is ``make_grid.py``. 
 
 Description of make_grid
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-``make_grid.py`` is the routine to build your configuration grid over your area of interest. It
-performs the following steps:
+``make_grid.py`` is a script to build your configuration grid over your area 
+of interest. It performs the following steps:
 
 * Place and define the grid around the chosen location
 * Interpolate the bathymetry on the CROCO grid
 * Build the landmask
 * Smooth the bathymetry according to chosen criteria
 
-A graphic interface can be used to facilitate the grid positionning, but the routine can also be used without it.
+A graphic interface can be used to facilitate the grid positionning, but the 
+script can also be used without it.
   
 .. note::
  
-  On distant computers, like HPC clusters, the graphic interface can be quite slow, 
-  especially if using a VPN. 
+  On distant computers, like HPC clusters, the graphic interface can be quite 
+  slow, especially if using a VPN. 
 
 Grid positionning
 """""""""""""""""
@@ -89,7 +90,7 @@ connected to the main water body, are masked.
 
 To use this functionnality you can set in ``make_grid``:
 
- ::
+::
 
     sgl_connect=[True,i0,j0] 
 
@@ -146,8 +147,8 @@ than hmax, will be set to hmin, repectively hmax.
 Then smoothing is performed. Several smoothing methods exists in CROCO,
 which can be divided into two categories:
 
-  - rx-condition
-  - Log-smooth
+- rx-condition
+- Log-smooth
 
 The first category is smoothing the raw topography until the slope criterion
 is met. The second category transforms the topography into its logaritm
@@ -185,14 +186,18 @@ and smoothes it. Here is a brief description of each available smoothing method:
 Using make_grid
 ^^^^^^^^^^^^^^^
 
-This section will guide you in a tutorial for using ``make_grid`` to build a CROCO grid. 
-Topography used in this tutorial is the **etopo2** data, and **gshhs** coastline data that are available in the provided ``DATASETS_CROCOTOOLS`` that can be downloaded from this page: 
+This section will guide you in a tutorial for using ``make_grid`` to build a 
+CROCO grid. 
+Topography used in this tutorial is the **etopo2** data, and **gshhs** 
+coastline data that are available in the provided ``DATASETS_CROCOTOOLS`` that 
+can be downloaded from this page: 
 `download section <https://www.croco-ocean.org/download/>`_. 
 
 .. note::
 
     Readers for this tutorial should already be correctly filled. 
-    For using different data sources, you may have to edit the Readers/topo_reader.py.
+    For using different data sources, you may have to edit the 
+    Readers/topo_reader.py.
     Please refer to "Reader" section for more details.
 
 1. Activate your python environment:
@@ -207,7 +212,8 @@ or
 
   mircomamba activate croco_pyenv
 
-2. The first section "**USER CHANGES**" of ``make_grid.py`` is where you should provide the relevant information for your grid:
+2. The first section "**USER CHANGES**" of ``make_grid.py`` is where you 
+   should provide the relevant information for your grid:
 
 ::
 
@@ -272,7 +278,8 @@ or
   (e.g., for grid rotation or parameter adjustments) y,[n]:
    
 
-Answer ``n`` to directly process the grid, or ``y`` to open the graphic interface. 
+Answer ``n`` to directly process the grid, or ``y`` to open the graphic 
+interface. 
 
 
 5. If you have answer ``y``, a graphic interface will appear:
@@ -307,14 +314,16 @@ This window is devided in several tabs each having a specific objective:
 
 6. **Configure grid** tab:
 
-Eventually edit the parameters and paths towards the Coastline and Topography files and press the ``Compute grid`` button to have a first guess of your grid:
+Eventually edit the parameters and paths towards the Coastline and Topography 
+files and press the ``Compute grid`` button to have a first guess of your grid:
 
 .. figure:: figures/grid_pos_gui.png
     :scale: 40 %
 
     Grid outline
 
-Several variables (grid points, dx, dy, mask...) can be displayed, see the **View** menu. 
+Several variables (grid points, dx, dy, mask...) can be displayed, see the 
+**View** menu. 
 Press ``Compute grid`` to validate your choice and update the plot. 
 
 If you are working around pole, you can also modify figure projection 
@@ -331,9 +340,12 @@ Press ``Compute smoothing`` to perform interpolation and smoothing.
 
     Display of topography after smoothing
 
-You can also use the ``Single connect`` functionnality to mask lakes or unwanted water bodies that are not connected to your main water body. See details in the **Mask creation** description section above.
+You can also use the ``Single connect`` functionnality to mask lakes or unwanted 
+water bodies that are not connected to your main water body. See details in 
+the **Mask creation** description section above.
 
-Finally, edit the path and filename of your CROCO grid, and press ``Save grid`` to save it.
+Finally, edit the path and filename of your CROCO grid, and press ``Save grid`` 
+to save it.
 
 Your grid is now ready to be used by CROCO. Informations used to create the 
 grid are available as global attributes in the crated netcdf, 
@@ -358,13 +370,22 @@ you can chek them with:
 
 .. note::
 
-    When you press a button in the graphic interface, you may check errors in the terminal window from which you have launched ``make_grid`` in the first place. 
+    When you press a button in the graphic interface, you may check errors in 
+    the terminal window from which you have launched ``make_grid`` in the 
+    first place. 
 
-8. The two others tabs are for creating nested domaine. See the "Build a nest" section of the documentation. 
+8. The two others tabs are for creating nested domaine. See the "Build a nest" 
+   section of the documentation. 
 
 Sources of some datasets of interest 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  * Coastline : `GSHHS <https://www.ngdc.noaa.gov/mgg/shorelines/data/gshhg/latest/gshhg-shp-2.3.7.zip>`_
-  * Topography : `GEBCO <https://www.gebco.net/data_and_products/gridded_bathymetry_data/>`_, `ETOPO <https://www.ncei.noaa.gov/products/etopo-global-relief-model>`_
+Coastline : 
 
+* `GSHHS <https://www.ngdc.noaa.gov/mgg/shorelines/data/gshhg/latest/gshhg-shp-2.3.7.zip>`_
+
+Topography : 
+  
+* `GEBCO <https://www.gebco.net/data_and_products/gridded_bathymetry_data/>`_ 
+* `ETOPO <https://www.ncei.noaa.gov/products/etopo-global-relief-model>`_
+* `HOMONIM <https://diffusion.shom.fr/donnees/bathymerie/mnt-facade-atl-homonim.html>`_

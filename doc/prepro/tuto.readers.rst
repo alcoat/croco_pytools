@@ -1,8 +1,12 @@
 Readers for input data
 -----------------------
 
-Depending on the input data you are using, you might have to add a reader to read them. 
-Several types of data are already managed, but you can any other input data by adding it to the readers in the ``Readers`` directory.
+Depending on the input data you are using, you might have to add a reader to 
+read them. A reader makes the link between variable name in the file 
+and name used in prepro tools.
+
+Several types of data are already managed, but you can add any other input data 
+by adding it to the readers in the ``Readers`` directory.
 
 ::
 
@@ -13,13 +17,16 @@ Three sets of readers exist:
 .. list-table::
 
   * - topo_reader.py
-    - Reader for topographic/bathymetric data (etopo5, etopo2, etopo1, srtm30, homonim, gebco...)
+    - Reader for topographic/bathymetric data (etopo5, etopo2, etopo1, srtm30, 
+      homonim, gebco...)
   * - ibc_reader.py
-    - Reader for initial and boundary conditions datasets (mercator, eccov4, soda...)
+    - Reader for initial and boundary conditions datasets (mercator, eccov4, 
+      soda...)
   * - tides_reader.py
     - Reader for tides datasets (tpxo,fes2014...)
 
-They basically contain a routine, ``lookvar``, to associate the input variable names to commonly used variable names in the croco_pytools with a dictionnary.
+They basically contain a routine, ``lookvar``, to associate the input variable 
+names to commonly used variable names in the croco_pytools with a dictionnary.
 
 In the following we describe the three type of reader:
 
@@ -32,7 +39,10 @@ In the following we describe the three type of reader:
 Topography
 ^^^^^^^^^^
 
-To build bathymetry from a dataset, the dictionnary needs at least four keys:
+Input data needed by the tools must be in netcdf format. The extensions
+of the files could be .nc or .grd.
+
+To build bathymetry from a netcdf file, the dictionnary needs at least four keys:
 
 .. list-table::
 
@@ -45,13 +55,20 @@ To build bathymetry from a dataset, the dictionnary needs at least four keys:
   * - zaxis
     - Direction of z axis (up or down)
 
-A supplementary key ``srtm`` needs to be added and set to ``True`` if the input 
-dataset is `STRM30plus <https://topex.ucsd.edu/WWW_html/srtm30_plus.html>`_
+
+.. warning::
+
+  A supplementary key ``srtm`` needs to be added and set to ``True`` if the input 
+  dataset is `STRM30plus <https://topex.ucsd.edu/WWW_html/srtm30_plus.html>`_
+
+
+
 
 Initial and boundary conditions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Reader for initial and boundary conditions (ibc) handles 2D and 3D fields and their evolution in time. It requires their coordinates:
+Reader for initial and boundary conditions (ibc) handles 2D and 3D fields and 
+their evolution in time. It requires their coordinates:
 
 .. list-table::
 
@@ -99,7 +116,9 @@ As for ``ibc_reader``, you need to specify the keys for geographical coordinates
      - Latitude name for Rho, U, V grid. If only one grid put the same name 
        everywhere
 
-Tide data consist in three fields (elevation, easwtward velocity, northward velocity), and each field has two components. Depending on the input dataset, those two components can be either Amplitude/Phase or Real/Imaginary part.
+Tide data consist in three fields (elevation, easwtward velocity, northward 
+velocity), and each field has two components. Depending on the input dataset, 
+those two components can be either Amplitude/Phase or Real/Imaginary part.
 
 If your dataset follows an Amplitude/Phase, keys to declare are:
 
