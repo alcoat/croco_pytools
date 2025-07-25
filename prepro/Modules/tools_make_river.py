@@ -702,7 +702,7 @@ def get_river_index(river, croco_class):
 
      
         else:
-            print('Remove %s , river mouth (%.02f,%.02f) not in the domain:%.02f,%.02f/%.02f,%.02f ' % (ll,lor,lar\
+            print('Remove {} , river mouth ({:.02f},{:.02f}) not in the domain:{:.02f},{:.02f}/{:.02f},{:.02f} '.format(ll,lor,lar\
   ,geolim[0],geolim[1],geolim[-2],geolim[-1]))
 
     return river_out

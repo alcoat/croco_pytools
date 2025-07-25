@@ -6,7 +6,7 @@ import netCDF4 as netcdf
 from datetime import datetime
 from collections import OrderedDict
 
-class CROCO_grd(object):
+class CROCO_grd:
 
     def __init__(self, filename, sigma_params=None):
         print('Reading CROCO grid: %s' %filename )

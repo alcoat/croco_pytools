@@ -823,10 +823,10 @@ class getdata:
         sin2n = np.sin(2 * N)
         cos2n = np.cos(2 * N)
         sin3n = np.sin(3 * N)
-        tmp1 = 1.36 * np.cos(P) + 0.267 * np.cos((P - N))
-        tmp2 = 0.64 * np.sin(P) + 0.135 * np.sin((P - N))
-        temp1 = 1.0 - 0.25 * np.cos(2 * P) - 0.11 * np.cos((2 * P - N)) - 0.04 * cosn
-        temp2 = 0.25 * np.sin(2 * P) + 0.11 * np.sin((2 * P - N)) + 0.04 * sinn
+        tmp1 = 1.36 * np.cos(P) + 0.267 * np.cos(P - N)
+        tmp2 = 0.64 * np.sin(P) + 0.135 * np.sin(P - N)
+        temp1 = 1.0 - 0.25 * np.cos(2 * P) - 0.11 * np.cos(2 * P - N) - 0.04 * cosn
+        temp2 = 0.25 * np.sin(2 * P) + 0.11 * np.sin(2 * P - N) + 0.04 * sinn
         ##
         if input_wav.lower() in [
             "sa",
