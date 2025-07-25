@@ -72,7 +72,7 @@ def run_make_tides():
     """make tides program"""
     args = get_args()
 
-    with open(args.config_file, "r", encoding="utf8") as infile:
+    with open(args.config_file, encoding="utf8") as infile:
         tide_def = yaml.safe_load(infile)
 
     print(tide_def)

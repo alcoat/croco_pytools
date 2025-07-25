@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Main croco_pytools install executable script
 """
@@ -44,8 +43,7 @@ def conda_env_exists(env_name):
     try:
         result = subprocess.run(
             ["conda", "env", "list"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             text=True,
         )
         return env_name in result.stdout
@@ -67,8 +65,7 @@ def compile_fortran_tools():
         try:
             fc = subprocess.run(
                 ["nc-config --fc"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 shell=True,
                 check=True,
             )
@@ -95,8 +92,7 @@ def compile_fortran_tools():
         try:
             log = subprocess.run(
                 comp_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                capture_output=True,
                 text=True,
                 shell=True,
                 check=True,

@@ -93,7 +93,7 @@ def get_args():
 def run_make_ini():
     """ main """
     args = get_args()
-    with open(args.config_file, "r", encoding="utf8") as infile:
+    with open(args.config_file, encoding="utf8") as infile:
         ini_def = yaml.safe_load(infile)
 
     inputdata_type = ini_def["inputdata"]

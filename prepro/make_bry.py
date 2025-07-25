@@ -83,7 +83,7 @@ def run_make_bry():
 
     args = get_args()
 
-    with open(args.config_file, "r", encoding="utf8") as infile:
+    with open(args.config_file, encoding="utf8") as infile:
         bry_def = yaml.safe_load(infile)
 
     origindate = pandas.Timestamp(bry_def["origindate"])
@@ -154,7 +154,7 @@ def run_make_bry():
         ind = np.where((time > startloc) & (time <= endloc))
 
         if len(ind[0]) == 0:
-            print("\nData is missing for range %s to %s" % (startloc, endloc))
+            print(f"\nData is missing for range {startloc} to {endloc}")
             return 1
 
         [dtmin, dtmax] = np.min(ind), np.max(ind)
@@ -302,7 +302,7 @@ def run_make_bry():
             if is_open:
                 for lvars in var_loop:
                     print(
-                        "\n     Processing *%s* for %sern boundary" % (lvars, boundary)
+                        f"\n     Processing *{lvars}* for {boundary}ern boundary"
                     )
                     print("     ------------------------------------------")
                     if lvars == "ssh":
