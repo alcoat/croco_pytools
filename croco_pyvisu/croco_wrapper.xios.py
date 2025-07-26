@@ -1,4 +1,3 @@
-# -*- coding: UTF-8 -*-
 #
 
 import numpy as np
@@ -71,7 +70,7 @@ keymap_masks = {
 # Variables holders for croco
 
 
-class CrocoWrapper(object):
+class CrocoWrapper:
     """This class create the dictionnary of variables used for creating a
     generic grid from xios croco output files.
     """

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
 #
 
 import sys
@@ -237,7 +236,7 @@ class SectionFrame(wx.Frame):
         """Show the current cursor position at the bottom right of the window """
         if event.inaxes:
             self.showPosition.SetStatusText(
-                "x={:5.1f}  y={:5.1f}".format(event.xdata, event.ydata), 1)
+                f"x={event.xdata:5.1f}  y={event.ydata:5.1f}", 1)
 
     def onAnimationBtn(self, event):
         """
@@ -764,7 +763,7 @@ class ProfileFrame(wx.Frame):
     def ShowPosition(self, event):
         if event.inaxes:
             self.showPosition.SetStatusText(
-                "x={:5.1f}  y={:5.1f}".format(event.xdata, event.ydata), 1)
+                f"x={event.xdata:5.1f}  y={event.ydata:5.1f}", 1)
 
     def onZoomBtn(self, event):
         """
@@ -1198,7 +1197,7 @@ class CrocoGui(wx.Frame):
                             pass
                         y[it] = varz[self.latIndex, self.lonIndex]
 
-            title = "{:s}, Lon={:4.1f}, Lat={:4.1f}, depth={:4.1f}".format(self.variableName, self.lon, self.lat, depth)
+            title = f"{self.variableName:s}, Lon={self.lon:4.1f}, Lat={self.lat:4.1f}, depth={depth:4.1f}"
 
         # Plot the time series
         self.timeFrame = ProfileFrame(croco=self.croco,
