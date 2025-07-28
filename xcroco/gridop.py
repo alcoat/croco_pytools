@@ -1,18 +1,15 @@
-import numpy as np
-import xarray as xr
-from functools import partial
-import pandas as pd
-from xgcm import Grid
-import intake
+"""xxcoro gridop module"""
 
-import time
-import os.path as path
 import itertools
 from collections import OrderedDict
+from math import asin, cos, radians, sin, sqrt
 
-from math import radians, cos, sin, asin, sqrt
+import numpy as np
+import xarray as xr
+from xgcm import Grid
 
 import inout as io
+
 
 def get_cs(model, ds, gd, vgrid):
     """get croco vertical grid  stretching
@@ -26,53 +23,62 @@ def get_cs(model, ds, gd, vgrid):
     Returns:
         DataArray: vertical grid  stretching
     """
-    # search vtransform 
-    if 'vtransform' in gd:
+    # search vtransform
+    if "vtransform" in gd:
         vtransform = gd.vtransform.values
-    elif 'vtransform' in ds:
+    elif "vtransform" in ds:
         vtransform = ds.vtransform.values
-    elif 'vtransform' in gd.attrs:
-        vtransform = gd.attrs['vtransform']
-    elif 'vtransform' in ds.attrs:
-        vtransform = ds.attrs['vtransform']
+    elif "vtransform" in gd.attrs:
+        vtransform = gd.attrs["vtransform"]
+    elif "vtransform" in ds.attrs:
+        vtransform = ds.attrs["vtransform"]
     else:
         print("Can't find vtransform neither in filename nor in gridname  ")
         return None
-    
-    # search theta_s 
-    if io.find_var(model,'theta_s',ds,gd) is not None: 
-        theta_s = io.find_var(model,'theta_s',ds,gd).values
+
+    # search theta_s
+    if io.find_var(model, "theta_s", ds, gd) is not None:
+        theta_s = io.find_var(model, "theta_s", ds, gd).values
     else:
         print("Can't find theta_s neither in filename nor in gridname  ")
         return None
-    # search theta_b 
-    if io.find_var(model,'theta_b',ds,gd) is not None: 
-        theta_b = io.find_var(model,'theta_b',ds,gd).values
+    # search theta_b
+    if io.find_var(model, "theta_b", ds, gd) is not None:
+        theta_b = io.find_var(model, "theta_b", ds, gd).values
     else:
         print("Can't find theta_b neither in filename nor in gridname  ")
         return None
-    
-    sc = ds.sc_r.values if vgrid=='r' else ds.sc_w.values
-    
+
+    sc = ds.sc_r.values if vgrid == "r" else ds.sc_w.values
+
     # New coordinates
-    if vtransform == 2 or vtransform.lower()=='new':
-        if theta_s>0:
-            csf = (1-np.cosh(theta_s*sc)) / (np.cosh(theta_s)-1.)
+    if vtransform == 2 or vtransform.lower() == "new":
+        if theta_s > 0:
+            csf = (1 - np.cosh(theta_s * sc)) / (np.cosh(theta_s) - 1.0)
         else:
             csf = sc**2
-        if theta_b>0:
-            cs = (np.exp(theta_s*csf)-1.) / (1-np.exp(-theta_b))
+        if theta_b > 0:
+            cs = (np.exp(theta_s * csf) - 1.0) / (1 - np.exp(-theta_b))
         else:
             cs = csf
     # Old coordinates
     else:
-        cs = (1-theta_b)*np.sinh(theta_s*sc)/np.sinh(theta_s) \
-             + theta_b*0.5 \
-               *(np.tanh((sc+0.5)*theta_s)/np.tanh(0.5*theta_s)-1.)
+        cs = (1 - theta_b) * np.sinh(theta_s * sc) / np.sinh(
+            theta_s
+        ) + theta_b * 0.5 * (
+            np.tanh((sc + 0.5) * theta_s) / np.tanh(0.5 * theta_s) - 1.0
+        )
     return cs
 
-def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
-             xperiodic=False, yperiodic=False):
+
+def add_grid(
+    model,
+    gridname,
+    grid_metrics=1,
+    remove_ghost_pts=True,
+    xperiodic=False,
+    yperiodic=False,
+):
     """from the gridname file, add the grid to the dataset and compute the XGCM grid
 
     Args:
@@ -88,58 +94,70 @@ def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
         DataSet: the input dataset with the grid inside
         XGCM grid: the XGCM grid associated to the dataset
     """
-        
+
     # open grid file
-    try : 
+    try:
         gd = xr.open_zarr(gridname).squeeze()
     except:
-        try : 
-            gd = xr.open_dataset(gridname).squeeze() 
-        except :
-            print('add_grid: unknown format for grid : only Netcdf or Zarr')
-            
+        try:
+            gd = xr.open_dataset(gridname).squeeze()
+        except:
+            print("add_grid: unknown format for grid : only Netcdf or Zarr")
+
     # Rename variable according model
     gd = adjust_grid(model, gd)
     ds = model.ds
 
-    if io.find_var(model,'hc',ds,gd) is not None: ds['hc'] = io.find_var(model,'hc',ds,gd)
-    if io.find_var(model,'h',ds,gd) is not None: ds['h'] = io.find_var(model,'h',ds,gd)
-    if io.find_var(model,'pm',ds,gd) is not None: ds['pm']   = io.find_var(model,'pm',ds,gd)
-    if io.find_var(model,'pn',ds,gd) is not None: ds['pn']   = io.find_var(model,'pn',ds,gd)
+    if io.find_var(model, "hc", ds, gd) is not None:
+        ds["hc"] = io.find_var(model, "hc", ds, gd)
+    if io.find_var(model, "h", ds, gd) is not None:
+        ds["h"] = io.find_var(model, "h", ds, gd)
+    if io.find_var(model, "pm", ds, gd) is not None:
+        ds["pm"] = io.find_var(model, "pm", ds, gd)
+    if io.find_var(model, "pn", ds, gd) is not None:
+        ds["pn"] = io.find_var(model, "pn", ds, gd)
     try:
-        N = ds.dims['s']
-        if 'sc_r' not in ds:
-            if io.find_var(model,'sc_r',ds,gd) is not None: 
-                ds['sc_r'] = io.find_var(model,'sc_r',ds,gd)
+        N = ds.dims["s"]
+        if "sc_r" not in ds:
+            if io.find_var(model, "sc_r", ds, gd) is not None:
+                ds["sc_r"] = io.find_var(model, "sc_r", ds, gd)
             else:
-                ds['sc_r'] = xr.DataArray(np.arange(-1.+1./(N+1),0., 1/(N+1)), dims='s')  
-        if 'sc_w' not in ds:      
-            if io.find_var(model,'sc_w',ds,gd) is not None: 
-                ds['sc_w'] = io.find_var(model,'sc_w',ds,gd)
+                ds["sc_r"] = xr.DataArray(
+                    np.arange(-1.0 + 1.0 / (N + 1), 0.0, 1 / (N + 1)), dims="s"
+                )
+        if "sc_w" not in ds:
+            if io.find_var(model, "sc_w", ds, gd) is not None:
+                ds["sc_w"] = io.find_var(model, "sc_w", ds, gd)
             else:
-                ds['sc_w'] = xr.DataArray(np.arange(-1.,0., 1/(N+1)), dims='s_w')
-        if 'Cs_r' not in ds:
-            if  io.find_var(model,'Cs_r',ds,gd) is not None: 
-                ds['Cs_r'] = io.find_var(model,'Cs_r',ds,gd)
+                ds["sc_w"] = xr.DataArray(np.arange(-1.0, 0.0, 1 / (N + 1)), dims="s_w")
+        if "Cs_r" not in ds:
+            if io.find_var(model, "Cs_r", ds, gd) is not None:
+                ds["Cs_r"] = io.find_var(model, "Cs_r", ds, gd)
             else:
-                ds['Cs_r'] = get_cs(model,ds, gd, 'r')
-        if 'Cs_w' not in ds:
-            if  io.find_var(model,'Cs_w',ds,gd) is not None: 
-                ds['Cs_w'] = io.find_var(model,'Cs_w',ds,gd)
+                ds["Cs_r"] = get_cs(model, ds, gd, "r")
+        if "Cs_w" not in ds:
+            if io.find_var(model, "Cs_w", ds, gd) is not None:
+                ds["Cs_w"] = io.find_var(model, "Cs_w", ds, gd)
             else:
-                ds['Cs_w'] = get_cs(model,ds, gd, 'w')
+                ds["Cs_w"] = get_cs(model, ds, gd, "w")
     except:
-        pass        
-        
-    if io.find_var(model,'angle',ds,gd) is not None: ds['angle'] = io.find_var(model,'angle',ds,gd)
-    if io.find_var(model,'mask',ds,gd) is not None: ds['mask'] = io.find_var(model,'mask',ds,gd)
-    if io.find_var(model,'lon',ds,gd) is not None: ds['lon'] = io.find_var(model,'lon',ds,gd)
-    if io.find_var(model,'lat',ds,gd) is not None: ds['lat'] = io.find_var(model,'lat',ds,gd)
-    if io.find_var(model,'f',ds,gd) is not None: ds['f'] = io.find_var(model,'f',ds,gd)
-    if io.find_var(model,'rho0',ds,gd) is not None: ds['rho0'] = io.find_var(model,'rho0',ds,gd)
-    if io.find_var(model,'g',ds,gd) is not None: ds['g'] = io.find_var(model,'g',ds,gd)
-    
-    
+        pass
+
+    if io.find_var(model, "angle", ds, gd) is not None:
+        ds["angle"] = io.find_var(model, "angle", ds, gd)
+    if io.find_var(model, "mask", ds, gd) is not None:
+        ds["mask"] = io.find_var(model, "mask", ds, gd)
+    if io.find_var(model, "lon", ds, gd) is not None:
+        ds["lon"] = io.find_var(model, "lon", ds, gd)
+    if io.find_var(model, "lat", ds, gd) is not None:
+        ds["lat"] = io.find_var(model, "lat", ds, gd)
+    if io.find_var(model, "f", ds, gd) is not None:
+        ds["f"] = io.find_var(model, "f", ds, gd)
+    if io.find_var(model, "rho0", ds, gd) is not None:
+        ds["rho0"] = io.find_var(model, "rho0", ds, gd)
+    if io.find_var(model, "g", ds, gd) is not None:
+        ds["g"] = io.find_var(model, "g", ds, gd)
+
     # coords = [c for c in ds.coords if c not in ['t','s','s_w']]
     coords = [
         c
@@ -149,17 +167,19 @@ def add_grid(model, gridname, grid_metrics=1, remove_ghost_pts=True,
 
     ds = ds.reset_coords()
     ds = ds.set_coords(coords)
-        
+
     # remove ghost points
     if remove_ghost_pts:
         ds = remove_ghost_points(ds, xperiodic=xperiodic, yperiodic=yperiodic)
     model.ds = ds
-    
+
     # On crée la grille xgcm
-    ds, grid = xgcm_grid(model, grid_metrics=grid_metrics, 
-                         xperiodic=xperiodic, yperiodic=yperiodic)
-    
+    ds, grid = xgcm_grid(
+        model, grid_metrics=grid_metrics, xperiodic=xperiodic, yperiodic=yperiodic
+    )
+
     return ds, grid
+
 
 def remove_ghost_points(ds, xperiodic=False, yperiodic=False):
     """
@@ -172,12 +192,13 @@ def remove_ghost_points(ds, xperiodic=False, yperiodic=False):
     Returns:
         DataSet: the input dataset without any ghost points
     """
-    ds = ds.isel(x=slice(1,-1),y=slice(1,-1))
+    ds = ds.isel(x=slice(1, -1), y=slice(1, -1))
     if xperiodic:
-        ds = ds.isel(x_u=slice(0,-1))
+        ds = ds.isel(x_u=slice(0, -1))
     if yperiodic:
-        ds = ds.isel(y_v=slice(0,-1))
+        ds = ds.isel(y_v=slice(0, -1))
     return ds
+
 
 def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     """
@@ -193,35 +214,32 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
         XGCM grid: the xgcm grid of the dataset
 
     """
-        
+
     # Create xgcm grid without metrics
-    coords={}
-    if all(d in model.ds.dims for d in ['x','x_u']):
+    coords = {}
+    if all(d in model.ds.dims for d in ["x", "x_u"]):
         if xperiodic:
-            coords.update({'x': {'center':'x', 'left':'x_u'}})
+            coords.update({"x": {"center": "x", "left": "x_u"}})
         else:
-            coords.update({'x': {'center':'x', 'outer':'x_u'}})
-    if all(d in model.ds.dims for d in ['y','y_v']):
+            coords.update({"x": {"center": "x", "outer": "x_u"}})
+    if all(d in model.ds.dims for d in ["y", "y_v"]):
         if yperiodic:
-            coords.update({'y': {'center':'y', 'left':'y_v'}} )
+            coords.update({"y": {"center": "y", "left": "y_v"}})
         else:
-            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
-    if 's' in model.ds.dims:
-        coords.update({'z': {'center':'s', 'outer':'s_w'}})
-        
-    grid = Grid(model.ds, 
-              coords=coords,
-              periodic=False,
-              boundary='extend')
-    
-    if grid_metrics==0:           
+            coords.update({"y": {"center": "y", "outer": "y_v"}})
+    if "s" in model.ds.dims:
+        coords.update({"z": {"center": "s", "outer": "s_w"}})
+
+    grid = Grid(model.ds, coords=coords, periodic=False, boundary="extend")
+
+    if grid_metrics == 0:
         model.xgrid = grid
         return model.ds, grid
-    
+
     # compute horizontal coordinates
 
     ds = model.ds
-    
+
     try:
         # spherical grid
         if "x_u" in ds.dims:
@@ -239,18 +257,17 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     except Exception:
         # Cartesian grid
         _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(["x", "y"]))]
-    
+
     ds = ds.set_coords(_coords)
-    
-    
+
     # add horizontal metrics for u, v and psi point
-    if 'pm' in ds and 'pn' in ds:
-        ds['dx'] = 1/ds['pm']
-        ds['dy'] = 1/ds['pn']
-    else: # backward compatibility, hack
-        dlon = grid.interp(grid.diff(ds.lon,'x'),'x')
-        dlat =  grid.interp(grid.diff(ds.lat,'y'),'y')
-        ds['dx'], ds['dy'] = dll_dist(dlon, dlat, ds.lon, ds.lat)
+    if "pm" in ds and "pn" in ds:
+        ds["dx"] = 1 / ds["pm"]
+        ds["dy"] = 1 / ds["pn"]
+    else:  # backward compatibility, hack
+        dlon = grid.interp(grid.diff(ds.lon, "x"), "x")
+        dlat = grid.interp(grid.diff(ds.lat, "y"), "y")
+        ds["dx"], ds["dy"] = dll_dist(dlon, dlat, ds.lon, ds.lat)
     ds["dx_u"] = grid.interp(ds["dx"], "x")
     # ds["dy_u"] = grid.interp(ds["dy"], "x")
     # ds["dx_v"] = grid.interp(ds["dx"], "y")
@@ -263,74 +280,71 @@ def xgcm_grid(model, grid_metrics=1, xperiodic=False, yperiodic=False):
     # ds['rAu'] = ds.dx_v * ds.dy_v
     # ds['rAv'] = ds.dx_u * ds.dy_u
     # ds['rAf'] = ds.dx * ds.dy
-    
-    metrics={}    
+
+    metrics = {}
     # if all(d in model.ds.dims for d in ['x','x_u']):
     # metrics.update({('x',): ['dx', 'dx_u', 'dx_v', 'dx_psi']})
-    metrics.update({('x',): ['dx', 'dx_u']})
+    metrics.update({("x",): ["dx", "dx_u"]})
     # if all(d in model.ds.dims for d in ['y','y_v']):
     # metrics.update({('y',): ['dy', 'dy_u', 'dy_v', 'dy_psi']})
-    metrics.update({('y',): ['dy', 'dy_v']})
+    metrics.update({("y",): ["dy", "dy_v"]})
     # if all(d in model.ds.dims for d in ['x','x_u','y','y_v']):
-        # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
-     
-    if grid_metrics==1:
+    # metrics.update({('x', 'y'): ['rAr', 'rAu', 'rAv', 'rAf']})
+
+    if grid_metrics == 1:
         # generate xgcm grid
-        grid = Grid(ds,
-                    coords=coords,
-                    periodic=False,
-                    metrics=metrics,
-                    boundary='extend')
+        grid = Grid(
+            ds, coords=coords, periodic=False, metrics=metrics, boundary="extend"
+        )
         model.xgrid = grid
         model.ds = ds
         return ds, grid
-    
+
     # compute z coordinate at rho/w points
-    if 'z_sfc' in [v for v in ds.data_vars] and \
-       's' in [d for d in ds.dims.keys()] and \
-        ds['s'].size>1:
-        ds['is3D'] = True
-        z = get_z(model, z_sfc=ds.z_sfc, xgrid=grid).fillna(0.)
-        z_w = get_z(model, z_sfc=ds.z_sfc, xgrid=grid, vgrid='w').fillna(0.)
-        ds['z'] = z
-        ds['z_w'] = z_w
-        ds['z_u'] = grid.interp(z,'x')
-        ds['z_v'] = grid.interp(z,'y')
-        ds['z_p'] = grid.interp(ds.z_u,'y')
+    if (
+        "z_sfc" in list(ds.data_vars)
+        and "s" in list(ds.dims.keys())
+        and ds["s"].size > 1
+    ):
+        ds["is3D"] = True
+        z = get_z(model, z_sfc=ds.z_sfc, xgrid=grid).fillna(0.0)
+        z_w = get_z(model, z_sfc=ds.z_sfc, xgrid=grid, vgrid="w").fillna(0.0)
+        ds["z"] = z
+        ds["z_w"] = z_w
+        ds["z_u"] = grid.interp(z, "x")
+        ds["z_v"] = grid.interp(z, "y")
+        ds["z_p"] = grid.interp(ds.z_u, "y")
         # set as coordinates in the dataset
-        _coords = ['z','z_w','z_u','z_v','z_p']
+        _coords = ["z", "z_w", "z_u", "z_v", "z_p"]
         ds = ds.set_coords(_coords)
     else:
-        ds['is3D'] = False
+        ds["is3D"] = False
 
     # add vertical metrics for u, v, rho and psi points
     # if 'z' in [v for v in ds.coords]:
-    if ds['is3D']:
-        ds['dz'] = grid.interp(grid.diff(z,'z'),'z')
-        ds['dz_w'] = grid.interp(grid.diff(z_w,'z'),'z')
+    if ds["is3D"]:
+        ds["dz"] = grid.interp(grid.diff(z, "z"), "z")
+        ds["dz_w"] = grid.interp(grid.diff(z_w, "z"), "z")
         # ds['dz'] = grid.interp(grid.diff(ds.z,'z'),'z')
         # ds['dz_w'] = grid.interp(grid.diff(ds.z_w,'z'),'z')
         # ds['dz_u'] = grid.interp(grid.diff(ds.z_u,'z'),'z')
         # ds['dz_v'] = grid.interp(grid.diff(ds.z_v,'z'),'z')
         # ds['dz_p'] = grid.interp(grid.diff(ds.z_p,'z'),'z')
-        
+
     # add coords and metrics for xgcm for the vertical direction
     # if 'z' in ds:
-    if ds['is3D']:
-# #             coords.update({'z': {'center':'s', 'outer':'s_w'}})
-#             metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_p', 'dz_w']}), # Z distances
-        metrics.update({('z',): ['dz', 'dz_w']}), # Z distances
+    if ds["is3D"]:
+        # # coords.update({'z': {'center':'s', 'outer':'s_w'}})
+        # metrics.update({('z',): ['dz', 'dz_u', 'dz_v', 'dz_p', 'dz_w']}), # Z distances
+        metrics.update({("z",): ["dz", "dz_w"]})  # Z distances
     # generate xgcm grid
-    grid = Grid(ds,
-                coords=coords,
-                periodic=False,
-                metrics=metrics,
-                boundary='extend')
+    grid = Grid(ds, coords=coords, periodic=False, metrics=metrics, boundary="extend")
 
     model.xgrid = grid
     model.ds = ds
 
     return ds, grid
+
 
 def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
     """
@@ -346,84 +360,79 @@ def fast_xgcm_grid(ds, grid_metrics=1, xperiodic=False, yperiodic=False):
         grid: the xgcm grid
 
     """
-    
-    # Create xgcm grid without metrics
-    coords={}
-    if all(d in ds.dims for d in ['x','x_u']):
-        if xperiodic:
-            coords.update({'x': {'center':'x', 'left':'x_u'}})
-        else:
-            coords.update({'x': {'center':'x', 'outer':'x_u'}})
-    if all(d in ds.dims for d in ['y','y_v']):
-        if yperiodic:
-            coords.update({'y': {'center':'y', 'left':'y_v'}} )
-        else:
-            coords.update({'y': {'center':'y', 'outer':'y_v'}} )
-    if all(d in ds.dims for d in ['s','s_w']):
-        coords.update({'z': {'center':'s', 'outer':'s_w'}})
-        
-    grid = Grid(ds, 
-              coords=coords,
-              periodic=False,
-              boundary='extend')
 
-    if grid_metrics==0: return grid
+    # Create xgcm grid without metrics
+    coords = {}
+    if all(d in ds.dims for d in ["x", "x_u"]):
+        if xperiodic:
+            coords.update({"x": {"center": "x", "left": "x_u"}})
+        else:
+            coords.update({"x": {"center": "x", "outer": "x_u"}})
+    if all(d in ds.dims for d in ["y", "y_v"]):
+        if yperiodic:
+            coords.update({"y": {"center": "y", "left": "y_v"}})
+        else:
+            coords.update({"y": {"center": "y", "outer": "y_v"}})
+    if all(d in ds.dims for d in ["s", "s_w"]):
+        coords.update({"z": {"center": "s", "outer": "s_w"}})
+
+    grid = Grid(ds, coords=coords, periodic=False, boundary="extend")
+
+    if grid_metrics == 0:
+        return grid
 
     # set all lon/lat variables as coordinates
-    _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(['lon','lat']))]
+    _coords = [d for d in ds.data_vars.keys() if d.startswith(tuple(["lon", "lat"]))]
     ds = ds.set_coords(_coords)
-             
+
     # set horizontal metrics
     # move horizontal metrics from global attributes to variables
-    attrs = [k for k in ds.attrs.keys() if k.startswith(('dx','dy','rA'))]
+    attrs = [k for k in ds.attrs.keys() if k.startswith(("dx", "dy", "rA"))]
     if attrs is not None:
-        for k in attrs: ds[k] = ds.attrs[k]
-    metrics={}   
+        for k in attrs:
+            ds[k] = ds.attrs[k]
+    metrics = {}
     # add dx metrics
-    if all(d in ds.dims for d in ['x','x_u']):
-        dx = [v for v in ds.data_vars if v in ['dx','dx_u','dx_v','dx_psi']]
-        metrics.update({('x',): dx})
+    if all(d in ds.dims for d in ["x", "x_u"]):
+        dx = [v for v in ds.data_vars if v in ["dx", "dx_u", "dx_v", "dx_psi"]]
+        metrics.update({("x",): dx})
     # add dy metrics
-    if all(d in ds.dims for d in ['y','y_v']):
-        dy = [v for v in ds.data_vars if v in ['dy','dy_u','dy_v','dy_psi']]
-        metrics.update({('y',): dy})
+    if all(d in ds.dims for d in ["y", "y_v"]):
+        dy = [v for v in ds.data_vars if v in ["dy", "dy_u", "dy_v", "dy_psi"]]
+        metrics.update({("y",): dy})
     # add area metrics
-    if all(d in ds.dims for d in ['x','x_u','y','y_v']):        
-        rA = [v for v in ds.data_vars if v in ['rAr','rAu','rAv','rAf']]
-        metrics.update({('x', 'y'): rA})
-    
-    if grid_metrics==1:
+    if all(d in ds.dims for d in ["x", "x_u", "y", "y_v"]):
+        rA = [v for v in ds.data_vars if v in ["rAr", "rAu", "rAv", "rAf"]]
+        metrics.update({("x", "y"): rA})
+
+    if grid_metrics == 1:
         # generate xgcm grid
-        grid = Grid(ds,
-                    coords=coords,
-                    periodic=False,
-                    metrics=metrics,
-                    boundary='extend')
+        grid = Grid(
+            ds, coords=coords, periodic=False, metrics=metrics, boundary="extend"
+        )
         return grid
 
     # Set z variables as coordinates
-    _coords = [d for d in ds.data_vars.keys() if d in ['z','z_w','z_u','z_v','z_p']]
+    _coords = [d for d in ds.data_vars.keys() if d in ["z", "z_w", "z_u", "z_v", "z_p"]]
     ds = ds.set_coords(_coords)
 
     # add vertical metrics
     # move vertical metrics from global attributes to variables
-    attrs = [k for k in ds.attrs.keys() if k.startswith(('dz'))]
+    attrs = [k for k in ds.attrs.keys() if k.startswith("dz")]
     if attrs is not None:
-        for k in attrs: ds[k] = ds.attrs[k]
+        for k in attrs:
+            ds[k] = ds.attrs[k]
     # add dz metrics
-    if all(d in ds.dims for d in ['s','s_w']):        
-        dz = [v for v in ds.data_vars if v in ['dz', 'dz_u', 'dz_v', 'dz_p', 'dz_w']]
-        metrics.update({('z',): dz})
-    
+    if all(d in ds.dims for d in ["s", "s_w"]):
+        dz = [v for v in ds.data_vars if v in ["dz", "dz_u", "dz_v", "dz_p", "dz_w"]]
+        metrics.update({("z",): dz})
+
     # generate xgcm grid
-    grid = Grid(ds,
-                coords=coords,
-                periodic=False,
-                metrics=metrics,
-                boundary='extend')
+    grid = Grid(ds, coords=coords, periodic=False, metrics=metrics, boundary="extend")
 
     return grid
-    
+
+
 def dll_dist(dlon, dlat, lon, lat):
     """
     Converts lat/lon differentials into distances in meters
@@ -437,10 +446,9 @@ def dll_dist(dlon, dlat, lon, lat):
         dy : xarray.DataArray distance inferred from dlat
     """
     distance_1deg_equator = 111000.0
-    dx = dlon * np.cos(np.deg2rad(lat)) * distance_1deg_equator 
+    dx = dlon * np.cos(np.deg2rad(lat)) * distance_1deg_equator
     dy = ((lon * 0) + 1) * dlat * distance_1deg_equator
     return dx, dy
-
 
 
 def adjust_grid(model, ds):
@@ -452,19 +460,19 @@ def adjust_grid(model, ds):
     Return :
         DataSet : changed dataset
     """
-   
-    for k,v in model.rename_vars.items():
+
+    for k, v in model.rename_vars.items():
         if k in ds or k in ds.dims.keys():
             if v in ds and k != v:
                 ds = ds.drop(k)
             else:
                 ds = ds.rename({k: v})
     # change names in attributes
-    for k,v in model.rename_vars.items():
-        if (k in ds.attrs and v not in ds.attrs):
+    for k, v in model.rename_vars.items():
+        if k in ds.attrs and v not in ds.attrs:
             ds.attrs[v] = ds.attrs.pop(k)
     return ds
-    
+
 
 def get_spatial_dims(v):
     """Return an ordered dict of spatial dimensions in the s, y, x order
@@ -474,16 +482,20 @@ def get_spatial_dims(v):
         Dictionary : ordered dimensions
     """
     if isinstance(v, xr.DataArray):
-        dims = OrderedDict( (d, next((x for x in v.dims if x[0]==d), None))
-                        for d in ['s','y','x'] )
+        dims = OrderedDict(
+            (d, next((x for x in v.dims if x[0] == d), None)) for d in ["s", "y", "x"]
+        )
     elif isinstance(v, xr.Dataset):
         # dims = OrderedDict( (d, next((x for x in v.dims if x==d), None))
-        dims = OrderedDict( (d, [x for x in v.dims if x[0]==d])
-                        for d in ['s','y','x'] ) 
+        dims = OrderedDict(
+            (d, [x for x in v.dims if x[0] == d]) for d in ["s", "y", "x"]
+        )
         # convert empty list to None
-        dims = {k: None if not d else d for k, d in dims.items() }
+        dims = {k: None if not d else d for k, d in dims.items()}
     else:
-        print('get_spatial_dims: ERROR!!! the argument must be a DataArray or a Dataset')
+        print(
+            "get_spatial_dims: ERROR!!! the argument must be a DataArray or a Dataset"
+        )
     return dims
 
 
@@ -494,10 +506,13 @@ def get_spatial_coords(v):
     Return:
         Dictionary: ordered coordinates
     """
-    coords = OrderedDict( (d, next((x for x in v.coords if x.startswith(d)), None))
-                       for d in ['z','lat','lon'] )
-    for k,c in coords.items():
-        if c is not None and v.coords[c].size==1: coords[k]= None
+    coords = OrderedDict(
+        (d, next((x for x in v.coords if x.startswith(d)), None))
+        for d in ["z", "lat", "lon"]
+    )
+    for k, c in coords.items():
+        if c is not None and v.coords[c].size == 1:
+            coords[k] = None
     return coords
 
 
@@ -527,16 +542,16 @@ def order_dims(var):
             # for dim in ["T", "Z", "Y", "X"]
             # if dim in var.reset_coords(drop=True).cf.axes
             dim
-            for dim in ["t", "s", "s_w", "z", "z_u", "z_v", "y", "y_v" "x", "x_u"]
+            for dim in ["t", "s", "s_w", "z", "z_u", "z_v", "y", "y_v", "x", "x_u"]
             if dim in var.dims
         ]
     )
 
 
-def reorder_dims(da):    
-    # reorder spatial dimensions and place them last
+def reorder_dims(da):
+    """ reorder spatial dimensions and place them last """
     sdims = list(get_spatial_dims(da).values())
-    sdims = tuple(filter(None,sdims)) # delete None values
+    sdims = tuple(filter(None, sdims))  # delete None values
     reordered_dims = tuple(d for d in da.dims if d not in sdims) + sdims
     return da.transpose(*reordered_dims, transpose_coords=True)
 
@@ -619,10 +634,10 @@ def to_u(v, grid, hboundary="extend", hfill_value=None):
         v = grid.interp(v, "y")
         for k, c in coords.items():
             v.coords[c] = grid.interp(vout.coords[c], "y")
-            
-    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
-    for k,c in coords.items():
-        v = v.rename({c:c[0:4]+"_u"})
+
+    coords = {k: v for k, v in coords.items() if v[0:3] in ["lon", "lat"]}
+    for k, c in coords.items():
+        v = v.rename({c: c[0:4] + "_u"})
 
     return v
 
@@ -664,10 +679,10 @@ def to_v(v, grid, hboundary="extend", hfill_value=None):
         v = grid.interp(v, "y")
         for k, c in coords.items():
             v.coords[c] = grid.interp(vout.coords[c], "y")
-            
-    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
-    for k,c in coords.items():
-        v = v.rename({c:c[0:4]+"_v"})
+
+    coords = {k: v for k, v in coords.items() if v[0:3] in ["lon", "lat"]}
+    for k, c in coords.items():
+        v = v.rename({c: c[0:4] + "_v"})
 
     return v
 
@@ -709,10 +724,10 @@ def to_psi(v, grid, hboundary="extend", hfill_value=None):
         v = grid.interp(v, "y")
         for k, c in coords.items():
             v.coords[c] = grid.interp(vout.coords[c], "y")
-            
-    coords = {k: v for k, v in coords.items() if v[0:3] in ['lon', 'lat']}
-    for k,c in coords.items():
-        v = v.rename({c:c[0:4]+"_p"})
+
+    coords = {k: v for k, v in coords.items() if v[0:3] in ["lon", "lat"]}
+    for k, c in coords.items():
+        v = v.rename({c: c[0:4] + "_p"})
     return v
 
 
@@ -867,10 +882,14 @@ def to_grid_point(
         attrs["long_name"] = attrs.setdefault("long_name", "var")
 
     if hcoord is not None:
-        assert hcoord in ["rho", "r", "psi", "p", "u", "v"], (
-            'hcoord should be "rho" or "r" or "psi" or "p" or "u" or "v" but is "%s"'
-            % hcoord
-        )
+        assert hcoord in [
+            "rho",
+            "r",
+            "psi",
+            "p",
+            "u",
+            "v",
+        ], f'hcoord should be "rho" or "r" or "psi" or "p" or "u" or "v" but is "{hcoord}"'
         if hcoord in ["rho", "r"]:
             var = to_rho(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
         elif hcoord in ["psi", "p"]:
@@ -881,9 +900,13 @@ def to_grid_point(
             var = to_v(var, xgrid, hboundary=hboundary, hfill_value=hfill_value)
 
     if vcoord is not None:
-        assert vcoord in ["s_rho", "rho", "r", "s_w", "w"], (
-            'vcoord should be "s_rho", "rho", "r", "s_w", or "w" but is "%s"' % vcoord
-        )
+        assert vcoord in [
+            "s_rho",
+            "rho",
+            "r",
+            "s_w",
+            "w",
+        ], f'vcoord should be "s_rho", "rho", "r", "s_w", or "w" but is "{vcoord}"'
         if vcoord in ["s_rho", "rho", "r"]:
             var = to_s_rho(var, xgrid, vboundary=vboundary, vfill_value=vfill_value)
         elif vcoord in ["s_w", "w"]:
@@ -896,8 +919,9 @@ def to_grid_point(
     return var
 
 
-def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
-          hgrid='r', vtransform=2):
+def get_z(
+    model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid="r", hgrid="r", vtransform=2
+):
     """Compute vertical coordinates
     Spatial dimensions are placed last, in the order: s/s_w, y, x
 
@@ -926,45 +950,46 @@ def get_z(model, ds=None, z_sfc=None, h=None, xgrid=None, vgrid='r',
     ds = model.ds if ds is None else ds
 
     h = ds.h if h is None else h
-    z_sfc = 0*ds.h if z_sfc is None else z_sfc
-    
+    z_sfc = 0 * ds.h if z_sfc is None else z_sfc
+
     # zeta fix for wet-dry
     if hasattr(ds, "Dcrit"):
         z_sfc = z_sfc.where(z_sfc > (ds.Dcrit - h), ds.Dcrit - h)
 
     # switch horizontal grid if needed
-    if hgrid in ['u','v','p']:
-        h = to_grid_point(h, xgrid, hcoord=hgrid,vcoord=vgrid)
-        z_sfc = to_grid_point(z_sfc, xgrid, hcoord=hgrid,vcoord=vgrid)
+    if hgrid in ["u", "v", "p"]:
+        h = to_grid_point(h, xgrid, hcoord=hgrid, vcoord=vgrid)
+        z_sfc = to_grid_point(z_sfc, xgrid, hcoord=hgrid, vcoord=vgrid)
 
     # align datasets (z_sfc may contain a slice along one dimension for example)
-    h, z_sfc  = xr.align(h, z_sfc, join='inner')
+    h, z_sfc = xr.align(h, z_sfc, join="inner")
 
-    if vgrid in ['r', 'rho']:
-        vgrid = 'r'
-        sc = ds['sc_r']
-        cs = ds['Cs_r']
+    if vgrid in ["r", "rho"]:
+        vgrid = "r"
+        sc = ds["sc_r"]
+        cs = ds["Cs_r"]
     else:
-        sc = ds['sc_'+vgrid]
-        cs = ds['Cs_'+vgrid]
+        sc = ds["sc_" + vgrid]
+        cs = ds["Cs_" + vgrid]
 
-    hc = ds['hc']
+    hc = ds["hc"]
 
+    z = None
     if vtransform == 1:
-        z0 = hc*sc + (h-hc)*cs
-        z = z0 + (1+z0/h) * z_sfc
+        z0 = hc * sc + (h - hc) * cs
+        z = z0 + (1 + z0 / h) * z_sfc
     elif vtransform == 2:
         z0 = (hc * sc + np.abs(h) * cs) / (hc + np.abs(h))
         z = z0 * (z_sfc + h) + z_sfc
 
     # reorder spatial dimensions and place them last
     sdims = list(get_spatial_dims(z).values())
-    sdims = tuple(filter(None,sdims)) # delete None values
+    sdims = tuple(filter(None, sdims))  # delete None values
     reordered_dims = tuple(d for d in z.dims if d not in sdims) + sdims
-    z = z.transpose(*reordered_dims, transpose_coords=True).rename('z_'+hgrid)
-    z.name = z.name.replace('z_r','z_'+vgrid)
-    
-    return z.fillna(0.) #.rename('z_'+hgrid).replace('z_r','z_'+vgrid)
+    z = z.transpose(*reordered_dims, transpose_coords=True).rename("z_" + hgrid)
+    z.name = z.name.replace("z_r", "z_" + vgrid)
+
+    return z.fillna(0.0)  # .rename('z_'+hgrid).replace('z_r','z_'+vgrid)
 
 
 def rot_uv(u, v, angle, xgrid):
@@ -1021,7 +1046,6 @@ def rot_uv(u, v, angle, xgrid):
     return [urot.rename("urot"), vrot.rename("vrot")]
 
 
-
 def hgrad(
     q,
     xgrid,
@@ -1037,7 +1061,8 @@ def hgrad(
 ):
     """Return gradients of property q accounting for s coordinates.
 
-    Note that you need the 3D metrics for horizontal derivatives for ROMS, so ``include_3D_metrics=True`` in ``xroms.roms_dataset()``.
+    Note that you need the 3D metrics for horizontal derivatives for
+    ROMS, so ``include_3D_metrics=True`` in ``xroms.roms_dataset()``.
 
     Parameters
     ----------
@@ -1123,11 +1148,11 @@ def hgrad(
 
     assert isinstance(q, xr.DataArray), "var must be DataArray"
 
-    if not [dim for dim in q.dims if dim.startswith('s')]:
+    if not [dim for dim in q.dims if dim.startswith("s")]:
         is3D = False
     else:
         is3D = True
-        
+
     if is3D and z is None:
         try:
             coords = list(q.coords)
@@ -1212,9 +1237,7 @@ def hgrad(
             dqdy = dqdy * dzdz - dqdz * dzdy
 
         else:  # 2D variables
-            dqdy = xgrid.derivative(
-                q, "y", boundary=hboundary, fill_value=hfill_value
-            )
+            dqdy = xgrid.derivative(q, "y", boundary=hboundary, fill_value=hfill_value)
 
         if attrs is None and isinstance(q, xr.DataArray):
             attrs = q.attrs.copy()
@@ -1226,13 +1249,13 @@ def hgrad(
 
     if which == "both":
         return dqdx, dqdy
-    elif which == "x":
+    if which == "x":
         return dqdx
-    elif which == "y":
+    if which == "y":
         return dqdy
-    else:
-        print("nothing being returned from hgrad")
-        
+    print("nothing being returned from hgrad")
+    return None
+
 
 def get_grid_point(var):
     """Get the horizontal and vertical grid point of a variable
@@ -1245,22 +1268,24 @@ def get_grid_point(var):
     """
     dims = var.dims
     # horizontal point
-    hpoint='r'
+    hpoint = "r"
     if "x_u" in dims:
         if "y" in dims:
-            hpoint='u'
+            hpoint = "u"
         else:
-            hpoint='f'
+            hpoint = "f"
     elif "y_v" in dims:
-        hpoint='v'
-    if 's' in dims:
-        vpoint='r'
+        hpoint = "v"
+    if "s" in dims:
+        vpoint = "r"
     else:
-        vpoint='w'
-    return hpoint,vpoint
-        
-    
-def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, depth=None):
+        vpoint = "w"
+    return hpoint, vpoint
+
+
+def slices(
+    model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, depth=None
+):
     """
     This function interpolate a 3D variable on slices at constant depths/longitude/latitude
     This function use xcgm transform method and needs xgcm.Grid to be defined over the 3 axes.
@@ -1276,87 +1301,96 @@ def slices(model, var, z, ds=None, xgrid=None, longitude=None, latitude=None, de
     Return:
         vnew    (dataArray) Horizontal slice
     """
-    from matplotlib.cbook import flatten
-  
     xgrid = model.xgrid if xgrid is None else xgrid
     ds = model.ds if ds is None else ds
-    
+
     if longitude is None and latitude is None and depth is None:
-        "Longitude or latitude or depth must be defined"
+        print("Longitude or latitude or depth must be defined")
         return None
 
     # check typ of longitude/latitude/depth
-    # longitude = longitude.tolist() if isinstance(longitude,np.ndarray) else longitude
-    # longitude = [longitude] if (isinstance(longitude,int) or isinstance(longitude,float)) else longitude
-    longitude = np.asarray(longitude) if isinstance(longitude,list) else longitude
-    longitude = np.asarray([longitude]) if (isinstance(longitude,int) or isinstance(longitude,float)) else longitude
+    longitude = np.asarray(longitude) if isinstance(longitude, list) else longitude
+    longitude = (
+        np.asarray([longitude]) if (isinstance(longitude, (int, float))) else longitude
+    )
 
-    # latitude = latitude.tolist() if isinstance(latitude,np.ndarray) else latitude
-    # latitude = [latitude] if (isinstance(latitude,int) or isinstance(latitude,float)) else latitude
-    latitude = np.asarray(latitude) if isinstance(latitude,list) else latitude
-    latitude = np.asarray([latitude]) if (isinstance(latitude,int) or isinstance(latitude,float)) else latitude
+    latitude = np.asarray(latitude) if isinstance(latitude, list) else latitude
+    latitude = (
+        np.asarray([latitude]) if (isinstance(latitude, (int, float))) else latitude
+    )
 
-    # depth = depth.tolist() if isinstance(depth,np.ndarray) else depth
-    # depth = [depth] if (isinstance(depth,int) or isinstance(depth,float)) else depth
-    depth = np.asarray(depth) if isinstance(depth,list) else depth
-    depth = np.asarray([depth]) if (isinstance(depth,int) or isinstance(depth,float)) else depth
+    depth = np.asarray(depth) if isinstance(depth, list) else depth
+    depth = np.asarray([depth]) if (isinstance(depth, (int, float))) else depth
 
-     # Find dimensions and coordinates of the variable
+    # Find dimensions and coordinates of the variable
     dims = get_spatial_dims(var)
     coords = get_spatial_coords(var)
-    if dims['s'] is not None and coords['z'] is None: 
-        var = var.assign_coords(coords={'z':z})
+    if dims["s"] is not None and coords["z"] is None:
+        var = var.assign_coords(coords={"z": z})
         coords = get_spatial_coords(var)
     # hgrid,vgrid = get_grid_point(var)
 
     if longitude is not None:
-        axe = 'x'
-        coord_ref = coords['lon']
-        coord_x = coords['lat']
-        coord_y = coords['z']
+        axe = "x"
+        coord_ref = coords["lon"]
+        coord_x = coords["lat"]
+        coord_y = coords["z"]
         slices_values = longitude
     elif latitude is not None:
-        axe = 'y'
-        coord_ref = coords['lat']
-        coord_x = coords['lon']
-        coord_y = coords['z']
+        axe = "y"
+        coord_ref = coords["lat"]
+        coord_x = coords["lon"]
+        coord_y = coords["z"]
         slices_values = latitude
     else:
-        axe = 'z'
-        coord_ref = coords['z']
-        coord_x = coords['lon']
-        coord_y = coords['lat']
+        axe = "z"
+        coord_ref = coords["z"]
+        coord_x = coords["lon"]
+        coord_y = coords["lat"]
         slices_values = depth
 
     # Recursively loop over time if needed
     if len(var.squeeze().dims) == 4:
-        vnew = [slices(model, var.isel(t=t), z.isel(t=t), ds=ds, xgrid=xgrid,
-                      longitude=longitude, latitude=latitude, depth=depth)
-                      for t in range(len(var.t))]
-        vnew = xr.concat(vnew, dim='t')
+        vnew = [
+            slices(
+                model,
+                var.isel(t=t),
+                z.isel(t=t),
+                ds=ds,
+                xgrid=xgrid,
+                longitude=longitude,
+                latitude=latitude,
+                depth=depth,
+            )
+            for t in range(len(var.t))
+        ]
+        vnew = xr.concat(vnew, dim="t")
     else:
-        vnew = xgrid.transform(var, axe, slices_values,
-                               target_data=var[coord_ref]).squeeze()
+        vnew = xgrid.transform(
+            var, axe, slices_values, target_data=var[coord_ref]
+        ).squeeze()
     # Do the linear interpolation
     if not depth:
-        x = xgrid.transform(var[coord_x], axe, slices_values,
-                                   target_data=var[coord_ref]).squeeze() #\
-                     #.expand_dims({dims['s']: len(var[dims['s']])})            
-        vnew = vnew.assign_coords(coords={coord_x:x})
+        x = xgrid.transform(
+            var[coord_x], axe, slices_values, target_data=var[coord_ref]
+        ).squeeze()  # \
+        # .expand_dims({dims['s']: len(var[dims['s']])})
+        vnew = vnew.assign_coords(coords={coord_x: x})
 
-        #y = xgrid.transform(var[coord_y], axe, slices_values,
-        if dims['s'] is not None:
-            y = xgrid.transform(z, axe, slices_values,
-                                       target_data=var[coord_ref]).squeeze()
+        # y = xgrid.transform(var[coord_y], axe, slices_values,
+        if dims["s"] is not None:
+            y = xgrid.transform(
+                z, axe, slices_values, target_data=var[coord_ref]
+            ).squeeze()
             # Add the coordinates to dataArray
-            vnew = vnew.assign_coords(coords={coord_y:y})
+            vnew = vnew.assign_coords(coords={coord_y: y})
     else:
         # Add the coordinates to dataArray
-        vnew = vnew.assign_coords(coords={coord_x:var[coord_x]})
-        vnew = vnew.assign_coords(coords={coord_y:var[coord_y]})
+        vnew = vnew.assign_coords(coords={coord_x: var[coord_x]})
+        vnew = vnew.assign_coords(coords={coord_y: var[coord_y]})
 
-#     return vnew.squeeze().unify_chunks().fillna(0.)  #unify_chunks() 
-    return vnew.squeeze().fillna(0.)  #unify_chunks()   
+    #     return vnew.squeeze().unify_chunks().fillna(0.)  #unify_chunks()
+    return vnew.squeeze().fillna(0.0)  # unify_chunks()
 
 
 def isoslice(var, target, xgrid, target_data=None, axis="z"):
@@ -1520,9 +1554,8 @@ def isoslice(var, target, xgrid, target_data=None, axis="z"):
     return transformed
 
 
-
 def cross_section(grid, da, lon1, lat1, lon2, lat2, dlon=None):
-    """ Extract a section between 2 geographic points
+    """Extract a section between 2 geographic points
 
     Args:
         grid (XGCM grid): the XGCM grid associated
@@ -1536,75 +1569,95 @@ def cross_section(grid, da, lon1, lat1, lon2, lat2, dlon=None):
     Returns:
         DataArray: new section
     """
-    
+
     # check input parameters
-    if not isinstance(grid,Grid): print('grid must be a xgcm grid'); return None
-    if not isinstance(da,xr.DataArray): print('da must be a xarray DataArray'); return None
+    if not isinstance(grid, Grid):
+        print("grid must be a xgcm grid")
+        return None
+    if not isinstance(da, xr.DataArray):
+        print("da must be a xarray DataArray")
+        return None
     dims = get_spatial_dims(da)
     coords = get_spatial_coords(da)
-    if coords['lon'] is None or coords['lat'] is None:
-        print('da must have longitude AND latitude coordinates')
+    if coords["lon"] is None or coords["lat"] is None:
+        print("da must have longitude AND latitude coordinates")
         return None
-    if not isinstance(lon1,(int,float)): print('lon1 must be a float'); return None
-    if not isinstance(lat1,(int,float)): print('lat1 must be a float'); return None
-    if not isinstance(lon2,(int,float)): print('lon2 must be a float'); return None
-    if not isinstance(lat2,(int,float)): print('lat2 must be a float'); return None
-    if dlon is not None and not isinstance(dlon,(int,float)): print('dlon must be a number'); return None
-           
+    if not isinstance(lon1, (int, float)):
+        print("lon1 must be a float")
+        return None
+    if not isinstance(lat1, (int, float)):
+        print("lat1 must be a float")
+        return None
+    if not isinstance(lon2, (int, float)):
+        print("lon2 must be a float")
+        return None
+    if not isinstance(lat2, (int, float)):
+        print("lat2 must be a float")
+        return None
+    if dlon is not None and not isinstance(dlon, (int, float)):
+        print("dlon must be a number")
+        return None
+
     # compute the linear function from the two points
-    a = (lat2 - lat1)/(lon2 - lon1)
-    b = lat1 - a*lon1
-    
+    a = (lat2 - lat1) / (lon2 - lon1)
+    b = lat1 - a * lon1
+
     # get the longitude interval of the new grid , compute the new longitude grid
     if dlon is None:
-        dlon = ((da[coords['lon']].max().values - da[coords['lon']].min().values) /
-                da[coords['lon']].sizes[dims['x']])
-    longrd = np.arange(lon1,lon2,dlon)
-    
+        dlon = (da[coords["lon"]].max().values - da[coords["lon"]].min().values) / da[
+            coords["lon"]
+        ].sizes[dims["x"]]
+    longrd = np.arange(lon1, lon2, dlon)
+
     # compute the latitude coordinates of the new grid with the linear function
     latgrd = a * longrd + b
 
     # interpolate on the regular longitude grid
-    newda = auto_chunk(da, keep_complete_dim='x', wanted_chunk=200)
-    newda = grid.transform(newda,'x', longrd, target_data=da[coords['lon']])
-    newda = newda.rename({coords['lon']:dims['x']})
-    newlat = auto_chunk(da[coords['lat']], keep_complete_dim='x', wanted_chunk=200)
-    newlat = grid.transform(newlat, 'x', longrd, target_data=da[coords['lon']])              
-    newlat = newlat.rename({coords['lon']:dims['x']})
-    if coords['z'] is not None:
-        newz = auto_chunk(da[coords['z']], keep_complete_dim='x', wanted_chunk=200)
-        newz = grid.transform(newz,'x', longrd, target_data=da[coords['lon']]).fillna(0.)
-        newz = newz.rename({coords['lon']:dims['x']})
-        
+    newda = auto_chunk(da, keep_complete_dim="x", wanted_chunk=200)
+    newda = grid.transform(newda, "x", longrd, target_data=da[coords["lon"]])
+    newda = newda.rename({coords["lon"]: dims["x"]})
+    newlat = auto_chunk(da[coords["lat"]], keep_complete_dim="x", wanted_chunk=200)
+    newlat = grid.transform(newlat, "x", longrd, target_data=da[coords["lon"]])
+    newlat = newlat.rename({coords["lon"]: dims["x"]})
+    if coords["z"] is not None:
+        newz = auto_chunk(da[coords["z"]], keep_complete_dim="x", wanted_chunk=200)
+        newz = grid.transform(newz, "x", longrd, target_data=da[coords["lon"]]).fillna(
+            0.0
+        )
+        newz = newz.rename({coords["lon"]: dims["x"]})
+
     # interpolate on a new latitude grid
-    newda = auto_chunk(newda, keep_complete_dim='y', wanted_chunk=200)
-    newda = grid.transform(newda,'y',latgrd,target_data=newlat)
-    newda = newda.rename({coords['lat']:dims['y']})
-    if coords['z'] is not None:
-        newz = auto_chunk(newz, keep_complete_dim='y', wanted_chunk=200)
-        newz = grid.transform(newz,'y',latgrd,target_data=newlat).fillna(0.)
-        newz = newz.rename({coords['lat']:dims['y']}).fillna(0.)
-    
+    newda = auto_chunk(newda, keep_complete_dim="y", wanted_chunk=200)
+    newda = grid.transform(newda, "y", latgrd, target_data=newlat)
+    newda = newda.rename({coords["lat"]: dims["y"]})
+    if coords["z"] is not None:
+        newz = auto_chunk(newz, keep_complete_dim="y", wanted_chunk=200)
+        newz = grid.transform(newz, "y", latgrd, target_data=newlat).fillna(0.0)
+        newz = newz.rename({coords["lat"]: dims["y"]}).fillna(0.0)
+
     # extract the cross section
-    crossda = []; crossz=[]
-    for lon,lat in zip(longrd,latgrd):
-        crossda.append(newda.loc[{dims['x']:lon}].loc[{dims['y']:lat}])
-        if coords['z'] is not None:
-            crossz.append(newz.loc[{dims['x']:lon}].loc[{dims['y']:lat}])
+    crossda = []
+    crossz = []
+    for lon, lat in zip(longrd, latgrd):
+        crossda.append(newda.loc[{dims["x"]: lon}].loc[{dims["y"]: lat}])
+        if coords["z"] is not None:
+            crossz.append(newz.loc[{dims["x"]: lon}].loc[{dims["y"]: lat}])
 
-    cross = xr.concat(crossda,dim=dims['x'])
-    if coords['z'] is not None:
-        crossz = xr.concat(crossz,dim=dims['x'])
-    
+    cross = xr.concat(crossda, dim=dims["x"])
+    if coords["z"] is not None:
+        crossz = xr.concat(crossz, dim=dims["x"])
+
     # assign the coordinates lon/lat/z to the section
-    cross = cross.assign_coords({coords['lon']:cross[dims['x']],
-                                 coords['lat']:cross[dims['y']]})
-    if coords['z'] is not None:
-        cross = cross.assign_coords({coords['z']:crossz})    
-        
-    return reorder_dims(cross.fillna(0.))
+    cross = cross.assign_coords(
+        {coords["lon"]: cross[dims["x"]], coords["lat"]: cross[dims["y"]]}
+    )
+    if coords["z"] is not None:
+        cross = cross.assign_coords({coords["z"]: crossz})
 
-def interp_regular(da,grid,axis,tgrid,rgrid=None):
+    return reorder_dims(cross.fillna(0.0))
+
+
+def interp_regular(da, grid, axis, tgrid, rgrid=None):
     """
     interpolate on a regular grid
     Args:
@@ -1616,33 +1669,33 @@ def interp_regular(da,grid,axis,tgrid,rgrid=None):
     Return:
         - (DataArray): regurlarly interpolated variable
     """
-    
+
     # check axis
-    if axis not in ['x','y','z']: 
-        print('axis must be x, y or z')
+    if axis not in ["x", "y", "z"]:
+        print("axis must be x, y or z")
         return None
-    
+
     # corresponding keys between spatial coords/dims and axes of the xgcm grid
-    refc = {'x':'lon', 'y':'lat', 'z':'z'}
-    refd = {'x':'x', 'y':'y', 'z':'s'}
-    
+    refc = {"x": "lon", "y": "lat", "z": "z"}
+    refd = {"x": "x", "y": "y", "z": "s"}
+
     # find spatial coordinates/dims of da
     coords = get_spatial_coords(da)
     coord = coords[refc[axis]]
     dims = get_spatial_dims(da)
     dim = dims[refd[axis]]
-    
+
     # initialize the reference coordinate
     if rgrid is None and coord is not None:
         rgrid = da[coord]
     else:
-        print('the reference grid is missing along the axis of interpolation')
+        print("the reference grid is missing along the axis of interpolation")
         return None
 
     # interpolate da on the regular grid
-    newvar = grid.transform(da,axis,tgrid,target_data=rgrid).rename({coord:dim})
-    
-    return reorder_dims(newvar )
+    newvar = grid.transform(da, axis, tgrid, target_data=rgrid).rename({coord: dim})
+
+    return reorder_dims(newvar)
 
 
 def haversine(lon1, lat1, lon2, lat2):
@@ -1658,19 +1711,20 @@ def haversine(lon1, lat1, lon2, lat2):
     Returns:
         float: distance in km
     """
-    # convert decimal degrees to radians 
+    # convert decimal degrees to radians
     lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
-    # haversine formula 
-    dlon = lon2 - lon1 
-    dlat = lat2 - lat1 
-    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-    c = 2 * asin(sqrt(a)) 
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    c = 2 * asin(sqrt(a))
     # Radius of earth in kilometers is 6371
-    km = 6371* c
+    km = 6371 * c
     return km
 
-    
+
 # ----------------------------- grid rechunk -----------------------------
+
 
 def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
     """
@@ -1683,44 +1737,50 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
         - object rechunked
     """
 
-    #check input parameters
-    if not isinstance(ds, (xr.Dataset,xr.DataArray)):
-        print('argument must be a xarray.DataArray or xarray.Dataset')
-        return
+    # check input parameters
+    if not isinstance(ds, (xr.Dataset, xr.DataArray)):
+        print("argument must be a xarray.DataArray or xarray.Dataset")
+        return None
     if keep_complete_dim is not None:
-        keep_complete_dim = list(keep_complete_dim) if not isinstance(keep_complete_dim,list) else keep_complete_dim
-        if not all(item in ['s','y','x'] for item in keep_complete_dim):
-            print('keep_complete_dim must equal x or y or s')
-            return
+        keep_complete_dim = (
+            list(keep_complete_dim)
+            if not isinstance(keep_complete_dim, list)
+            else keep_complete_dim
+        )
+        if not all(item in ["s", "y", "x"] for item in keep_complete_dim):
+            print("keep_complete_dim must equal x or y or s")
+            return None
 
     # get horizontal dimensions names of the Dataset/DataArray
     dname = get_spatial_dims(ds)
     # remove None values
     dname = {k: v for k, v in dname.items() if v is not None}
     chunks_name = dname.copy()
-    
+
     # get max dimensions sizes of the Dataset/DataArray
-    chunks_size={}
-    for k,v in chunks_name.items():
-        if isinstance(v,list):       # for a dataset
-            chunks_size[k] = max([ds.sizes[d] for d in v])
+    chunks_size = {}
+    for k, v in chunks_name.items():
+        if isinstance(v, list):  # for a dataset
+            chunks_size[k] = max(ds.sizes[d] for d in v)
         else:
             chunks_size[k] = ds.sizes[v]
 
     # always chunk in time
-    if 't' in ds.dims: chunks_size['t'] = 1
-        
+    if "t" in ds.dims:
+        chunks_size["t"] = 1
+
     if keep_complete_dim:
         # remove keep_complete_dim from the dimensions of the Dataset/DatAarray
-        for d in keep_complete_dim: del chunks_name[d]
-        
+        for d in keep_complete_dim:
+            del chunks_name[d]
+
     # reduce chunks size  beginning by 's' then 'y' then 'x' if necessary
     for k in chunks_name.keys():
-        for d in range(chunks_size[k],0,-1):
+        for d in range(chunks_size[k], 0, -1):
             # chunk_size = (chunks_size['x']*chunks_size['y']*chunks_size['s']*4 / 1.e6)
-            chunk_size = 4 / 1.e6
+            chunk_size = 4 / 1.0e6
             for chunk in chunks_size.values():
-                chunk_size = chunk_size*chunk
+                chunk_size = chunk_size * chunk
             if chunk_size > wanted_chunk:
                 chunks_size[k] = d
             else:
@@ -1728,7 +1788,7 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
         if chunk_size > wanted_chunk:
             break
 
-    if isinstance(ds,xr.Dataset):
+    if isinstance(ds, xr.Dataset):
         # set chunk for all the dimensions of the dataset (ie : x and x_u)
         for c in list(itertools.product(dname.keys(), ds.dims.keys())):
             if c[1].startswith(c[0]):
@@ -1738,6 +1798,4 @@ def auto_chunk(ds, keep_complete_dim=None, wanted_chunk=150):
         for key in dname.keys():
             chunks_size[dname[key]] = chunks_size.pop(key)
 
-        
     return ds.chunk(chunks_size)
-
