@@ -7,7 +7,7 @@ import intake
 import numpy as np
 import xarray as xr
 
-import gridop as gop
+import gridop
 
 
 def open_files(
@@ -78,7 +78,8 @@ def open_files(
                 preprocess=partial_func,
                 **open_kwargs,
             )
-        except:
+        except Exception as exc:
+            print(exc)
             try:
                 # list of files with wildcards
                 ds = xr.open_mfdataset(
@@ -87,16 +88,17 @@ def open_files(
                     preprocess=partial_func,
                     **open_kwargs,
                 )
-            except:
+            except Exception as exc:
+                print(exc)
                 print("open_files: unknown format: only Netcdf or Zarr")
                 print("or filenames do not exist")
                 return None
 
     # change the names in the dataset according to the model instance
-    model.ds = gop.adjust_grid(model, ds)
+    model.ds = gridop.adjust_grid(model, ds)
 
     # add the grid and the xgcm grid to the dataset
-    ds, grid = gop.add_grid(
+    ds, grid = gridop.add_grid(
         model,
         gridname,
         grid_metrics=grid_metrics,
@@ -174,10 +176,10 @@ def open_catalog(
         return None
 
     # change the names in the dataset according to the model instance
-    model.ds = gop.adjust_grid(model, ds)
+    model.ds = gridop.adjust_grid(model, ds)
 
     # add the grid and the xgcm grid to the dataset
-    ds, grid = gop.add_grid(
+    ds, grid = gridop.add_grid(
         model,
         gridname,
         grid_metrics=grid_metrics,
