@@ -117,7 +117,7 @@ def add_grid(
     if io.find_var(model, "pn", ds, gd) is not None:
         ds["pn"] = io.find_var(model, "pn", ds, gd)
     try:
-        N = ds.dims["s"]
+        N = ds.sizes["s"]
         if "sc_r" not in ds:
             if io.find_var(model, "sc_r", ds, gd) is not None:
                 ds["sc_r"] = io.find_var(model, "sc_r", ds, gd)
@@ -462,7 +462,7 @@ def adjust_grid(model, ds):
     """
 
     for k, v in model.rename_vars.items():
-        if k in ds or k in ds.dims.keys():
+        if k in ds or k in ds.dims:
             if v in ds and k != v:
                 ds = ds.drop(k)
             else:
